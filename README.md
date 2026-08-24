@@ -7,10 +7,18 @@ les feuilles de temps, puis exporte un fichier Excel complet pour la comptable.
 
 ## Accès
 
-- **Application** : https://ijfkttmezryvbjsuysbl.supabase.co/functions/v1/horaires
+- **Application** : https://oneadrien.github.io/horaires/
+  (l'ancienne adresse `…supabase.co/functions/v1/horaires` redirige automatiquement ici)
 - Chaque personne se connecte avec son **code PIN personnel** (communiqué en privé).
 - L'accès « Direction » ouvre l'interface d'administration ; les autres accès
   ouvrent l'interface de saisie de l'employé.
+
+> Pourquoi GitHub Pages ? Supabase bloque le rendu HTML sur son domaine
+> `*.supabase.co` (protection anti-hameçonnage ; la page s'affiche en texte
+> brut). Supabase héberge donc la base et l'API, GitHub Pages la page web.
+> Pages exige que le dépôt soit public (ou un compte GitHub payant) —
+> le dépôt ne contient aucun secret : pas de PIN, pas de données, et la clé
+> `anon` est publique par conception.
 
 ## Ce que fait l'application
 
@@ -40,9 +48,10 @@ les feuilles de temps, puis exporte un fichier Excel complet pour la comptable.
 
 | Élément | Où | Rôle |
 |---|---|---|
-| Base de données | Supabase (projet `horaires`, région Zurich) | tables `employes`, `pointages`, `sessions`, `parametres`, `pages` |
+| Base de données | Supabase (projet `horaires`, région Zurich) | tables `employes`, `pointages`, `sessions`, `parametres` |
 | API | Fonctions SQL RPC (`supabase/migrations/`) | authentification par PIN + jeton, règles métier, validation direction |
-| Interface | `app/index.html` (une seule page) | servie par la fonction Edge `horaires` depuis la table `pages` |
+| Interface | `app/index.html` → construit dans `docs/` | servi par GitHub Pages (branche du projet, dossier `/docs`) |
+| Ancienne adresse | Fonction Edge `horaires` | simple redirection 302 vers GitHub Pages |
 | Excel | xlsx-js-style (CDN, dans le navigateur) | génération du fichier pour la comptable |
 
 Sécurité : RLS activé **sans policy** sur toutes les tables → aucune lecture ni
@@ -53,12 +62,19 @@ sont stockés hachés (bcrypt). Anti-force-brute : 20 tentatives/minute maximum.
 ## Mettre à jour l'interface
 
 1. Modifier `app/index.html` (les valeurs `__SUPABASE_URL__` / `__ANON_KEY__`
-   sont remplacées à la publication).
-2. Publier : `DEPLOY_SECRET=... python3 scripts/publier_page.py`
-   (le secret est dans la table `parametres`, clé `deploy_secret`,
-   visible dans le tableau de bord Supabase → Table Editor).
+   sont remplacées à la construction).
+2. Reconstruire : `python3 scripts/publier_page.py` (écrit `docs/index.html`).
+3. Committer et pousser : GitHub Pages republie automatiquement en ~1 minute.
 
-Pas besoin de redéployer la fonction Edge : elle relit la page toutes les 60 s.
+## Activer GitHub Pages (une seule fois)
+
+1. GitHub → dépôt `horaires` → **Settings** → **General** → « Danger Zone » →
+   **Change visibility** → *Public* (inutile avec un compte GitHub payant).
+2. **Settings** → **Pages** → « Build and deployment » → Source :
+   *Deploy from a branch* → Branch : `claude/employee-schedule-system-jekf2k`,
+   dossier `/docs` → **Save**.
+3. Après ~1-2 minutes, l'application est en ligne sur
+   https://oneadrien.github.io/horaires/
 
 ## Maintien en éveil (important, plan gratuit)
 
