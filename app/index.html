@@ -500,25 +500,29 @@ function renderEmp() {
     $('emp-chips').innerHTML += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
   }
 
-  // Carte pointer (mois courant uniquement)
+  // Carte « Journée type » : un appui enregistre la journée standard du jour même.
   const maintenant = new Date();
   const moisCourant = maintenant.getFullYear() === S.annee && (maintenant.getMonth() + 1) === S.mois;
   $('carte-pointer').hidden = !moisCourant;
   if (moisCourant) {
-    const p = map[auj] || {};
-    const slot = p.approuve ? null : prochaineCase(p);
-    if (p.approuve) {
+    const p = map[auj] || null;
+    const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
+      ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:24');
+    const [anj, moj, jrj] = auj.split('-').map(Number);
+    const jsAuj = new Date(anj, moj - 1, jrj).getDay();
+    if (p && p.approuve) {
       $('btn-pointer').disabled = true;
       $('btn-pointer').textContent = '✓ Journée validée par la direction';
       $('pointer-info').textContent = '';
-    } else if (slot) {
-      $('btn-pointer').disabled = false;
-      $('btn-pointer').innerHTML = '▶ Pointer « ' + slot.libelle + ' » · <span class="heure-actuelle">' + maintenantHM() + '</span>';
-      $('pointer-info').textContent = 'Un seul geste : l’heure actuelle est enregistrée.';
-    } else {
+    } else if (p) {
+      const min = jourMin(p);
       $('btn-pointer').disabled = true;
-      $('btn-pointer').textContent = '✓ Journée complète';
-      $('pointer-info').textContent = 'Tous les pointages du jour sont remplis.';
+      $('btn-pointer').textContent = '✓ Aujourd’hui saisi' + (min ? ' · ' + fmtMin(min) : '');
+      $('pointer-info').textContent = 'Pour corriger, touchez le jour dans la liste.';
+    } else {
+      $('btn-pointer').disabled = false;
+      $('btn-pointer').textContent = 'Journée type';
+      $('pointer-info').textContent = JS_LONG[jsAuj] + ' ' + jrj + ' ' + MOIS[moj - 1] + ' — enregistre ' + lib;
     }
   }
 
@@ -536,37 +540,17 @@ function renderEmp() {
     b.addEventListener('click', () => ouvrirJour(S.moi.id, b.dataset.jour)));
 }
 
-function prochaineCase(p) {
-  const apresMidi = new Date().getHours() * 60 + new Date().getMinutes() >= 12 * 60 + 30;
-  const mt = p.matin_type || 'travail', at = p.apm_type || 'travail';
-  const cases = [];
-  if (mt === 'travail') {
-    cases.push({ champ: 'matin_debut', libelle: 'Début matin' }, { champ: 'matin_fin', libelle: 'Fin matin' });
-  }
-  if (at === 'travail') {
-    cases.push({ champ: 'apm_debut', libelle: 'Début après-midi' }, { champ: 'apm_fin', libelle: 'Fin après-midi' });
-  }
-  // L'après-midi, si le matin est resté entièrement vide, on pointe l'après-midi.
-  if (apresMidi && mt === 'travail' && at === 'travail' && !p.matin_debut && !p.matin_fin) {
-    return !p.apm_debut ? { champ: 'apm_debut', libelle: 'Début après-midi' } :
-           !p.apm_fin ? { champ: 'apm_fin', libelle: 'Fin après-midi' } : null;
-  }
-  for (const c of cases) if (!p[c.champ]) return c;
-  return null;
-}
-async function pointerMaintenant() {
+async function journeeTypeAujourdhui() {
   const auj = aujourdhui();
-  const p = (ptgMap()[S.moi.id] || {})[auj] || {};
-  const slot = prochaineCase(p);
-  if (!slot) return;
+  if ((ptgMap()[S.moi.id] || {})[auj]) return; // déjà saisi : on ne remplace rien
   const args = {
     p_token: S.token, p_jour: auj,
-    p_matin_type: p.matin_type || 'travail', p_matin_debut: p.matin_debut || null, p_matin_fin: p.matin_fin || null,
-    p_apm_type: p.apm_type || 'travail', p_apm_debut: p.apm_debut || null, p_apm_fin: p.apm_fin || null,
-    p_remarque: p.remarque || ''
+    p_matin_type: 'travail',
+    p_matin_debut: S.moi.matin_debut_def || '08:00', p_matin_fin: S.moi.matin_fin_def || '12:00',
+    p_apm_type: 'travail',
+    p_apm_debut: S.moi.apm_debut_def || '13:00', p_apm_fin: S.moi.apm_fin_def || '17:24',
+    p_remarque: ''
   };
-  const cle = { matin_debut: 'p_matin_debut', matin_fin: 'p_matin_fin', apm_debut: 'p_apm_debut', apm_fin: 'p_apm_fin' }[slot.champ];
-  args[cle] = maintenantHM();
   $('btn-pointer').disabled = true;
   try {
     const res = await rpc('enregistrer_jour', args);
@@ -576,7 +560,7 @@ async function pointerMaintenant() {
       await charger();
       return;
     }
-    toast('✓ ' + slot.libelle + ' : ' + args[cle]);
+    toast('✓ Journée type enregistrée pour aujourd’hui');
     await charger();
   } catch (e) { toast(e.message); $('btn-pointer').disabled = false; }
 }
@@ -688,14 +672,23 @@ async function supprimerJour() {
     await charger();
   } catch (e) { toast(e.message); }
 }
+function empEnCours() {
+  return S.moi.role === 'admin' ? (S.employes.find(x => x.id === MJ.empId) || S.moi) : S.moi;
+}
+function defPour(champ) {
+  const e = empEnCours();
+  return {
+    'mj-md': e.matin_debut_def || '08:00', 'mj-mf': e.matin_fin_def || '12:00',
+    'mj-ad': e.apm_debut_def || '13:00', 'mj-af': e.apm_fin_def || '17:24'
+  }[champ];
+}
 function journeeType() {
   if (MJ.verrou) return;
-  const e = S.moi.role === 'admin' ? (S.employes.find(x => x.id === MJ.empId) || S.moi) : S.moi;
   MJ.matin = 'travail'; MJ.apm = 'travail';
-  $('mj-md').value = e.matin_debut_def || '07:30';
-  $('mj-mf').value = e.matin_fin_def || '12:00';
-  $('mj-ad').value = e.apm_debut_def || '13:00';
-  $('mj-af').value = e.apm_fin_def || '17:00';
+  $('mj-md').value = defPour('mj-md');
+  $('mj-mf').value = defPour('mj-mf');
+  $('mj-ad').value = defPour('mj-ad');
+  $('mj-af').value = defPour('mj-af');
   majChips();
 }
 
@@ -808,10 +801,10 @@ function ouvrirEmp(id) {
   $('me-prenom').value = e ? e.prenom : '';
   $('me-nom').value = e ? e.nom : '';
   $('me-metier').value = e ? e.metier : '';
-  $('me-md').value = e ? e.matin_debut_def : '07:30';
+  $('me-md').value = e ? e.matin_debut_def : '08:00';
   $('me-mf').value = e ? e.matin_fin_def : '12:00';
   $('me-ad').value = e ? e.apm_debut_def : '13:00';
-  $('me-af').value = e ? e.apm_fin_def : '17:00';
+  $('me-af').value = e ? e.apm_fin_def : '17:24';
   $('me-pin').value = '';
   $('me-actif').checked = e ? e.actif : true;
   $('voile-emp').classList.add('ouvert');
@@ -987,7 +980,15 @@ function init() {
   initLogin();
   chipsTypes('mj-types-m', 'matin');
   chipsTypes('mj-types-a', 'apm');
-  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => $(id).addEventListener('input', majTotalApercu));
+  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => {
+    $(id).addEventListener('input', majTotalApercu);
+    // Champ vide touché → on propose directement l'heure de la journée type.
+    $(id).addEventListener('focus', () => {
+      if (MJ.verrou || $(id).value) return;
+      $(id).value = defPour(id);
+      majTotalApercu();
+    });
+  });
   document.querySelectorAll('.now').forEach(b =>
     b.addEventListener('click', () => { if (MJ.verrou) return; $(b.dataset.cible).value = maintenantHM(); majTotalApercu(); }));
   $('mj-defaut').addEventListener('click', journeeType);
@@ -997,7 +998,7 @@ function init() {
   $('mj-approuver').addEventListener('click', approuverJour);
   $('me-annuler').addEventListener('click', () => $('voile-emp').classList.remove('ouvert'));
   $('me-save').addEventListener('click', sauverEmp);
-  $('btn-pointer').addEventListener('click', pointerMaintenant);
+  $('btn-pointer').addEventListener('click', journeeTypeAujourdhui);
   $('btn-sortir-emp').addEventListener('click', deconnexion);
   $('btn-sortir-adm').addEventListener('click', deconnexion);
   $('emp-prev').addEventListener('click', () => moisNav(-1));
