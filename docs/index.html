@@ -89,6 +89,9 @@ h1{font-size:22px;font-weight:700}
 .jour-ligne .rem{font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jour-ligne .tot{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
 .jour-ligne .vide{color:#cbd5e1}
+.plier{display:block;width:100%;text-align:center;font-size:13px;font-weight:600;color:var(--gris);
+  padding:11px;margin:2px 0 8px;border:1px dashed #cbd5e1;border-radius:12px}
+.plier:active{background:#eef2f5}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;color:#fff;margin-right:4px}
 .okv{color:var(--vert);font-weight:800}
 .note-verrou{background:#ecfdf5;color:#065f46;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;text-align:center;margin-top:10px}
@@ -364,7 +367,8 @@ const S = {
   annee: new Date().getFullYear(),
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
-  ongletAdmin: 'equipe'
+  ongletAdmin: 'equipe',
+  deplieAvant: false, deplieApres: false
 };
 function ptgMap() {
   const m = {};
@@ -466,6 +470,7 @@ function moisNav(delta) {
   S.mois += delta;
   if (S.mois > 12) { S.mois = 1; S.annee++; }
   if (S.mois < 1) { S.mois = 12; S.annee--; }
+  S.deplieAvant = false; S.deplieApres = false;
   charger();
 }
 
@@ -507,7 +512,7 @@ function renderEmp() {
   if (moisCourant) {
     const p = map[auj] || null;
     const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
-      ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:24');
+      ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
     const [anj, moj, jrj] = auj.split('-').map(Number);
     const jsAuj = new Date(anj, moj - 1, jrj).getDay();
     if (p && p.approuve) {
@@ -526,7 +531,7 @@ function renderEmp() {
     }
   }
 
-  $('emp-liste').innerHTML = jours.map(j => {
+  const ligneJour = j => {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
@@ -535,9 +540,39 @@ function renderEmp() {
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
       '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') + '</div></button>';
-  }).join('');
+  };
+  let htmlListe;
+  if (moisCourant) {
+    // Aujourd'hui toujours en avant ; les autres jours se déplient à la demande.
+    const avant = jours.filter(j => j.iso < auj);
+    const apres = jours.filter(j => j.iso > auj);
+    const jAuj = jours.find(j => j.iso === auj);
+    const nSaisis = avant.filter(j => map[j.iso]).length;
+    htmlListe = '';
+    if (avant.length) {
+      htmlListe += '<button class="plier" id="plier-avant">' +
+        (S.deplieAvant ? '▾ Masquer les jours précédents'
+                       : '▸ Jours précédents (1–' + (jAuj.num - 1) + ' ' + MOIS[S.mois - 1] + ' · ' +
+                         nSaisis + ' saisi' + (nSaisis > 1 ? 's' : '') + ')') + '</button>';
+      if (S.deplieAvant) htmlListe += avant.map(ligneJour).join('');
+    }
+    if (jAuj) htmlListe += ligneJour(jAuj);
+    if (apres.length) {
+      htmlListe += '<button class="plier" id="plier-apres">' +
+        (S.deplieApres ? '▾ Masquer les jours suivants'
+                       : '▸ Jours suivants (' + (jAuj.num + 1) + '–' + jours.length + ' ' + MOIS[S.mois - 1] + ')') + '</button>';
+      if (S.deplieApres) htmlListe += apres.map(ligneJour).join('');
+    }
+  } else {
+    htmlListe = jours.map(ligneJour).join('');
+  }
+  $('emp-liste').innerHTML = htmlListe;
   $('emp-liste').querySelectorAll('.jour-ligne').forEach(b =>
     b.addEventListener('click', () => ouvrirJour(S.moi.id, b.dataset.jour)));
+  const pa = $('plier-avant');
+  if (pa) pa.addEventListener('click', () => { S.deplieAvant = !S.deplieAvant; renderEmp(); });
+  const pp = $('plier-apres');
+  if (pp) pp.addEventListener('click', () => { S.deplieApres = !S.deplieApres; renderEmp(); });
 }
 
 async function journeeTypeAujourdhui() {
@@ -548,7 +583,7 @@ async function journeeTypeAujourdhui() {
     p_matin_type: 'travail',
     p_matin_debut: S.moi.matin_debut_def || '08:00', p_matin_fin: S.moi.matin_fin_def || '12:00',
     p_apm_type: 'travail',
-    p_apm_debut: S.moi.apm_debut_def || '13:00', p_apm_fin: S.moi.apm_fin_def || '17:24',
+    p_apm_debut: S.moi.apm_debut_def || '13:00', p_apm_fin: S.moi.apm_fin_def || '17:00',
     p_remarque: ''
   };
   $('btn-pointer').disabled = true;
@@ -679,7 +714,7 @@ function defPour(champ) {
   const e = empEnCours();
   return {
     'mj-md': e.matin_debut_def || '08:00', 'mj-mf': e.matin_fin_def || '12:00',
-    'mj-ad': e.apm_debut_def || '13:00', 'mj-af': e.apm_fin_def || '17:24'
+    'mj-ad': e.apm_debut_def || '13:00', 'mj-af': e.apm_fin_def || '17:00'
   }[champ];
 }
 function journeeType() {
@@ -804,7 +839,7 @@ function ouvrirEmp(id) {
   $('me-md').value = e ? e.matin_debut_def : '08:00';
   $('me-mf').value = e ? e.matin_fin_def : '12:00';
   $('me-ad').value = e ? e.apm_debut_def : '13:00';
-  $('me-af').value = e ? e.apm_fin_def : '17:24';
+  $('me-af').value = e ? e.apm_fin_def : '17:00';
   $('me-pin').value = '';
   $('me-actif').checked = e ? e.actif : true;
   $('voile-emp').classList.add('ouvert');
@@ -867,7 +902,7 @@ function libAbsence(p) {
 }
 function feuilleEmploye(emp, map, jours, titreMois) {
   const aoa = [];
-  let present = 0, nApp = 0, dateVal = '';
+  let present = 0, nApp = 0, dateVal = '', jt = 0;
   aoa.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
   aoa.push([cel('Relevé d’heures — ' + nomComplet(emp) + (emp.metier ? ' (' + emp.metier + ')' : ''), STY.sous)]);
   aoa.push([cel('Mois : ' + titreMois, STY.sous)]);
@@ -884,6 +919,8 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     if (p) {
       present++;
       if (p.approuve) { nApp++; if (p.approuve_le) dateVal = p.approuve_le; }
+      if (demiMin(p.matin_type, p.matin_debut, p.matin_fin) > 0) jt += 0.5;
+      if (demiMin(p.apm_type, p.apm_debut, p.apm_fin) > 0) jt += 0.5;
       matin = p.matin_type !== 'travail' ? TYPES[p.matin_type] : (p.matin_debut || p.matin_fin ? (p.matin_debut || '?') + ' – ' + (p.matin_fin || '?') : '');
       apm = p.apm_type !== 'travail' ? TYPES[p.apm_type] : (p.apm_debut || p.apm_fin ? (p.apm_debut || '?') + ' – ' + (p.apm_fin || '?') : '');
       absence = libAbsence(p);
@@ -905,6 +942,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   aoa.push([cel('TOTAL', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot),
     cel(fmtMin(totMin), STY.totv), cel(fmtDec(totMin), STY.totv, 'n', '0.00'), cel('', STY.tot), cel('', STY.tot)]);
   aoa.push([]);
+  aoa.push([cel('Jours travaillés : ' + fmtJours(jt), STY.sous)]);
   const nomsAbs = Object.entries(absCnt).map(([t, n]) => TYPES[t] + ' : ' + fmtJours(n));
   if (nomsAbs.length) { aoa.push([cel('Absences — ' + nomsAbs.join(' · '), STY.sous)]); }
   const valide = present > 0 && nApp === present;
@@ -922,7 +960,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
     { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }
   ];
-  return { ws, totMin, absCnt, valide, nApp, present };
+  return { ws, totMin, absCnt, valide, nApp, present, jt };
 }
 async function exporterExcel() {
   const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked')).map(c => c.dataset.id);
@@ -939,7 +977,7 @@ async function exporterExcel() {
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
     recap.push([cel('Récapitulatif des heures — ' + titreMois, STY.sous)]);
     recap.push([]);
-    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
+    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
     const feuilles = [];
     for (const id of ids) {
       const emp = S.employes.find(e => e.id === id);
@@ -950,6 +988,7 @@ async function exporterExcel() {
       recap.push([
         cel(nomComplet(emp), STY.cg), cel(emp.metier || '', STY.cg),
         cel(fmtMin(f.totMin), STY.c), cel(fmtDec(f.totMin), STY.c, 'n', '0.00'),
+        cel(f.jt ? fmtJours(f.jt) : '', STY.c),
         cel(a.vacances ? fmtJours(a.vacances) : '', STY.c), cel(a.maladie ? fmtJours(a.maladie) : '', STY.c),
         cel(a.accident ? fmtJours(a.accident) : '', STY.c), cel(a.ferie ? fmtJours(a.ferie) : '', STY.c),
         cel(a.armee ? fmtJours(a.armee) : '', STY.c), cel(a.ecole ? fmtJours(a.ecole) : '', STY.c),
@@ -958,8 +997,8 @@ async function exporterExcel() {
       ]);
     }
     const wsr = XLSX.utils.aoa_to_sheet(recap);
-    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
-    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }];
+    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
+    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } }];
     XLSX.utils.book_append_sheet(wb, wsr, 'Récapitulatif');
     for (const f of feuilles) {
       let nomF = nomComplet(f.emp).replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Employé';
