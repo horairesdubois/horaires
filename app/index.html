@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Horaires</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B1%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  /* Palette inspirée de Jibble : vert principal, texte bleu marine, fond clair. */
+  --bleu:#01a76b; --bleu-f:#047857; --fond:#f6f8fa; --carte:#ffffff;
+  --texte:#132b46; --gris:#64748b; --ligne:#e4e9ee; --vert:#059669;
+  --rouge:#dc2626; --ambre:#d97706; --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--fond);color:var(--texte);min-height:100vh;font-size:16px}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit;-webkit-tap-highlight-color:transparent}
+input,select{font:inherit;color:inherit}
+.vue{max-width:520px;margin:0 auto;padding:16px 14px calc(60px + env(safe-area-inset-bottom))}
+#v-admin{max-width:1080px}
+h1{font-size:22px;font-weight:700}
+.carte{background:var(--carte);border-radius:var(--r);box-shadow:0 1px 3px rgba(15,23,42,.08);padding:16px;margin-bottom:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--bleu);color:#fff;
+  border-radius:12px;padding:13px 18px;font-weight:600;transition:filter .12s}
+.btn:active{filter:brightness(.9)}
+.btn.sec{background:#e2e8f0;color:var(--texte)}
+.btn.vert{background:var(--vert)}
+.btn.rouge{background:#fee2e2;color:var(--rouge)}
+.btn.large{width:100%;padding:15px;font-size:17px}
+.btn[disabled]{opacity:.5;cursor:default}
+.muet{color:var(--gris);font-size:13px}
+
+/* ---- Login ---- */
+#v-login{max-width:360px;padding-top:9vh;text-align:center}
+#v-login .logo{font-size:52px}
+#v-login h1{margin:8px 0 2px}
+#v-login .sous{color:var(--gris);margin-bottom:26px}
+.pin-aff{display:flex;justify-content:center;gap:12px;height:18px;margin-bottom:8px}
+.pin-aff i{width:14px;height:14px;border-radius:50%;background:#cbd5e1;transition:background .1s}
+.pin-aff i.on{background:var(--bleu)}
+#login-err{color:var(--rouge);font-size:14px;min-height:20px;margin:6px 0 10px}
+.pave{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
+.pave button{background:var(--carte);border-radius:16px;font-size:24px;font-weight:600;padding:16px 0;
+  box-shadow:0 1px 3px rgba(15,23,42,.08)}
+.pave button:active{background:#e2e8f0}
+.pave .fant{background:none;box-shadow:none;font-size:20px}
+#btn-login{margin-top:18px;width:100%;max-width:280px}
+
+/* ---- Entêtes ---- */
+.entete{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.entete .qui{font-size:19px;font-weight:700}
+.entete .sous-qui{color:var(--gris);font-size:13px}
+.ico{font-size:20px;padding:8px;border-radius:10px;background:var(--carte);box-shadow:0 1px 3px rgba(15,23,42,.08)}
+.nav-mois{display:flex;align-items:center;justify-content:space-between;background:var(--carte);
+  border-radius:var(--r);box-shadow:0 1px 3px rgba(15,23,42,.08);margin-bottom:14px}
+.nav-mois button{font-size:22px;padding:10px 20px;color:var(--bleu)}
+.nav-mois .lib{font-weight:700;font-size:17px;text-transform:capitalize}
+
+/* ---- Pointeur ---- */
+#carte-pointer .btn{margin-top:4px}
+#carte-pointer .heure-actuelle{font-variant-numeric:tabular-nums}
+
+/* ---- Totaux ---- */
+.totaux{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.totaux .gros{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chips span{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:#e7f6ef;color:var(--bleu-f)}
+
+/* ---- Liste jours ---- */
+.jour-ligne{display:flex;align-items:center;gap:12px;background:var(--carte);border-radius:12px;
+  padding:10px 12px;margin-bottom:7px;box-shadow:0 1px 2px rgba(15,23,42,.06);width:100%;text-align:left}
+.jour-ligne:active{background:#f8fafc}
+.jour-ligne.we{background:#e9eef5;box-shadow:none}
+.jour-ligne .date{width:46px;flex:none;text-align:center;line-height:1.15}
+.jour-ligne .date .js{font-size:11px;text-transform:uppercase;color:var(--gris);font-weight:600}
+.jour-ligne .date .num{font-size:19px;font-weight:700}
+.jour-ligne.auj .date{color:var(--bleu)}
+.jour-ligne.auj .date .js{color:var(--bleu)}
+.jour-ligne.auj{outline:2px solid var(--bleu)}
+.jour-ligne .contenu{flex:1;min-width:0}
+.jour-ligne .heures-txt{font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jour-ligne .rem{font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jour-ligne .tot{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
+.jour-ligne .vide{color:#cbd5e1}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;color:#fff;margin-right:4px}
+.okv{color:var(--vert);font-weight:800}
+.note-verrou{background:#ecfdf5;color:#065f46;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;text-align:center;margin-top:10px}
+.btn-val{padding:6px 10px !important;font-size:12px !important}
+
+/* ---- Modales ---- */
+.voile{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;z-index:40}
+.voile.ouvert{display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:640px){.voile.ouvert{align-items:center}}
+.modale{background:var(--fond);width:100%;max-width:560px;max-height:92vh;overflow:auto;
+  border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+@media(min-width:640px){.modale{border-radius:20px}}
+.modale h2{font-size:18px;margin-bottom:12px;text-transform:capitalize}
+.demi{background:var(--carte);border-radius:12px;padding:12px;margin-bottom:10px}
+.demi .titre-demi{font-weight:700;font-size:14px;margin-bottom:8px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px}
+.types{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+.types button{flex:none;font-size:13px;font-weight:600;padding:7px 12px;border-radius:99px;background:#f1f5f9;color:var(--gris)}
+.types button.actif{background:var(--bleu);color:#fff}
+.lignes-h{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.champ-h{display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid var(--ligne);border-radius:10px;padding:4px 6px}
+.champ-h label{font-size:11px;color:var(--gris);width:34px;flex:none}
+.champ-h input[type=time]{border:none;background:none;flex:1;font-size:16px;min-width:0;padding:6px 0}
+.champ-h .now{font-size:15px;padding:6px;color:var(--bleu)}
+.modale .actions{display:flex;gap:8px;margin-top:14px}
+.modale .actions .btn{flex:1}
+input[type=text],input[type=password],select{width:100%;border:1px solid var(--ligne);border-radius:10px;
+  padding:11px 12px;background:var(--carte);margin-bottom:8px}
+.total-apercu{text-align:center;font-weight:700;margin-top:2px}
+.lbl{font-size:12px;font-weight:600;color:var(--gris);margin:6px 0 4px;display:block}
+
+/* ---- Admin ---- */
+.onglets{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
+.onglets button{flex:none;padding:9px 16px;border-radius:99px;font-weight:600;background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
+.onglets button.actif{background:var(--bleu);color:#fff}
+.defile{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-radius:var(--r);overflow:hidden;font-size:13px}
+.grille th,.grille td{border:1px solid var(--ligne);padding:6px 8px;text-align:center;white-space:nowrap}
+.grille th{background:#f8fafc;color:#334155;font-size:11px;line-height:1.2}
+.grille td:first-child,.grille th:first-child{text-align:left;position:sticky;left:0;background:var(--carte);z-index:1}
+.grille th:first-child{background:#f8fafc}
+.grille th.we-th{background:#eef1f4;color:#94a3b8}
+.grille th.auj-th{background:#e7f6ef;color:var(--bleu-f)}
+.grille td.we-td{background:#f4f6f8}
+.grille td.auj-td{background:#fffbeb}
+.grille td.ok-td{background:#e9f9f1}
+.grille td.cellule{cursor:pointer;font-variant-numeric:tabular-nums;font-size:11px;line-height:1.25;padding:4px 5px;min-width:38px}
+.grille td.cellule:hover{outline:2px solid var(--bleu);outline-offset:-2px}
+.tot-cell{font-weight:700;font-variant-numeric:tabular-nums}
+.emp-nom-cell{font-weight:700}
+.btn-val-lien{display:block;font-size:11px;color:var(--bleu-f);font-weight:600;padding:2px 0;text-decoration:underline}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.pill.val{background:#d1fae5;color:#065f46}
+.pill.att{background:#fef3c7;color:#92400e}
+.emp-carte{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.emp-carte .nom{font-weight:700}
+.emp-carte.inactif{opacity:.55}
+.exp-choix{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.exp-choix label{display:flex;align-items:center;gap:10px;font-weight:500}
+.exp-choix input{width:20px;height:20px}
+
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(120%);
+  background:#0f172a;color:#fff;padding:11px 20px;border-radius:99px;font-size:14px;transition:transform .25s;z-index:99;max-width:92vw;text-align:center}
+#toast.vu{transform:translateX(-50%) translateY(0)}
+.centre{text-align:center}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ============ CONNEXION ============ -->
+<div id="v-login" class="vue" hidden>
+  <div class="logo">⏱️</div>
+  <h1>Horaires</h1>
+  <div class="sous">Entrez votre code PIN</div>
+  <div class="pin-aff" id="pin-aff"></div>
+  <div id="login-err"></div>
+  <div class="pave" id="pave"></div>
+  <button class="btn large" id="btn-login" disabled>Se connecter</button>
+</div>
+
+<!-- ============ EMPLOYÉ ============ -->
+<div id="v-emp" class="vue" hidden>
+  <div class="entete">
+    <div>
+      <div class="qui" id="emp-nom"></div>
+      <div class="sous-qui" id="emp-metier"></div>
+    </div>
+    <button class="ico" id="btn-sortir-emp" title="Se déconnecter">🚪</button>
+  </div>
+  <div class="nav-mois">
+    <button id="emp-prev">‹</button>
+    <div class="lib" id="emp-mois-lib"></div>
+    <button id="emp-next">›</button>
+  </div>
+  <div class="carte" id="carte-pointer" hidden>
+    <div class="muet" id="pointer-info"></div>
+    <button class="btn vert large" id="btn-pointer"></button>
+  </div>
+  <div class="carte">
+    <div class="totaux">
+      <div>Total du mois</div>
+      <div class="gros" id="emp-total">0h00</div>
+    </div>
+    <div class="chips" id="emp-chips"></div>
+  </div>
+  <div id="emp-liste"></div>
+</div>
+
+<!-- ============ ADMIN ============ -->
+<div id="v-admin" class="vue" hidden>
+  <div class="entete">
+    <div>
+      <div class="qui">Administration</div>
+      <div class="sous-qui" id="adm-entreprise-lib"></div>
+    </div>
+    <button class="ico" id="btn-sortir-adm" title="Se déconnecter">🚪</button>
+  </div>
+  <div class="nav-mois">
+    <button id="adm-prev">‹</button>
+    <div class="lib" id="adm-mois-lib"></div>
+    <button id="adm-next">›</button>
+  </div>
+  <div class="onglets">
+    <button data-ong="equipe" class="actif">🗓️ Feuilles de temps</button>
+    <button data-ong="employes">👥 Employés</button>
+    <button data-ong="export">📤 Export comptable</button>
+  </div>
+  <div id="ong-equipe"></div>
+  <div id="ong-employes" hidden></div>
+  <div id="ong-export" hidden></div>
+</div>
+
+<!-- ============ MODALE JOUR ============ -->
+<div class="voile" id="voile-jour">
+  <div class="modale">
+    <h2 id="mj-titre"></h2>
+    <div class="muet" id="mj-emp" style="margin:-8px 0 10px"></div>
+    <div class="demi">
+      <div class="titre-demi">Matin</div>
+      <div class="types" id="mj-types-m"></div>
+      <div class="lignes-h" id="mj-heures-m">
+        <div class="champ-h"><label>Début</label><input type="time" id="mj-md"><button class="now" data-cible="mj-md" title="Maintenant">⏱</button></div>
+        <div class="champ-h"><label>Fin</label><input type="time" id="mj-mf"><button class="now" data-cible="mj-mf" title="Maintenant">⏱</button></div>
+      </div>
+    </div>
+    <div class="demi">
+      <div class="titre-demi">Après-midi</div>
+      <div class="types" id="mj-types-a"></div>
+      <div class="lignes-h" id="mj-heures-a">
+        <div class="champ-h"><label>Début</label><input type="time" id="mj-ad"><button class="now" data-cible="mj-ad" title="Maintenant">⏱</button></div>
+        <div class="champ-h"><label>Fin</label><input type="time" id="mj-af"><button class="now" data-cible="mj-af" title="Maintenant">⏱</button></div>
+      </div>
+    </div>
+    <input type="text" id="mj-rem" placeholder="Remarque (chantier, client…)" maxlength="200">
+    <div class="total-apercu" id="mj-total"></div>
+    <div class="note-verrou" id="mj-verrou" hidden>✓ Validé par la direction — modification impossible</div>
+    <div class="actions" id="mj-actions-1">
+      <button class="btn sec" id="mj-defaut">Journée type</button>
+      <button class="btn rouge" id="mj-suppr" hidden>Supprimer</button>
+    </div>
+    <div class="actions">
+      <button class="btn vert" id="mj-approuver" hidden></button>
+    </div>
+    <div class="actions">
+      <button class="btn sec" id="mj-annuler">Annuler</button>
+      <button class="btn" id="mj-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODALE EMPLOYÉ (admin) ============ -->
+<div class="voile" id="voile-emp">
+  <div class="modale">
+    <h2 id="me-titre">Employé</h2>
+    <label class="lbl">Prénom</label>
+    <input type="text" id="me-prenom" maxlength="60">
+    <label class="lbl">Nom</label>
+    <input type="text" id="me-nom" maxlength="60">
+    <label class="lbl">Métier</label>
+    <input type="text" id="me-metier" maxlength="60" placeholder="Sanitaire, Vitrerie…">
+    <label class="lbl">Journée type</label>
+    <div class="lignes-h" style="margin-bottom:8px">
+      <div class="champ-h"><label>Matin</label><input type="time" id="me-md"><span class="muet">→</span><input type="time" id="me-mf"></div>
+      <div class="champ-h"><label>A-midi</label><input type="time" id="me-ad"><span class="muet">→</span><input type="time" id="me-af"></div>
+    </div>
+    <label class="lbl">Nouveau code PIN (4 à 8 chiffres — laisser vide pour ne pas changer)</label>
+    <input type="password" id="me-pin" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="••••••" autocomplete="new-password">
+    <div class="exp-choix" style="margin:4px 0 10px"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="me-actif" checked> Actif (peut se connecter)</label></div>
+    <div class="actions">
+      <button class="btn sec" id="me-annuler">Annuler</button>
+      <button class="btn" id="me-save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+const CFG = { url: '__SUPABASE_URL__', key: '__ANON_KEY__' };
+
+/* ---------- Utilitaires ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const JS_COURT = ['dim','lun','mar','mer','jeu','ven','sam'];
+const JS_LONG = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const TYPES = {travail:'Travail', vacances:'Vacances', maladie:'Maladie', accident:'Accident', ferie:'Jour férié', armee:'Armée / PC', ecole:'Formation', autre:'Autre'};
+const BADGES = {vacances:'VAC', maladie:'MAL', accident:'ACC', ferie:'FÉR', armee:'ARM', ecole:'FOR', autre:'AUT'};
+const COULEURS = {vacances:'#d97706', maladie:'#dc2626', accident:'#b91c1c', ferie:'#7c3aed', armee:'#0d9488', ecole:'#0284c7', autre:'#64748b'};
+
+const parseT = t => { if (!t) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const fmtMin = m => Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0');
+// Valeur exacte (le format Excel '0.00' n'arrondit qu'à l'affichage) :
+// la somme des cellules journalières correspond ainsi toujours au total.
+const fmtDec = m => m / 60;
+function demiMin(type, deb, fin) {
+  if (type !== 'travail') return 0;
+  const d = parseT(deb), f = parseT(fin);
+  return (d != null && f != null && f > d) ? f - d : 0;
+}
+function jourMin(p) {
+  if (!p) return 0;
+  return demiMin(p.matin_type, p.matin_debut, p.matin_fin) + demiMin(p.apm_type, p.apm_debut, p.apm_fin);
+}
+function heuresTexte(p) {
+  const parts = [];
+  for (const [t, d, f] of [[p.matin_type, p.matin_debut, p.matin_fin], [p.apm_type, p.apm_debut, p.apm_fin]]) {
+    if (t !== 'travail') parts.push('<span class="badge" style="background:' + COULEURS[t] + '">' + BADGES[t] + '</span>');
+    else if (d || f) parts.push((d || '?') + '–' + (f || '?'));
+  }
+  return parts.join(' · ') || '<span class="vide">—</span>';
+}
+function joursDuMois(an, mo) {
+  const n = new Date(an, mo, 0).getDate(), arr = [];
+  for (let d = 1; d <= n; d++) {
+    const dt = new Date(an, mo - 1, d);
+    arr.push({ iso: an + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0'), num: d, js: dt.getDay() });
+  }
+  return arr;
+}
+const aujourdhui = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const maintenantHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function nomComplet(e) { return [e.prenom, e.nom].filter(Boolean).join(' '); }
+
+let toastTimer;
+function toast(msg, duree) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('vu');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('vu'), duree || 2600);
+}
+
+/* ---------- API ---------- */
+async function rpc(fn, args) {
+  let r;
+  try {
+    r = await fetch(CFG.url + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: CFG.key, Authorization: 'Bearer ' + CFG.key },
+      body: JSON.stringify(args || {})
+    });
+  } catch (e) { throw new Error('Pas de connexion internet'); }
+  let j = null;
+  try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error((j && (j.message || j.hint)) || 'Erreur serveur (' + r.status + ')');
+  return j;
+}
+
+/* ---------- État ---------- */
+const S = {
+  token: localStorage.getItem('hor_token') || null,
+  moi: JSON.parse(localStorage.getItem('hor_moi') || 'null'),
+  annee: new Date().getFullYear(),
+  mois: new Date().getMonth() + 1,
+  pointages: [], employes: [], entreprise: '',
+  ongletAdmin: 'equipe'
+};
+function ptgMap() {
+  const m = {};
+  for (const p of S.pointages) { (m[p.employe_id] = m[p.employe_id] || {})[p.jour] = p; }
+  return m;
+}
+function sessionPerdue() {
+  localStorage.removeItem('hor_token'); localStorage.removeItem('hor_moi');
+  S.token = null; S.moi = null;
+  $('voile-jour').classList.remove('ouvert');
+  $('voile-emp').classList.remove('ouvert');
+  montrer('login');
+  toast('Session expirée, reconnectez-vous');
+}
+
+/* ---------- Vues ---------- */
+function montrer(vue) {
+  $('v-login').hidden = vue !== 'login';
+  $('v-emp').hidden = vue !== 'emp';
+  $('v-admin').hidden = vue !== 'admin';
+}
+
+/* ---------- Connexion ---------- */
+let pinBuf = '';
+function initLogin() {
+  const pave = $('pave');
+  const touches = ['1','2','3','4','5','6','7','8','9','C','0','⌫'];
+  pave.innerHTML = touches.map(t => '<button data-t="' + t + '" class="' + (t === 'C' || t === '⌫' ? 'fant' : '') + '">' + t + '</button>').join('');
+  pave.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const t = b.dataset.t;
+    if (t === '⌫') pinBuf = pinBuf.slice(0, -1);
+    else if (t === 'C') pinBuf = '';
+    else if (pinBuf.length < 8) pinBuf += t;
+    renderPin();
+  });
+  document.addEventListener('keydown', e => {
+    if ($('v-login').hidden) return;
+    if (/^[0-9]$/.test(e.key) && pinBuf.length < 8) { pinBuf += e.key; renderPin(); }
+    else if (e.key === 'Backspace') { pinBuf = pinBuf.slice(0, -1); renderPin(); }
+    else if (e.key === 'Enter' && pinBuf.length >= 4) connexion();
+  });
+  $('btn-login').addEventListener('click', connexion);
+  renderPin();
+}
+function renderPin() {
+  $('pin-aff').innerHTML = Array.from({length: Math.max(4, pinBuf.length)}, (_, i) =>
+    '<i class="' + (i < pinBuf.length ? 'on' : '') + '"></i>').join('');
+  $('btn-login').disabled = pinBuf.length < 4;
+  $('login-err').textContent = '';
+}
+let connexionEnCours = false;
+async function connexion() {
+  if (connexionEnCours || pinBuf.length < 4) return;
+  connexionEnCours = true;
+  $('btn-login').disabled = true;
+  $('btn-login').innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await rpc('connexion', { p_pin: pinBuf });
+    if (!res.ok) { pinBuf = ''; renderPin(); $('login-err').textContent = res.erreur; return; }
+    S.token = res.token; S.moi = res.employe;
+    localStorage.setItem('hor_token', S.token);
+    localStorage.setItem('hor_moi', JSON.stringify(S.moi));
+    pinBuf = ''; renderPin();
+    const d = new Date(); S.annee = d.getFullYear(); S.mois = d.getMonth() + 1;
+    await charger();
+  } catch (e) { $('login-err').textContent = e.message; }
+  finally { connexionEnCours = false; $('btn-login').textContent = 'Se connecter'; $('btn-login').disabled = pinBuf.length < 4; }
+}
+async function deconnexion() {
+  try { await rpc('deconnexion', { p_token: S.token }); } catch (e) {}
+  localStorage.removeItem('hor_token'); localStorage.removeItem('hor_moi');
+  S.token = null; S.moi = null; montrer('login');
+}
+
+/* ---------- Chargement ---------- */
+let chargeSeq = 0;
+async function charger() {
+  const seq = ++chargeSeq;
+  try {
+    if (S.moi.role === 'admin') {
+      const res = await rpc('admin_donnees', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+      if (seq !== chargeSeq) return;
+      if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+      S.employes = res.employes; S.pointages = res.pointages; S.entreprise = res.entreprise || '';
+      montrer('admin'); renderAdmin();
+    } else {
+      const res = await rpc('mes_pointages', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+      if (seq !== chargeSeq) return;
+      if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+      S.moi = res.employe; localStorage.setItem('hor_moi', JSON.stringify(S.moi));
+      S.pointages = res.pointages.map(p => ({ ...p, employe_id: S.moi.id }));
+      montrer('emp'); renderEmp();
+    }
+  } catch (e) { toast(e.message); }
+}
+function moisNav(delta) {
+  S.mois += delta;
+  if (S.mois > 12) { S.mois = 1; S.annee++; }
+  if (S.mois < 1) { S.mois = 12; S.annee--; }
+  charger();
+}
+
+/* ---------- Résumé absences ---------- */
+function resumeAbsences(ptgs) {
+  const cnt = {};
+  for (const p of ptgs) {
+    for (const t of [p.matin_type, p.apm_type]) {
+      if (t !== 'travail') cnt[t] = (cnt[t] || 0) + 0.5;
+    }
+  }
+  return cnt;
+}
+const fmtJours = n => (n % 1 === 0 ? n : n.toFixed(1).replace('.', ',')) + ' j';
+
+/* ---------- Vue employé ---------- */
+function renderEmp() {
+  $('emp-nom').textContent = 'Bonjour ' + S.moi.prenom + ' 👋';
+  $('emp-metier').textContent = S.moi.metier || '';
+  $('emp-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
+  const map = (ptgMap()[S.moi.id]) || {};
+  const jours = joursDuMois(S.annee, S.mois);
+  const auj = aujourdhui();
+
+  let total = 0;
+  for (const p of S.pointages) total += jourMin(p);
+  $('emp-total').textContent = fmtMin(total);
+  const abs = resumeAbsences(S.pointages);
+  $('emp-chips').innerHTML = Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
+
+  if (S.pointages.length && S.pointages.every(p => p.approuve)) {
+    $('emp-chips').innerHTML += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
+  }
+
+  // Carte pointer (mois courant uniquement)
+  const maintenant = new Date();
+  const moisCourant = maintenant.getFullYear() === S.annee && (maintenant.getMonth() + 1) === S.mois;
+  $('carte-pointer').hidden = !moisCourant;
+  if (moisCourant) {
+    const p = map[auj] || {};
+    const slot = p.approuve ? null : prochaineCase(p);
+    if (p.approuve) {
+      $('btn-pointer').disabled = true;
+      $('btn-pointer').textContent = '✓ Journée validée par la direction';
+      $('pointer-info').textContent = '';
+    } else if (slot) {
+      $('btn-pointer').disabled = false;
+      $('btn-pointer').innerHTML = '▶ Pointer « ' + slot.libelle + ' » · <span class="heure-actuelle">' + maintenantHM() + '</span>';
+      $('pointer-info').textContent = 'Un seul geste : l’heure actuelle est enregistrée.';
+    } else {
+      $('btn-pointer').disabled = true;
+      $('btn-pointer').textContent = '✓ Journée complète';
+      $('pointer-info').textContent = 'Tous les pointages du jour sont remplis.';
+    }
+  }
+
+  $('emp-liste').innerHTML = jours.map(j => {
+    const p = map[j.iso];
+    const we = j.js === 0 || j.js === 6;
+    const min = jourMin(p);
+    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + '" data-jour="' + j.iso + '">' +
+      '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
+      '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
+      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
+      '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') + '</div></button>';
+  }).join('');
+  $('emp-liste').querySelectorAll('.jour-ligne').forEach(b =>
+    b.addEventListener('click', () => ouvrirJour(S.moi.id, b.dataset.jour)));
+}
+
+function prochaineCase(p) {
+  const apresMidi = new Date().getHours() * 60 + new Date().getMinutes() >= 12 * 60 + 30;
+  const mt = p.matin_type || 'travail', at = p.apm_type || 'travail';
+  const cases = [];
+  if (mt === 'travail') {
+    cases.push({ champ: 'matin_debut', libelle: 'Début matin' }, { champ: 'matin_fin', libelle: 'Fin matin' });
+  }
+  if (at === 'travail') {
+    cases.push({ champ: 'apm_debut', libelle: 'Début après-midi' }, { champ: 'apm_fin', libelle: 'Fin après-midi' });
+  }
+  // L'après-midi, si le matin est resté entièrement vide, on pointe l'après-midi.
+  if (apresMidi && mt === 'travail' && at === 'travail' && !p.matin_debut && !p.matin_fin) {
+    return !p.apm_debut ? { champ: 'apm_debut', libelle: 'Début après-midi' } :
+           !p.apm_fin ? { champ: 'apm_fin', libelle: 'Fin après-midi' } : null;
+  }
+  for (const c of cases) if (!p[c.champ]) return c;
+  return null;
+}
+async function pointerMaintenant() {
+  const auj = aujourdhui();
+  const p = (ptgMap()[S.moi.id] || {})[auj] || {};
+  const slot = prochaineCase(p);
+  if (!slot) return;
+  const args = {
+    p_token: S.token, p_jour: auj,
+    p_matin_type: p.matin_type || 'travail', p_matin_debut: p.matin_debut || null, p_matin_fin: p.matin_fin || null,
+    p_apm_type: p.apm_type || 'travail', p_apm_debut: p.apm_debut || null, p_apm_fin: p.apm_fin || null,
+    p_remarque: p.remarque || ''
+  };
+  const cle = { matin_debut: 'p_matin_debut', matin_fin: 'p_matin_fin', apm_debut: 'p_apm_debut', apm_fin: 'p_apm_fin' }[slot.champ];
+  args[cle] = maintenantHM();
+  $('btn-pointer').disabled = true;
+  try {
+    const res = await rpc('enregistrer_jour', args);
+    if (!res.ok) {
+      if (res.erreur === 'session') return sessionPerdue();
+      toast(res.erreur, 3500);
+      await charger();
+      return;
+    }
+    toast('✓ ' + slot.libelle + ' : ' + args[cle]);
+    await charger();
+  } catch (e) { toast(e.message); $('btn-pointer').disabled = false; }
+}
+
+/* ---------- Modale jour ---------- */
+const MJ = { empId: null, jour: null, matin: 'travail', apm: 'travail', existe: false, approuve: false, verrou: false };
+function chipsTypes(conteneur, groupe) {
+  const c = $(conteneur);
+  c.innerHTML = Object.entries(TYPES).map(([k, v]) =>
+    '<button data-type="' + k + '">' + v + '</button>').join('');
+  c.addEventListener('click', e => {
+    if (MJ.verrou) return;
+    const b = e.target.closest('button'); if (!b) return;
+    MJ[groupe] = b.dataset.type;
+    majChips();
+  });
+}
+function majChips() {
+  for (const [cont, groupe, zone] of [['mj-types-m', 'matin', 'mj-heures-m'], ['mj-types-a', 'apm', 'mj-heures-a']]) {
+    $(cont).querySelectorAll('button').forEach(b => b.classList.toggle('actif', b.dataset.type === MJ[groupe]));
+    $(zone).style.display = MJ[groupe] === 'travail' ? '' : 'none';
+  }
+  majTotalApercu();
+}
+function majTotalApercu() {
+  const min = demiMin(MJ.matin, $('mj-md').value, $('mj-mf').value) + demiMin(MJ.apm, $('mj-ad').value, $('mj-af').value);
+  $('mj-total').textContent = min ? 'Total : ' + fmtMin(min) : '';
+}
+function ouvrirJour(empId, jour) {
+  const p = (ptgMap()[empId] || {})[jour] || null;
+  const admin = S.moi.role === 'admin';
+  MJ.empId = empId; MJ.jour = jour; MJ.existe = !!p;
+  MJ.approuve = !!(p && p.approuve);
+  MJ.verrou = MJ.approuve && !admin;
+  MJ.matin = p ? p.matin_type : 'travail';
+  MJ.apm = p ? p.apm_type : 'travail';
+  const [an, mo, jr] = jour.split('-').map(Number);
+  const js = new Date(an, mo - 1, jr).getDay();
+  $('mj-titre').textContent = JS_LONG[js] + ' ' + jr + ' ' + MOIS[mo - 1] + ' ' + an;
+  const e = admin ? S.employes.find(x => x.id === empId) : S.moi;
+  $('mj-emp').textContent = admin && e ? nomComplet(e) : '';
+  $('mj-md').value = p ? (p.matin_debut || '') : '';
+  $('mj-mf').value = p ? (p.matin_fin || '') : '';
+  $('mj-ad').value = p ? (p.apm_debut || '') : '';
+  $('mj-af').value = p ? (p.apm_fin || '') : '';
+  $('mj-rem').value = p ? (p.remarque || '') : '';
+  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem'].forEach(id => { $(id).disabled = MJ.verrou; });
+  $('mj-suppr').hidden = !p || MJ.verrou;
+  $('mj-defaut').hidden = MJ.verrou;
+  $('mj-save').hidden = MJ.verrou;
+  $('mj-verrou').hidden = !MJ.verrou;
+  const btnApp = $('mj-approuver');
+  if (admin && p) {
+    btnApp.hidden = false;
+    btnApp.textContent = MJ.approuve ? '🔓 Déverrouiller ce jour' : '✓ Valider ce jour (direction)';
+  } else { btnApp.hidden = true; }
+  majChips();
+  $('voile-jour').classList.add('ouvert');
+}
+function fermerJour() { $('voile-jour').classList.remove('ouvert'); }
+async function sauverJour() {
+  if (MJ.verrou) return;
+  const admin = S.moi.role === 'admin';
+  const args = {
+    p_token: S.token, p_jour: MJ.jour,
+    p_matin_type: MJ.matin, p_matin_debut: $('mj-md').value || null, p_matin_fin: $('mj-mf').value || null,
+    p_apm_type: MJ.apm, p_apm_debut: $('mj-ad').value || null, p_apm_fin: $('mj-af').value || null,
+    p_remarque: $('mj-rem').value.trim()
+  };
+  if (admin) args.p_employe = MJ.empId;
+  $('mj-save').disabled = true;
+  try {
+    const res = await rpc(admin ? 'admin_enregistrer_jour' : 'enregistrer_jour', args);
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
+    fermerJour(); toast('✓ Enregistré');
+    await charger();
+  } catch (e) { toast(e.message); }
+  finally { $('mj-save').disabled = false; }
+}
+async function approuverJour() {
+  try {
+    const res = await rpc('admin_approuver', {
+      p_token: S.token, p_employe: MJ.empId, p_annee: S.annee, p_mois: S.mois,
+      p_jour: MJ.jour, p_approuve: !MJ.approuve
+    });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+    fermerJour(); toast(MJ.approuve ? 'Jour déverrouillé' : '✓ Jour validé');
+    await charger();
+  } catch (e) { toast(e.message); }
+}
+async function approuverMois(empId, approuve) {
+  try {
+    const res = await rpc('admin_approuver', {
+      p_token: S.token, p_employe: empId, p_annee: S.annee, p_mois: S.mois,
+      p_jour: null, p_approuve: approuve
+    });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+    toast(approuve ? '✓ Mois validé (' + res.nombre + ' jours)' : 'Mois déverrouillé');
+    await charger();
+  } catch (e) { toast(e.message); }
+}
+async function supprimerJour() {
+  const admin = S.moi.role === 'admin';
+  const args = admin ? { p_token: S.token, p_employe: MJ.empId, p_jour: MJ.jour } : { p_token: S.token, p_jour: MJ.jour };
+  try {
+    const res = await rpc(admin ? 'admin_supprimer_jour' : 'supprimer_jour', args);
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+    fermerJour(); toast('Jour supprimé');
+    await charger();
+  } catch (e) { toast(e.message); }
+}
+function journeeType() {
+  if (MJ.verrou) return;
+  const e = S.moi.role === 'admin' ? (S.employes.find(x => x.id === MJ.empId) || S.moi) : S.moi;
+  MJ.matin = 'travail'; MJ.apm = 'travail';
+  $('mj-md').value = e.matin_debut_def || '07:30';
+  $('mj-mf').value = e.matin_fin_def || '12:00';
+  $('mj-ad').value = e.apm_debut_def || '13:00';
+  $('mj-af').value = e.apm_fin_def || '17:00';
+  majChips();
+}
+
+/* ---------- Vue admin ---------- */
+function renderAdmin() {
+  $('adm-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
+  $('adm-entreprise-lib').textContent = S.entreprise || 'Nom d’entreprise à définir (onglet Export)';
+  document.querySelectorAll('.onglets button').forEach(b => b.classList.toggle('actif', b.dataset.ong === S.ongletAdmin));
+  $('ong-equipe').hidden = S.ongletAdmin !== 'equipe';
+  $('ong-employes').hidden = S.ongletAdmin !== 'employes';
+  $('ong-export').hidden = S.ongletAdmin !== 'export';
+  if (S.ongletAdmin === 'equipe') renderEquipe();
+  if (S.ongletAdmin === 'employes') renderEmployes();
+  if (S.ongletAdmin === 'export') renderExport();
+}
+function renderEquipe() {
+  const map = ptgMap();
+  // Les employés désactivés qui ont des heures ce mois restent visibles :
+  // leurs pointages doivent pouvoir être contrôlés et exportés.
+  const actifs = S.employes.filter(e => e.actif || Object.keys(map[e.id] || {}).length);
+  const jours = joursDuMois(S.annee, S.mois);
+  const auj = aujourdhui();
+  // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
+  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Statut</th>' +
+    jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
+      JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
+  for (const e of actifs) {
+    const lignes = Object.values(map[e.id] || {});
+    let tot = 0;
+    for (const p of lignes) tot += jourMin(p);
+    const tous = lignes.length > 0 && lignes.every(p => p.approuve);
+    const statut = !lignes.length ? '<span class="muet">—</span>' :
+      tous ? '<span class="pill val">Validé</span>' : '<span class="pill att">En attente</span>';
+    const action = lignes.length ?
+      '<button class="btn-val-lien" data-emp="' + e.id + '" data-app="' + (tous ? '0' : '1') + '">' +
+      (tous ? 'Déverrouiller' : 'Valider le mois') + '</button>' : '';
+    html += '<tr><td><div class="emp-nom-cell">' + esc(e.prenom) + (e.nom ? ' ' + esc(e.nom[0]) + '.' : '') +
+      (e.actif ? '' : ' <span class="muet">(désactivé)</span>') + '</div>' + action + '</td>' +
+      '<td class="tot-cell">' + (tot ? fmtMin(tot) : '—') + '</td>' +
+      '<td>' + statut + '</td>';
+    for (const j of jours) {
+      const p = (map[e.id] || {})[j.iso];
+      const we = j.js === 0 || j.js === 6;
+      const min = jourMin(p);
+      let contenu = '';
+      if (p) {
+        const morceaux = [];
+        if (min) morceaux.push(fmtMin(min));
+        for (const t of [p.matin_type, p.apm_type]) {
+          if (t !== 'travail') morceaux.push('<span class="badge" style="background:' + COULEURS[t] + '">' + BADGES[t] + '</span>');
+        }
+        contenu = morceaux.join('<br>');
+        if (!contenu && (p.matin_debut || p.apm_debut)) contenu = '<span class="muet">…</span>';
+      }
+      html += '<td class="cellule' + (we ? ' we-td' : '') + (j.iso === auj ? ' auj-td' : '') +
+        (p && p.approuve ? ' ok-td' : '') + '" data-emp="' + e.id + '" data-jour="' + j.iso + '">' + contenu + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</table></div>';
+  html += '<div class="muet" style="margin-top:8px">Cliquez sur une case pour saisir ou corriger un jour. « Valider le mois » verrouille toutes les saisies de l’employé (fond vert = validé).</div>';
+  $('ong-equipe').innerHTML = html;
+  $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
+    td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
+  $('ong-equipe').querySelectorAll('.btn-val-lien').forEach(b =>
+    b.addEventListener('click', () => approuverMois(b.dataset.emp, b.dataset.app === '1')));
+}
+function renderEmployes() {
+  $('ong-employes').innerHTML = S.employes.map(e =>
+    '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
+    '<div><div class="nom">' + esc(nomComplet(e)) + (e.role === 'admin' ? ' <span class="muet">(admin)</span>' : '') + '</div>' +
+    '<div class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</div></div>' +
+    '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div>').join('') +
+    '<button class="btn large" id="btn-ajout-emp">+ Ajouter un employé</button>';
+  $('ong-employes').querySelectorAll('button[data-id]').forEach(b =>
+    b.addEventListener('click', () => ouvrirEmp(b.dataset.id)));
+  $('btn-ajout-emp').addEventListener('click', () => ouvrirEmp(null));
+}
+function renderExport() {
+  const map = ptgMap();
+  const choix = S.employes.filter(e => e.actif || Object.keys(map[e.id] || {}).length).map(e =>
+    '<label><input type="checkbox" data-id="' + e.id + '" ' + (e.role === 'admin' ? '' : 'checked') + '> ' +
+    esc(nomComplet(e)) + ' <span class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</span></label>').join('');
+  $('ong-export').innerHTML =
+    '<div class="carte"><label class="lbl">Nom de l’entreprise (apparaît sur le document Excel)</label>' +
+    '<input type="text" id="exp-entreprise" maxlength="120" value="' + esc(S.entreprise) + '" placeholder="Ex. Dupont Sanitaire &amp; Vitrerie Sàrl">' +
+    '<button class="btn sec" id="btn-save-entreprise">Enregistrer le nom</button></div>' +
+    '<div class="carte"><div style="font-weight:700;margin-bottom:6px">Employés à inclure — ' + MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
+    '<div class="exp-choix">' + choix + '</div>' +
+    '<button class="btn large" id="btn-export">📥 Télécharger l’Excel pour la comptable</button>' +
+    '<div class="muet centre" style="margin-top:8px">Un onglet récapitulatif + un onglet détaillé par employé (.xlsx)</div></div>';
+  $('btn-save-entreprise').addEventListener('click', async () => {
+    try {
+      const res = await rpc('admin_parametre', { p_token: S.token, p_cle: 'entreprise', p_valeur: $('exp-entreprise').value.trim() });
+      if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+      S.entreprise = $('exp-entreprise').value.trim();
+      $('adm-entreprise-lib').textContent = S.entreprise;
+      toast('✓ Nom enregistré');
+    } catch (e) { toast(e.message); }
+  });
+  $('btn-export').addEventListener('click', exporterExcel);
+}
+
+/* ---------- Modale employé (admin) ---------- */
+const ME = { id: null };
+function ouvrirEmp(id) {
+  const e = id ? S.employes.find(x => x.id === id) : null;
+  ME.id = id;
+  $('me-titre').textContent = e ? 'Modifier — ' + nomComplet(e) : 'Nouvel employé';
+  $('me-prenom').value = e ? e.prenom : '';
+  $('me-nom').value = e ? e.nom : '';
+  $('me-metier').value = e ? e.metier : '';
+  $('me-md').value = e ? e.matin_debut_def : '07:30';
+  $('me-mf').value = e ? e.matin_fin_def : '12:00';
+  $('me-ad').value = e ? e.apm_debut_def : '13:00';
+  $('me-af').value = e ? e.apm_fin_def : '17:00';
+  $('me-pin').value = '';
+  $('me-actif').checked = e ? e.actif : true;
+  $('voile-emp').classList.add('ouvert');
+}
+async function sauverEmp() {
+  const args = {
+    p_token: S.token, p_id: ME.id,
+    p_prenom: $('me-prenom').value.trim(), p_nom: $('me-nom').value.trim(),
+    p_metier: $('me-metier').value.trim(), p_actif: $('me-actif').checked,
+    p_md: $('me-md').value || null, p_mf: $('me-mf').value || null,
+    p_ad: $('me-ad').value || null, p_af: $('me-af').value || null,
+    p_pin: $('me-pin').value.trim() || null
+  };
+  if (!args.p_prenom) { toast('Le prénom est obligatoire'); return; }
+  if (!ME.id && !args.p_pin) { toast('Un code PIN est obligatoire pour un nouvel employé'); return; }
+  $('me-save').disabled = true;
+  try {
+    const res = await rpc('admin_employe', args);
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
+    $('voile-emp').classList.remove('ouvert');
+    toast('✓ Enregistré');
+    await charger();
+  } catch (e) { toast(e.message); }
+  finally { $('me-save').disabled = false; }
+}
+
+/* ---------- Export Excel ---------- */
+function chargerXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+    s.onload = res;
+    s.onerror = () => rej(new Error('Impossible de charger le module Excel — vérifiez la connexion internet'));
+    document.head.appendChild(s);
+  });
+}
+const BORD = { top: { style: 'thin', color: { rgb: 'CBD5E1' } }, bottom: { style: 'thin', color: { rgb: 'CBD5E1' } }, left: { style: 'thin', color: { rgb: 'CBD5E1' } }, right: { style: 'thin', color: { rgb: 'CBD5E1' } } };
+const STY = {
+  titre: { font: { bold: true, sz: 14 } },
+  sous: { font: { sz: 11, color: { rgb: '475569' } } },
+  th: { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1F4E79' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: BORD },
+  c: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10 } },
+  cg: { border: BORD, alignment: { horizontal: 'left' }, font: { sz: 10 } },
+  we: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10, color: { rgb: '94A3B8' } }, fill: { fgColor: { rgb: 'F1F5F9' } } },
+  weg: { border: BORD, alignment: { horizontal: 'left' }, font: { sz: 10, color: { rgb: '94A3B8' } }, fill: { fgColor: { rgb: 'F1F5F9' } } },
+  abs: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10, italic: true, color: { rgb: '92400E' } }, fill: { fgColor: { rgb: 'FEF3C7' } } },
+  tot: { font: { bold: true, sz: 11 }, border: { top: { style: 'medium', color: { rgb: '1F4E79' } } } },
+  totv: { font: { bold: true, sz: 11 }, border: { top: { style: 'medium', color: { rgb: '1F4E79' } } }, alignment: { horizontal: 'center' } }
+};
+const cel = (v, s, t, fmt) => { const c = { v: v == null ? '' : v, t: t || 's', s: s || STY.c }; if (fmt) c.z = fmt; return c; };
+function libAbsence(p) {
+  const m = p.matin_type, a = p.apm_type;
+  if (m === 'travail' && a === 'travail') return '';
+  if (m === a) return TYPES[m];
+  const parts = [];
+  if (m !== 'travail') parts.push(TYPES[m] + ' (matin)');
+  if (a !== 'travail') parts.push(TYPES[a] + ' (a-m)');
+  return parts.join(' + ');
+}
+function feuilleEmploye(emp, map, jours, titreMois) {
+  const aoa = [];
+  let present = 0, nApp = 0, dateVal = '';
+  aoa.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
+  aoa.push([cel('Relevé d’heures — ' + nomComplet(emp) + (emp.metier ? ' (' + emp.metier + ')' : ''), STY.sous)]);
+  aoa.push([cel('Mois : ' + titreMois, STY.sous)]);
+  aoa.push([]);
+  aoa.push(['Date', 'Jour', 'Matin', 'Après-midi', 'Heures', 'Heures (déc.)', 'Absence', 'Remarque'].map(h => cel(h, STY.th)));
+  let totMin = 0;
+  const absCnt = {};
+  for (const j of jours) {
+    const p = map[j.iso];
+    const we = j.js === 0 || j.js === 6;
+    const min = jourMin(p);
+    totMin += min;
+    let matin = '', apm = '', absence = '', rem = '';
+    if (p) {
+      present++;
+      if (p.approuve) { nApp++; if (p.approuve_le) dateVal = p.approuve_le; }
+      matin = p.matin_type !== 'travail' ? TYPES[p.matin_type] : (p.matin_debut || p.matin_fin ? (p.matin_debut || '?') + ' – ' + (p.matin_fin || '?') : '');
+      apm = p.apm_type !== 'travail' ? TYPES[p.apm_type] : (p.apm_debut || p.apm_fin ? (p.apm_debut || '?') + ' – ' + (p.apm_fin || '?') : '');
+      absence = libAbsence(p);
+      rem = p.remarque || '';
+      for (const t of [p.matin_type, p.apm_type]) if (t !== 'travail') absCnt[t] = (absCnt[t] || 0) + 0.5;
+    }
+    const sc = we ? STY.we : STY.c, sg = we ? STY.weg : STY.cg;
+    aoa.push([
+      cel(String(j.num).padStart(2, '0') + '.' + String(S.mois).padStart(2, '0') + '.' + S.annee, sc),
+      cel(JS_COURT[j.js], sc),
+      cel(matin, p && p.matin_type !== 'travail' && !we ? STY.abs : sc),
+      cel(apm, p && p.apm_type !== 'travail' && !we ? STY.abs : sc),
+      cel(min ? fmtMin(min) : '', sc),
+      min ? cel(fmtDec(min), sc, 'n', '0.00') : cel('', sc),
+      cel(absence, sc),
+      cel(rem, sg)
+    ]);
+  }
+  aoa.push([cel('TOTAL', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot),
+    cel(fmtMin(totMin), STY.totv), cel(fmtDec(totMin), STY.totv, 'n', '0.00'), cel('', STY.tot), cel('', STY.tot)]);
+  aoa.push([]);
+  const nomsAbs = Object.entries(absCnt).map(([t, n]) => TYPES[t] + ' : ' + fmtJours(n));
+  if (nomsAbs.length) { aoa.push([cel('Absences — ' + nomsAbs.join(' · '), STY.sous)]); }
+  const valide = present > 0 && nApp === present;
+  aoa.push([cel(valide ? '✓ Validé par la direction' + (dateVal ? ' le ' + dateVal : '')
+                       : 'En attente de validation par la direction',
+    valide ? { font: { bold: true, sz: 11, color: { rgb: '065F46' } } }
+           : { font: { italic: true, sz: 11, color: { rgb: '92400E' } } })]);
+  aoa.push([]);
+  aoa.push([cel('Signature employé : ______________________', STY.sous), null, null, null,
+    cel('Signature direction : ______________________', STY.sous)]);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 11 }, { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 8 }, { wch: 11 }, { wch: 20 }, { wch: 28 }];
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }
+  ];
+  return { ws, totMin, absCnt, valide, nApp, present };
+}
+async function exporterExcel() {
+  const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked')).map(c => c.dataset.id);
+  if (!ids.length) { toast('Sélectionnez au moins un employé'); return; }
+  const btn = $('btn-export');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Préparation…';
+  try {
+    await chargerXLSX();
+    const map = ptgMap();
+    const jours = joursDuMois(S.annee, S.mois);
+    const titreMois = MOIS[S.mois - 1] + ' ' + S.annee;
+    const wb = XLSX.utils.book_new();
+    const recap = [];
+    recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
+    recap.push([cel('Récapitulatif des heures — ' + titreMois, STY.sous)]);
+    recap.push([]);
+    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
+    const feuilles = [];
+    for (const id of ids) {
+      const emp = S.employes.find(e => e.id === id);
+      if (!emp) continue;
+      const f = feuilleEmploye(emp, map[id] || {}, jours, titreMois);
+      feuilles.push({ emp, ws: f.ws });
+      const a = f.absCnt;
+      recap.push([
+        cel(nomComplet(emp), STY.cg), cel(emp.metier || '', STY.cg),
+        cel(fmtMin(f.totMin), STY.c), cel(fmtDec(f.totMin), STY.c, 'n', '0.00'),
+        cel(a.vacances ? fmtJours(a.vacances) : '', STY.c), cel(a.maladie ? fmtJours(a.maladie) : '', STY.c),
+        cel(a.accident ? fmtJours(a.accident) : '', STY.c), cel(a.ferie ? fmtJours(a.ferie) : '', STY.c),
+        cel(a.armee ? fmtJours(a.armee) : '', STY.c), cel(a.ecole ? fmtJours(a.ecole) : '', STY.c),
+        cel(a.autre ? fmtJours(a.autre) : '', STY.c),
+        cel(f.valide ? 'OUI' : (f.nApp > 0 ? 'Partiel' : 'Non'), STY.c)
+      ]);
+    }
+    const wsr = XLSX.utils.aoa_to_sheet(recap);
+    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
+    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }];
+    XLSX.utils.book_append_sheet(wb, wsr, 'Récapitulatif');
+    for (const f of feuilles) {
+      let nomF = nomComplet(f.emp).replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Employé';
+      let n = nomF, i = 2;
+      while (wb.SheetNames.includes(n)) { n = nomF.slice(0, 28) + ' ' + (i++); }
+      XLSX.utils.book_append_sheet(wb, f.ws, n);
+    }
+    const nomFichier = 'Horaires_' + S.annee + '-' + String(S.mois).padStart(2, '0') +
+      (S.entreprise ? '_' + S.entreprise.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') : '') + '.xlsx';
+    XLSX.writeFile(wb, nomFichier);
+    toast('✓ Fichier Excel téléchargé');
+  } catch (e) { toast(e.message, 4000); }
+  finally { btn.disabled = false; btn.textContent = '📥 Télécharger l’Excel pour la comptable'; }
+}
+
+/* ---------- Initialisation ---------- */
+function init() {
+  initLogin();
+  chipsTypes('mj-types-m', 'matin');
+  chipsTypes('mj-types-a', 'apm');
+  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => $(id).addEventListener('input', majTotalApercu));
+  document.querySelectorAll('.now').forEach(b =>
+    b.addEventListener('click', () => { if (MJ.verrou) return; $(b.dataset.cible).value = maintenantHM(); majTotalApercu(); }));
+  $('mj-defaut').addEventListener('click', journeeType);
+  $('mj-annuler').addEventListener('click', fermerJour);
+  $('mj-save').addEventListener('click', sauverJour);
+  $('mj-suppr').addEventListener('click', supprimerJour);
+  $('mj-approuver').addEventListener('click', approuverJour);
+  $('me-annuler').addEventListener('click', () => $('voile-emp').classList.remove('ouvert'));
+  $('me-save').addEventListener('click', sauverEmp);
+  $('btn-pointer').addEventListener('click', pointerMaintenant);
+  $('btn-sortir-emp').addEventListener('click', deconnexion);
+  $('btn-sortir-adm').addEventListener('click', deconnexion);
+  $('emp-prev').addEventListener('click', () => moisNav(-1));
+  $('emp-next').addEventListener('click', () => moisNav(1));
+  $('adm-prev').addEventListener('click', () => moisNav(-1));
+  $('adm-next').addEventListener('click', () => moisNav(1));
+  document.querySelectorAll('.onglets button').forEach(b =>
+    b.addEventListener('click', () => { S.ongletAdmin = b.dataset.ong; renderAdmin(); }));
+  [$('voile-jour'), $('voile-emp')].forEach(v =>
+    v.addEventListener('click', e => { if (e.target === v) v.classList.remove('ouvert'); }));
+  if (S.token && S.moi) { charger(); } else { montrer('login'); }
+}
+init();
+</script>
+</body>
+</html>
