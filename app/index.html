@@ -339,11 +339,10 @@ function jourMin(p) {
   if (!p) return 0;
   return demiMin(p.matin_type, p.matin_debut, p.matin_fin) + demiMin(p.apm_type, p.apm_debut, p.apm_fin);
 }
-/* Base contractuelle : semaine de 42 h → journée due de 8h24.
-   Chaque jour ouvré (lun-ven) écoulé compte 8h24 dues ; une absence saisie
-   (vacances, maladie…) neutralise sa demi-journée. Les jours futurs ne sont
-   pas encore dus. Solde = heures pointées − heures dues. */
-const BASE_JOUR_MIN = 8 * 60 + 24;
+/* Journée normale des employés : 8h00 dues par jour ouvré (lun-ven) écoulé.
+   Une absence saisie (vacances, maladie…) neutralise sa demi-journée ;
+   les jours futurs ne sont pas encore dus. Solde = heures pointées − dues. */
+const BASE_JOUR_MIN = 8 * 60;
 const fmtSolde = m => (m < 0 ? '−' : '+') + fmtMin(Math.abs(m));
 function heuresDues(jours, map) {
   const auj = aujourdhui();
@@ -549,7 +548,7 @@ function renderEmp() {
   const solde = total - heuresDues(jours, map);
   const manq = joursManquants(jours, map);
   let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
-    '" title="Base 42 h/semaine (8h24 par jour ouvré)">Solde 42 h : ' + fmtSolde(solde) + '</span>';
+    '" title="8h00 dues par jour ouvré passé, absences déduites">Solde : ' + fmtSolde(solde) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
   if (S.pointages.length && S.pointages.every(p => p.approuve)) {
@@ -805,7 +804,7 @@ function renderEquipe() {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
-  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Solde<br>42 h</th><th>Statut</th>' +
+  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Solde</th><th>Statut</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
       JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
   for (const e of actifs) {
@@ -848,7 +847,7 @@ function renderEquipe() {
     html += '</tr>';
   }
   html += '</table></div>';
-  html += '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour. Fond vert = validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · Solde = heures pointées moins les 8h24 dues par jour ouvré écoulé (base 42 h, absences déduites).</div>';
+  html += '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour. Fond vert = validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · Solde = heures pointées moins les 8h00 dues par jour ouvré écoulé (absences déduites).</div>';
   $('ong-equipe').innerHTML = html;
   $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
@@ -877,7 +876,7 @@ function ouvrirDetails(empId) {
   const solde = total - heuresDues(jours, map);
   const manq = joursManquants(jours, map);
   let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
-    '" title="Base 42 h/semaine (8h24 par jour ouvré)">Solde 42 h : ' + fmtSolde(solde) + '</span>';
+    '" title="8h00 dues par jour ouvré passé, absences déduites">Solde : ' + fmtSolde(solde) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
   const tous = lignes.length > 0 && lignes.every(p => p.approuve);
@@ -1064,7 +1063,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   const solde = totMin - dues;
   aoa.push([]);
   aoa.push([cel('Jours travaillés : ' + fmtJours(jt), STY.sous)]);
-  aoa.push([cel('Base 42 h/sem. — heures dues (absences déduites) : ' + fmtMin(dues) +
+  aoa.push([cel('Heures dues (8h00 par jour ouvré, absences déduites) : ' + fmtMin(dues) +
     '  ·  Solde du mois : ' + fmtSolde(solde), STY.sous)]);
   const nomsAbs = Object.entries(absCnt).map(([t, n]) => TYPES[t] + ' : ' + fmtJours(n));
   if (nomsAbs.length) { aoa.push([cel('Absences — ' + nomsAbs.join(' · '), STY.sous)]); }
@@ -1100,7 +1099,7 @@ async function exporterExcel() {
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
     recap.push([cel('Récapitulatif des heures — ' + titreMois, STY.sous)]);
     recap.push([]);
-    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Solde 42 h', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
+    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Solde', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
     const feuilles = [];
     for (const id of ids) {
       const emp = S.employes.find(e => e.id === id);
