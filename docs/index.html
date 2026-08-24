@@ -95,6 +95,11 @@ h1{font-size:22px;font-weight:700}
 .plier:active{background:#eef2f5}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;color:#fff;margin-right:4px}
 .okv{color:var(--vert);font-weight:800}
+.val-jour{flex:none;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:15px;color:#94a3b8;background:#eef2f5;margin-left:8px;cursor:pointer}
+.val-jour.on{background:var(--vert);color:#fff}
+.sem-sub{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#334155;
+  background:#eef3f1;border-radius:9px;padding:7px 12px;margin:2px 0 10px}
 .note-verrou{background:#ecfdf5;color:#065f46;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;text-align:center;margin-top:10px}
 .btn-val{padding:6px 10px !important;font-size:12px !important}
 
@@ -272,6 +277,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="modale">
     <h2 id="det-titre"></h2>
     <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
+    <div class="muet" style="margin:0 0 10px">Touchez la coche ✓ à droite d’un jour pour le valider (ou le déverrouiller) individuellement. « Valider le mois » verrouille tout d’un coup.</div>
     <div class="carte" style="padding:12px">
       <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
       <div class="chips" id="det-chips"></div>
@@ -344,16 +350,17 @@ function jourMin(p) {
    les jours futurs ne sont pas encore dus. Solde = heures pointées − dues. */
 const BASE_JOUR_MIN = 8 * 60;
 const fmtSolde = m => (m < 0 ? '−' : '+') + fmtMin(Math.abs(m));
-function heuresDues(jours, map) {
+function heuresDues(jours, map, baseMin) {
+  const base = baseMin || BASE_JOUR_MIN;
   const auj = aujourdhui();
   let due = 0;
   for (const j of jours) {
     if (j.js === 0 || j.js === 6 || j.iso > auj) continue;
     const p = map[j.iso];
-    let d = BASE_JOUR_MIN;
+    let d = base;
     if (p) {
-      if (p.matin_type !== 'travail') d -= BASE_JOUR_MIN / 2;
-      if (p.apm_type !== 'travail') d -= BASE_JOUR_MIN / 2;
+      if (p.matin_type !== 'travail') d -= base / 2;
+      if (p.apm_type !== 'travail') d -= base / 2;
     }
     due += d;
   }
@@ -882,19 +889,37 @@ function ouvrirDetails(empId) {
   const tous = lignes.length > 0 && lignes.every(p => p.approuve);
   if (tous) chips += '<span style="background:#ecfdf5;color:#065f46">✓ Mois validé</span>';
   $('det-chips').innerHTML = chips;
-  $('det-liste').innerHTML = jours.map(j => {
+  // Fiches horaires façon Jibble : jours + sous-total à la fin de chaque semaine.
+  let htmlDet = '', semMin = 0, semDebut = null;
+  for (const j of jours) {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
     const manque = !p && !we && j.iso < auj;
-    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
+    if (semDebut === null) semDebut = j.num;
+    semMin += min;
+    const coche = p ? '<span class="val-jour' + (p.approuve ? ' on' : '') + '" data-jour="' + j.iso +
+      '" title="' + (p.approuve ? 'Déverrouiller ce jour' : 'Valider ce jour') + '">✓</span>' : '';
+    htmlDet += '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
-      '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') + '</div></button>';
-  }).join('');
+      '<div class="tot">' + (min ? fmtMin(min) : '') + '</div>' + coche + '</button>';
+    if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
+      if (semMin > 0) {
+        htmlDet += '<div class="sem-sub"><span>Semaine ' + semDebut + '–' + j.num + ' ' + MOIS[S.mois - 1] + '</span><span>' + fmtMin(semMin) + '</span></div>';
+      }
+      semMin = 0; semDebut = null;
+    }
+  }
+  $('det-liste').innerHTML = htmlDet;
   $('det-liste').querySelectorAll('.jour-ligne').forEach(b =>
     b.addEventListener('click', () => { fermerDetails(); ouvrirJour(empId, b.dataset.jour); }));
+  $('det-liste').querySelectorAll('.val-jour').forEach(s =>
+    s.addEventListener('click', ev => {
+      ev.stopPropagation();
+      approuverJourRevue(empId, s.dataset.jour, !s.classList.contains('on'));
+    }));
   const btn = $('det-valider');
   if (!lignes.length) {
     btn.hidden = true;
@@ -907,6 +932,18 @@ function ouvrirDetails(empId) {
   $('voile-det').classList.add('ouvert');
 }
 function fermerDetails() { $('voile-det').classList.remove('ouvert'); }
+async function approuverJourRevue(empId, jour, approuve) {
+  try {
+    const res = await rpc('admin_approuver', {
+      p_token: S.token, p_employe: empId, p_annee: S.annee, p_mois: S.mois,
+      p_jour: jour, p_approuve: approuve
+    });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+    toast(approuve ? '✓ Jour validé' : 'Jour déverrouillé');
+    await charger();
+    ouvrirDetails(empId); // la revue reste ouverte, rafraîchie
+  } catch (e) { toast(e.message); }
+}
 function renderEmployes() {
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
@@ -1006,7 +1043,9 @@ const STY = {
   weg: { border: BORD, alignment: { horizontal: 'left' }, font: { sz: 10, color: { rgb: '94A3B8' } }, fill: { fgColor: { rgb: 'F1F5F9' } } },
   abs: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10, italic: true, color: { rgb: '92400E' } }, fill: { fgColor: { rgb: 'FEF3C7' } } },
   tot: { font: { bold: true, sz: 11 }, border: { top: { style: 'medium', color: { rgb: '1F4E79' } } } },
-  totv: { font: { bold: true, sz: 11 }, border: { top: { style: 'medium', color: { rgb: '1F4E79' } } }, alignment: { horizontal: 'center' } }
+  totv: { font: { bold: true, sz: 11 }, border: { top: { style: 'medium', color: { rgb: '1F4E79' } } }, alignment: { horizontal: 'center' } },
+  sem: { font: { bold: true, sz: 10, color: { rgb: '334155' } }, fill: { fgColor: { rgb: 'EEF3F1' } }, border: BORD },
+  semc: { font: { bold: true, sz: 10, color: { rgb: '334155' } }, fill: { fgColor: { rgb: 'EEF3F1' } }, border: BORD, alignment: { horizontal: 'center' } }
 };
 const cel = (v, s, t, fmt) => { const c = { v: v == null ? '' : v, t: t || 's', s: s || STY.c }; if (fmt) c.z = fmt; return c; };
 function libAbsence(p) {
@@ -1026,7 +1065,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   aoa.push([cel('Mois : ' + titreMois, STY.sous)]);
   aoa.push([]);
   aoa.push(['Date', 'Jour', 'Matin', 'Après-midi', 'Heures', 'Heures (déc.)', 'Absence', 'Remarque'].map(h => cel(h, STY.th)));
-  let totMin = 0;
+  let totMin = 0, semMin = 0, semDebut = null;
   const absCnt = {};
   for (const j of jours) {
     const p = map[j.iso];
@@ -1046,6 +1085,8 @@ function feuilleEmploye(emp, map, jours, titreMois) {
       for (const t of [p.matin_type, p.apm_type]) if (t !== 'travail') absCnt[t] = (absCnt[t] || 0) + 0.5;
     }
     const sc = we ? STY.we : STY.c, sg = we ? STY.weg : STY.cg;
+    if (semDebut === null) semDebut = j.num;
+    semMin += min;
     aoa.push([
       cel(String(j.num).padStart(2, '0') + '.' + String(S.mois).padStart(2, '0') + '.' + S.annee, sc),
       cel(JS_COURT[j.js], sc),
@@ -1056,15 +1097,27 @@ function feuilleEmploye(emp, map, jours, titreMois) {
       cel(absence, sc),
       cel(rem, sg)
     ]);
+    if (j.js === 0 || j.num === jours.length) { // dimanche ou fin de mois : sous-total hebdomadaire
+      if (semMin > 0) {
+        aoa.push([cel('', STY.sem), cel('', STY.sem), cel('Total semaine ' + semDebut + '–' + j.num, STY.sem), cel('', STY.sem),
+          cel(fmtMin(semMin), STY.semc), cel(fmtDec(semMin), STY.semc, 'n', '0.00'), cel('', STY.sem), cel('', STY.sem)]);
+      }
+      semMin = 0; semDebut = null;
+    }
   }
   aoa.push([cel('TOTAL', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot),
     cel(fmtMin(totMin), STY.totv), cel(fmtDec(totMin), STY.totv, 'n', '0.00'), cel('', STY.tot), cel('', STY.tot)]);
   const dues = heuresDues(jours, map);
   const solde = totMin - dues;
+  const dues42 = heuresDues(jours, map, 8 * 60 + 24);
+  const solde42 = totMin - dues42;
   aoa.push([]);
   aoa.push([cel('Jours travaillés : ' + fmtJours(jt), STY.sous)]);
-  aoa.push([cel('Heures dues (8h00 par jour ouvré, absences déduites) : ' + fmtMin(dues) +
-    '  ·  Solde du mois : ' + fmtSolde(solde), STY.sous)]);
+  // Les deux bases contractuelles possibles, au choix de la fiduciaire.
+  aoa.push([cel('Base 40 h/sem. (8h00 par jour ouvré, absences déduites) — dues : ' + fmtMin(dues) +
+    '  ·  Solde : ' + fmtSolde(solde), STY.sous)]);
+  aoa.push([cel('Base 42 h/sem. (8h24 par jour ouvré, absences déduites) — dues : ' + fmtMin(dues42) +
+    '  ·  Solde : ' + fmtSolde(solde42), STY.sous)]);
   const nomsAbs = Object.entries(absCnt).map(([t, n]) => TYPES[t] + ' : ' + fmtJours(n));
   if (nomsAbs.length) { aoa.push([cel('Absences — ' + nomsAbs.join(' · '), STY.sous)]); }
   const valide = present > 0 && nApp === present;
@@ -1082,7 +1135,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
     { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }
   ];
-  return { ws, totMin, absCnt, valide, nApp, present, jt, solde };
+  return { ws, totMin, absCnt, valide, nApp, present, jt, solde, solde42 };
 }
 async function exporterExcel() {
   const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked')).map(c => c.dataset.id);
@@ -1099,7 +1152,7 @@ async function exporterExcel() {
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
     recap.push([cel('Récapitulatif des heures — ' + titreMois, STY.sous)]);
     recap.push([]);
-    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Solde', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
+    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Solde 40 h', 'Solde 42 h', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
     const feuilles = [];
     for (const id of ids) {
       const emp = S.employes.find(e => e.id === id);
@@ -1112,6 +1165,7 @@ async function exporterExcel() {
         cel(fmtMin(f.totMin), STY.c), cel(fmtDec(f.totMin), STY.c, 'n', '0.00'),
         cel(f.jt ? fmtJours(f.jt) : '', STY.c),
         cel(fmtSolde(f.solde), STY.c),
+        cel(fmtSolde(f.solde42), STY.c),
         cel(a.vacances ? fmtJours(a.vacances) : '', STY.c), cel(a.maladie ? fmtJours(a.maladie) : '', STY.c),
         cel(a.accident ? fmtJours(a.accident) : '', STY.c), cel(a.ferie ? fmtJours(a.ferie) : '', STY.c),
         cel(a.armee ? fmtJours(a.armee) : '', STY.c), cel(a.ecole ? fmtJours(a.ecole) : '', STY.c),
@@ -1120,8 +1174,8 @@ async function exporterExcel() {
       ]);
     }
     const wsr = XLSX.utils.aoa_to_sheet(recap);
-    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
-    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } }];
+    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
+    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } }];
     XLSX.utils.book_append_sheet(wb, wsr, 'Récapitulatif');
     for (const f of feuilles) {
       let nomF = nomComplet(f.emp).replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Employé';
