@@ -44,6 +44,7 @@ h1{font-size:22px;font-weight:700}
 .pin-aff{display:flex;justify-content:center;gap:12px;height:18px;margin-bottom:8px}
 .pin-aff i{width:14px;height:14px;border-radius:50%;background:#cbd5e1;transition:background .1s}
 .pin-aff i.on{background:var(--bleu)}
+.pin-aff .pin-vide{font-size:13px;color:#94a3b8;line-height:18px}
 #login-err{color:var(--rouge);font-size:14px;min-height:20px;margin:6px 0 10px}
 .pave{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
 .pave button{background:var(--carte);border-radius:16px;font-size:24px;font-weight:600;padding:16px 0;
@@ -410,8 +411,9 @@ function initLogin() {
   renderPin();
 }
 function renderPin() {
-  $('pin-aff').innerHTML = Array.from({length: Math.max(4, pinBuf.length)}, (_, i) =>
-    '<i class="' + (i < pinBuf.length ? 'on' : '') + '"></i>').join('');
+  $('pin-aff').innerHTML = pinBuf.length
+    ? Array.from({ length: pinBuf.length }, () => '<i class="on"></i>').join('')
+    : '<span class="pin-vide">Code PIN de 4 à 8 chiffres</span>';
   $('btn-login').disabled = pinBuf.length < 4;
   $('login-err').textContent = '';
 }
