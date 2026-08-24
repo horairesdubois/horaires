@@ -89,6 +89,7 @@ h1{font-size:22px;font-weight:700}
 .jour-ligne .rem{font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jour-ligne .tot{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
 .jour-ligne .vide{color:#cbd5e1}
+.jour-ligne.manque{border-left:4px solid var(--ambre)}
 .plier{display:block;width:100%;text-align:center;font-size:13px;font-weight:600;color:var(--gris);
   padding:11px;margin:2px 0 8px;border:1px dashed #cbd5e1;border-radius:12px}
 .plier:active{background:#eef2f5}
@@ -137,6 +138,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .grille td.we-td{background:#f4f6f8}
 .grille td.auj-td{background:#fffbeb}
 .grille td.ok-td{background:#e9f9f1}
+.grille td.manque-td{background:#fef7e6}
 .grille td.cellule{cursor:pointer;font-variant-numeric:tabular-nums;font-size:11px;line-height:1.25;padding:4px 5px;min-width:38px}
 .grille td.cellule:hover{outline:2px solid var(--bleu);outline-offset:-2px}
 .tot-cell{font-weight:700;font-variant-numeric:tabular-nums}
@@ -337,6 +339,31 @@ function jourMin(p) {
   if (!p) return 0;
   return demiMin(p.matin_type, p.matin_debut, p.matin_fin) + demiMin(p.apm_type, p.apm_debut, p.apm_fin);
 }
+/* Base contractuelle : semaine de 42 h → journée due de 8h24.
+   Chaque jour ouvré (lun-ven) écoulé compte 8h24 dues ; une absence saisie
+   (vacances, maladie…) neutralise sa demi-journée. Les jours futurs ne sont
+   pas encore dus. Solde = heures pointées − heures dues. */
+const BASE_JOUR_MIN = 8 * 60 + 24;
+const fmtSolde = m => (m < 0 ? '−' : '+') + fmtMin(Math.abs(m));
+function heuresDues(jours, map) {
+  const auj = aujourdhui();
+  let due = 0;
+  for (const j of jours) {
+    if (j.js === 0 || j.js === 6 || j.iso > auj) continue;
+    const p = map[j.iso];
+    let d = BASE_JOUR_MIN;
+    if (p) {
+      if (p.matin_type !== 'travail') d -= BASE_JOUR_MIN / 2;
+      if (p.apm_type !== 'travail') d -= BASE_JOUR_MIN / 2;
+    }
+    due += d;
+  }
+  return due;
+}
+function joursManquants(jours, map) {
+  const auj = aujourdhui();
+  return jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso]).length;
+}
 function heuresTexte(p) {
   const parts = [];
   for (const [t, d, f] of [[p.matin_type, p.matin_debut, p.matin_fin], [p.apm_type, p.apm_debut, p.apm_fin]]) {
@@ -519,11 +546,16 @@ function renderEmp() {
   for (const p of S.pointages) total += jourMin(p);
   $('emp-total').textContent = fmtMin(total);
   const abs = resumeAbsences(S.pointages);
-  $('emp-chips').innerHTML = Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
-
+  const solde = total - heuresDues(jours, map);
+  const manq = joursManquants(jours, map);
+  let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
+    '" title="Base 42 h/semaine (8h24 par jour ouvré)">Solde 42 h : ' + fmtSolde(solde) + '</span>';
+  chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
+  if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
   if (S.pointages.length && S.pointages.every(p => p.approuve)) {
-    $('emp-chips').innerHTML += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
+    chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
   }
+  $('emp-chips').innerHTML = chips;
 
   // Carte « Journée type » : un appui enregistre la journée standard du jour même.
   const maintenant = new Date();
@@ -555,7 +587,8 @@ function renderEmp() {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
-    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + '" data-jour="' + j.iso + '">' +
+    const manque = !p && !we && j.iso < auj;
+    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
@@ -573,7 +606,8 @@ function renderEmp() {
       htmlListe += '<button class="plier" id="plier-avant">' +
         (S.deplieAvant ? '▾ Masquer les jours précédents'
                        : '▸ Jours précédents (1–' + (jAuj.num - 1) + ' ' + MOIS[S.mois - 1] + ' · ' +
-                         nSaisis + ' saisi' + (nSaisis > 1 ? 's' : '') + ')') + '</button>';
+                         nSaisis + ' saisi' + (nSaisis > 1 ? 's' : '') +
+                         (manq ? ' · <span style="color:#b45309">⚠ ' + manq + ' à compléter</span>' : '') + ')') + '</button>';
       if (S.deplieAvant) htmlListe += avant.map(ligneJour).join('');
     }
     if (jAuj) htmlListe += ligneJour(jAuj);
@@ -771,13 +805,15 @@ function renderEquipe() {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
-  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Statut</th>' +
+  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Solde<br>42 h</th><th>Statut</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
       JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
   for (const e of actifs) {
-    const lignes = Object.values(map[e.id] || {});
+    const mapE = map[e.id] || {};
+    const lignes = Object.values(mapE);
     let tot = 0;
     for (const p of lignes) tot += jourMin(p);
+    const solde = tot - heuresDues(jours, mapE);
     const tous = lignes.length > 0 && lignes.every(p => p.approuve);
     const statut = !lignes.length ? '<span class="muet">—</span>' :
       tous ? '<span class="pill val">Validé</span>' : '<span class="pill att">En attente</span>';
@@ -788,11 +824,13 @@ function renderEquipe() {
       esc(e.prenom) + (e.nom ? ' ' + esc(e.nom[0]) + '.' : '') + ' ›</button>' +
       (e.actif ? '' : '<span class="muet">(désactivé)</span>') + action + '</td>' +
       '<td class="tot-cell">' + (tot ? fmtMin(tot) : '—') + '</td>' +
+      '<td class="tot-cell" style="color:' + (solde >= 0 ? '#047857' : '#b91c1c') + '">' + fmtSolde(solde) + '</td>' +
       '<td>' + statut + '</td>';
     for (const j of jours) {
-      const p = (map[e.id] || {})[j.iso];
+      const p = mapE[j.iso];
       const we = j.js === 0 || j.js === 6;
       const min = jourMin(p);
+      const manque = !p && !we && j.iso < auj;
       let contenu = '';
       if (p) {
         const morceaux = [];
@@ -804,12 +842,13 @@ function renderEquipe() {
         if (!contenu && (p.matin_debut || p.apm_debut)) contenu = '<span class="muet">…</span>';
       }
       html += '<td class="cellule' + (we ? ' we-td' : '') + (j.iso === auj ? ' auj-td' : '') +
-        (p && p.approuve ? ' ok-td' : '') + '" data-emp="' + e.id + '" data-jour="' + j.iso + '">' + contenu + '</td>';
+        (p && p.approuve ? ' ok-td' : '') + (manque ? ' manque-td' : '') +
+        '" data-emp="' + e.id + '" data-jour="' + j.iso + '">' + contenu + '</td>';
     }
     html += '</tr>';
   }
   html += '</table></div>';
-  html += '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour (fond vert = validé, verrouillé pour l’employé).</div>';
+  html += '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour. Fond vert = validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · Solde = heures pointées moins les 8h24 dues par jour ouvré écoulé (base 42 h, absences déduites).</div>';
   $('ong-equipe').innerHTML = html;
   $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
@@ -835,14 +874,21 @@ function ouvrirDetails(empId) {
   for (const p of lignes) total += jourMin(p);
   $('det-total').textContent = fmtMin(total);
   const abs = resumeAbsences(lignes);
-  $('det-chips').innerHTML = Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
+  const solde = total - heuresDues(jours, map);
+  const manq = joursManquants(jours, map);
+  let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
+    '" title="Base 42 h/semaine (8h24 par jour ouvré)">Solde 42 h : ' + fmtSolde(solde) + '</span>';
+  chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
+  if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
   const tous = lignes.length > 0 && lignes.every(p => p.approuve);
-  if (tous) $('det-chips').innerHTML += '<span style="background:#ecfdf5;color:#065f46">✓ Mois validé</span>';
+  if (tous) chips += '<span style="background:#ecfdf5;color:#065f46">✓ Mois validé</span>';
+  $('det-chips').innerHTML = chips;
   $('det-liste').innerHTML = jours.map(j => {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
-    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + '" data-jour="' + j.iso + '">' +
+    const manque = !p && !we && j.iso < auj;
+    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
@@ -1014,8 +1060,12 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   }
   aoa.push([cel('TOTAL', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot),
     cel(fmtMin(totMin), STY.totv), cel(fmtDec(totMin), STY.totv, 'n', '0.00'), cel('', STY.tot), cel('', STY.tot)]);
+  const dues = heuresDues(jours, map);
+  const solde = totMin - dues;
   aoa.push([]);
   aoa.push([cel('Jours travaillés : ' + fmtJours(jt), STY.sous)]);
+  aoa.push([cel('Base 42 h/sem. — heures dues (absences déduites) : ' + fmtMin(dues) +
+    '  ·  Solde du mois : ' + fmtSolde(solde), STY.sous)]);
   const nomsAbs = Object.entries(absCnt).map(([t, n]) => TYPES[t] + ' : ' + fmtJours(n));
   if (nomsAbs.length) { aoa.push([cel('Absences — ' + nomsAbs.join(' · '), STY.sous)]); }
   const valide = present > 0 && nApp === present;
@@ -1033,7 +1083,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
     { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }
   ];
-  return { ws, totMin, absCnt, valide, nApp, present, jt };
+  return { ws, totMin, absCnt, valide, nApp, present, jt, solde };
 }
 async function exporterExcel() {
   const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked')).map(c => c.dataset.id);
@@ -1050,7 +1100,7 @@ async function exporterExcel() {
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
     recap.push([cel('Récapitulatif des heures — ' + titreMois, STY.sous)]);
     recap.push([]);
-    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
+    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Solde 42 h', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
     const feuilles = [];
     for (const id of ids) {
       const emp = S.employes.find(e => e.id === id);
@@ -1062,6 +1112,7 @@ async function exporterExcel() {
         cel(nomComplet(emp), STY.cg), cel(emp.metier || '', STY.cg),
         cel(fmtMin(f.totMin), STY.c), cel(fmtDec(f.totMin), STY.c, 'n', '0.00'),
         cel(f.jt ? fmtJours(f.jt) : '', STY.c),
+        cel(fmtSolde(f.solde), STY.c),
         cel(a.vacances ? fmtJours(a.vacances) : '', STY.c), cel(a.maladie ? fmtJours(a.maladie) : '', STY.c),
         cel(a.accident ? fmtJours(a.accident) : '', STY.c), cel(a.ferie ? fmtJours(a.ferie) : '', STY.c),
         cel(a.armee ? fmtJours(a.armee) : '', STY.c), cel(a.ecole ? fmtJours(a.ecole) : '', STY.c),
@@ -1070,8 +1121,8 @@ async function exporterExcel() {
       ]);
     }
     const wsr = XLSX.utils.aoa_to_sheet(recap);
-    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
-    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } }];
+    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
+    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } }];
     XLSX.utils.book_append_sheet(wb, wsr, 'Récapitulatif');
     for (const f of feuilles) {
       let nomF = nomComplet(f.emp).replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Employé';
