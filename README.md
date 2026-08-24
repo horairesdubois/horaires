@@ -7,7 +7,7 @@ les feuilles de temps, puis exporte un fichier Excel complet pour la comptable.
 
 ## Accès
 
-- **Application** : https://oneadrien.github.io/horaires/
+- **Application** : https://horairesdubois.github.io/horaires/
   (l'ancienne adresse `…supabase.co/functions/v1/horaires` redirige automatiquement ici)
 - Chaque personne se connecte avec son **code PIN personnel** (communiqué en privé).
 - L'accès « Direction » ouvre l'interface d'administration ; les autres accès
@@ -23,12 +23,13 @@ les feuilles de temps, puis exporte un fichier Excel complet pour la comptable.
 ## Ce que fait l'application
 
 ### Côté employé (mobile)
-- Bouton **« Pointer »** : un geste enregistre l'heure actuelle dans la bonne
-  case (début matin → fin matin → début après-midi → fin après-midi).
+- Bouton **« Journée type »** : un appui enregistre la journée standard du
+  jour même (08:00–12:00 · 13:00–17:00, réglable par employé dans l'admin).
+- **Aujourd'hui toujours affiché en avant** ; les jours précédents/suivants
+  du mois se déplient à la demande.
 - Saisie par demi-journée : heures de travail **ou** absence
-  (vacances, maladie, accident, jour férié, armée/PC, formation, autre).
-- Bouton **« Journée type »** : remplit la journée standard (modifiable par
-  employé dans l'admin).
+  (vacances, maladie, accident, jour férié, armée/PC, formation, autre) ;
+  les champs d'heure vides se pré-remplissent au toucher.
 - Total du mois et compteurs d'absences en direct. Navigation par mois.
 - Un jour **validé par la direction est verrouillé** (plus modifiable).
 
@@ -57,7 +58,8 @@ les feuilles de temps, puis exporte un fichier Excel complet pour la comptable.
 Sécurité : RLS activé **sans policy** sur toutes les tables → aucune lecture ni
 écriture directe possible avec la clé publique. Tout passe par des fonctions
 `SECURITY DEFINER` qui exigent un PIN valide puis un jeton de session. Les PIN
-sont stockés hachés (bcrypt). Anti-force-brute : 20 tentatives/minute maximum.
+sont stockés hachés (bcrypt). Anti-force-brute : 20 tentatives/minute par
+adresse IP (plafond global 200/minute).
 
 ## Mettre à jour l'interface
 
@@ -68,13 +70,13 @@ sont stockés hachés (bcrypt). Anti-force-brute : 20 tentatives/minute maximum.
 
 ## Activer GitHub Pages (une seule fois)
 
-1. GitHub → dépôt `horaires` → **Settings** → **General** → « Danger Zone » →
+1. GitHub → dépôt `horairesdubois/horaires` → **Settings** → **General** → « Danger Zone » →
    **Change visibility** → *Public* (inutile avec un compte GitHub payant).
 2. **Settings** → **Pages** → « Build and deployment » → Source :
    *Deploy from a branch* → Branch : `claude/employee-schedule-system-jekf2k`,
    dossier `/docs` → **Save**.
 3. Après ~1-2 minutes, l'application est en ligne sur
-   https://oneadrien.github.io/horaires/
+   https://horairesdubois.github.io/horaires/
 
 ## Maintien en éveil (important, plan gratuit)
 
