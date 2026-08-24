@@ -141,6 +141,8 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .grille td.cellule:hover{outline:2px solid var(--bleu);outline-offset:-2px}
 .tot-cell{font-weight:700;font-variant-numeric:tabular-nums}
 .emp-nom-cell{font-weight:700}
+.emp-lien{display:block;font-weight:700;color:var(--texte);text-align:left;padding:0;
+  text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 .btn-val-lien{display:block;font-size:11px;color:var(--bleu-f);font-weight:600;padding:2px 0;text-decoration:underline}
 .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap}
 .pill.val{background:#d1fae5;color:#065f46}
@@ -263,6 +265,23 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   </div>
 </div>
 
+<!-- ============ MODALE REVUE (direction : détail avant validation) ============ -->
+<div class="voile" id="voile-det">
+  <div class="modale">
+    <h2 id="det-titre"></h2>
+    <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
+    <div class="carte" style="padding:12px">
+      <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
+      <div class="chips" id="det-chips"></div>
+    </div>
+    <div id="det-liste"></div>
+    <div class="actions">
+      <button class="btn sec" id="det-fermer">Fermer</button>
+      <button class="btn vert" id="det-valider" hidden></button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ MODALE EMPLOYÉ (admin) ============ -->
 <div class="voile" id="voile-emp">
   <div class="modale">
@@ -380,6 +399,7 @@ function sessionPerdue() {
   S.token = null; S.moi = null;
   $('voile-jour').classList.remove('ouvert');
   $('voile-emp').classList.remove('ouvert');
+  $('voile-det').classList.remove('ouvert');
   montrer('login');
   toast('Session expirée, reconnectez-vous');
 }
@@ -743,7 +763,11 @@ function renderEquipe() {
   const map = ptgMap();
   // Les employés désactivés qui ont des heures ce mois restent visibles :
   // leurs pointages doivent pouvoir être contrôlés et exportés.
-  const actifs = S.employes.filter(e => e.actif || Object.keys(map[e.id] || {}).length);
+  // La Direction (admin) n'a pas de feuille de temps : elle valide, sauf si
+  // des heures ont été saisies sur son compte.
+  const actifs = S.employes.filter(e =>
+    (e.actif || Object.keys(map[e.id] || {}).length) &&
+    (e.role !== 'admin' || Object.keys(map[e.id] || {}).length));
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
@@ -760,8 +784,9 @@ function renderEquipe() {
     const action = lignes.length ?
       '<button class="btn-val-lien" data-emp="' + e.id + '" data-app="' + (tous ? '0' : '1') + '">' +
       (tous ? 'Déverrouiller' : 'Valider le mois') + '</button>' : '';
-    html += '<tr><td><div class="emp-nom-cell">' + esc(e.prenom) + (e.nom ? ' ' + esc(e.nom[0]) + '.' : '') +
-      (e.actif ? '' : ' <span class="muet">(désactivé)</span>') + '</div>' + action + '</td>' +
+    html += '<tr><td><button class="emp-lien" data-emp="' + e.id + '" title="Voir le détail du mois">' +
+      esc(e.prenom) + (e.nom ? ' ' + esc(e.nom[0]) + '.' : '') + ' ›</button>' +
+      (e.actif ? '' : '<span class="muet">(désactivé)</span>') + action + '</td>' +
       '<td class="tot-cell">' + (tot ? fmtMin(tot) : '—') + '</td>' +
       '<td>' + statut + '</td>';
     for (const j of jours) {
@@ -784,13 +809,59 @@ function renderEquipe() {
     html += '</tr>';
   }
   html += '</table></div>';
-  html += '<div class="muet" style="margin-top:8px">Cliquez sur une case pour saisir ou corriger un jour. « Valider le mois » verrouille toutes les saisies de l’employé (fond vert = validé).</div>';
+  html += '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour (fond vert = validé, verrouillé pour l’employé).</div>';
   $('ong-equipe').innerHTML = html;
   $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
   $('ong-equipe').querySelectorAll('.btn-val-lien').forEach(b =>
     b.addEventListener('click', () => approuverMois(b.dataset.emp, b.dataset.app === '1')));
+  $('ong-equipe').querySelectorAll('.emp-lien').forEach(b =>
+    b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
 }
+
+/* ---------- Revue détaillée d'un employé (direction) ---------- */
+const DET = { empId: null };
+function ouvrirDetails(empId) {
+  DET.empId = empId;
+  const e = S.employes.find(x => x.id === empId);
+  if (!e) return;
+  const map = ptgMap()[empId] || {};
+  const lignes = Object.values(map);
+  const jours = joursDuMois(S.annee, S.mois);
+  const auj = aujourdhui();
+  $('det-titre').textContent = nomComplet(e);
+  $('det-sous').textContent = (e.metier ? e.metier + ' — ' : '') + MOIS[S.mois - 1] + ' ' + S.annee;
+  let total = 0;
+  for (const p of lignes) total += jourMin(p);
+  $('det-total').textContent = fmtMin(total);
+  const abs = resumeAbsences(lignes);
+  $('det-chips').innerHTML = Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
+  const tous = lignes.length > 0 && lignes.every(p => p.approuve);
+  if (tous) $('det-chips').innerHTML += '<span style="background:#ecfdf5;color:#065f46">✓ Mois validé</span>';
+  $('det-liste').innerHTML = jours.map(j => {
+    const p = map[j.iso];
+    const we = j.js === 0 || j.js === 6;
+    const min = jourMin(p);
+    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + '" data-jour="' + j.iso + '">' +
+      '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
+      '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
+      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
+      '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') + '</div></button>';
+  }).join('');
+  $('det-liste').querySelectorAll('.jour-ligne').forEach(b =>
+    b.addEventListener('click', () => { fermerDetails(); ouvrirJour(empId, b.dataset.jour); }));
+  const btn = $('det-valider');
+  if (!lignes.length) {
+    btn.hidden = true;
+  } else {
+    btn.hidden = false;
+    btn.className = 'btn ' + (tous ? 'sec' : 'vert');
+    btn.textContent = tous ? '🔓 Déverrouiller le mois' : '✓ Valider le mois';
+    btn.dataset.app = tous ? '0' : '1';
+  }
+  $('voile-det').classList.add('ouvert');
+}
+function fermerDetails() { $('voile-det').classList.remove('ouvert'); }
 function renderEmployes() {
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
@@ -804,7 +875,9 @@ function renderEmployes() {
 }
 function renderExport() {
   const map = ptgMap();
-  const choix = S.employes.filter(e => e.actif || Object.keys(map[e.id] || {}).length).map(e =>
+  const choix = S.employes.filter(e =>
+    (e.actif || Object.keys(map[e.id] || {}).length) &&
+    (e.role !== 'admin' || Object.keys(map[e.id] || {}).length)).map(e =>
     '<label><input type="checkbox" data-id="' + e.id + '" ' + (e.role === 'admin' ? '' : 'checked') + '> ' +
     esc(nomComplet(e)) + ' <span class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</span></label>').join('');
   $('ong-export').innerHTML =
@@ -1037,6 +1110,12 @@ function init() {
   $('mj-approuver').addEventListener('click', approuverJour);
   $('me-annuler').addEventListener('click', () => $('voile-emp').classList.remove('ouvert'));
   $('me-save').addEventListener('click', sauverEmp);
+  $('det-fermer').addEventListener('click', fermerDetails);
+  $('det-valider').addEventListener('click', () => {
+    const app = $('det-valider').dataset.app === '1';
+    fermerDetails();
+    approuverMois(DET.empId, app);
+  });
   $('btn-pointer').addEventListener('click', journeeTypeAujourdhui);
   $('btn-sortir-emp').addEventListener('click', deconnexion);
   $('btn-sortir-adm').addEventListener('click', deconnexion);
@@ -1046,7 +1125,7 @@ function init() {
   $('adm-next').addEventListener('click', () => moisNav(1));
   document.querySelectorAll('.onglets button').forEach(b =>
     b.addEventListener('click', () => { S.ongletAdmin = b.dataset.ong; renderAdmin(); }));
-  [$('voile-jour'), $('voile-emp')].forEach(v =>
+  [$('voile-jour'), $('voile-emp'), $('voile-det')].forEach(v =>
     v.addEventListener('click', e => { if (e.target === v) v.classList.remove('ouvert'); }));
   if (S.token && S.moi) { charger(); } else { montrer('login'); }
 }
