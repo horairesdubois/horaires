@@ -258,7 +258,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <div class="titre-carte">💬 Une question sur ce mois ?<span class="pastille" id="emp-msg-pastille" hidden></span></div>
     <div class="muet" style="margin-bottom:8px" id="emp-msg-aide"></div>
     <div id="emp-msg-fil"></div>
-    <textarea id="emp-msg-texte" maxlength="2000" placeholder="Votre question à la direction…"></textarea>
+    <textarea id="emp-msg-texte" maxlength="2000" placeholder="Votre question au back office…"></textarea>
     <button class="btn large" id="emp-msg-envoyer">Envoyer ma question</button>
   </div>
 </div>
@@ -312,7 +312,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     </div>
     <input type="text" id="mj-rem" placeholder="Remarque (chantier, client…)" maxlength="200">
     <div class="total-apercu" id="mj-total"></div>
-    <div class="note-verrou" id="mj-verrou" hidden>✓ Validé par la direction — modification impossible</div>
+    <div class="note-verrou" id="mj-verrou" hidden>✓ Validé par le back office — modification impossible</div>
     <div class="actions" id="mj-actions-1">
       <button class="btn sec" id="mj-defaut">Journée type</button>
       <button class="btn rouge" id="mj-suppr" hidden>Supprimer</button>
@@ -798,7 +798,7 @@ function renderEmp() {
   if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (S.pointages.length && S.pointages.every(p => p.approuve)) {
-    chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
+    chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par le back office</span>';
   }
   $('emp-chips').innerHTML = chips;
   $('emp-remplir').innerHTML = manq > 0
@@ -821,7 +821,7 @@ function renderEmp() {
     const dateLib = JS_LONG[jsAuj] + ' ' + jrj + ' ' + MOIS[moj - 1];
     if (p && p.approuve) {
       $('btn-pointer').disabled = true;
-      $('btn-pointer').textContent = '✓ Journée validée par la direction';
+      $('btn-pointer').textContent = '✓ Journée validée par le back office';
       $('pointer-info').textContent = dateLib;
     } else if (p && p.confirme) {
       const min = jourMin(p);
@@ -1150,7 +1150,8 @@ function renderBulletinsEmp() {
 
 /* ---------- Questions (employé) ---------- */
 function bulleMsg(m) {
-  const roles = { admin: 'Direction', compta: 'Fiduciaire', employe: m.auteur };
+  // Pour le collaborateur, l'entreprise parle d'une seule voix : le back office.
+  const roles = { admin: 'Back office', compta: 'Back office', employe: m.auteur };
   const moi = m.role === S.moi.role && (m.role !== 'employe' || m.employe_id === S.moi.id);
   return '<div class="bulle ' + (moi ? 'moi' : '') + '">' +
     '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + ' · ' + esc(m.quand) + '</div>' +
@@ -1169,8 +1170,8 @@ function renderMsgEmp() {
   p.hidden = !S.msgNonLus;
   if (S.msgNonLus) p.textContent = S.msgNonLus;
   $('emp-msg-aide').textContent = S.messages.length
-    ? 'Vos échanges avec la direction au sujet de ' + MOIS[S.mois - 1] + ' ' + S.annee + '.'
-    : 'Posez votre question sur ' + MOIS[S.mois - 1] + ' ' + S.annee + ' — la direction vous répondra ici.';
+    ? 'Vos échanges avec le back office au sujet de ' + MOIS[S.mois - 1] + ' ' + S.annee + '.'
+    : 'Posez votre question sur ' + MOIS[S.mois - 1] + ' ' + S.annee + ' — le back office vous répondra ici.';
   $('emp-msg-fil').innerHTML = S.messages.map(bulleMsg).join('');
 }
 async function envoyerMsgEmp() {
@@ -1243,7 +1244,9 @@ function renderMessages() {
   const fil = S.msgCharges
     ? (S.messages.length
         ? S.messages.map(m => {
-            const roles = { admin: 'Direction', compta: 'Fiduciaire', employe: m.auteur };
+            const roles = empFil
+              ? { admin: 'Back office', compta: 'Back office', employe: m.auteur }
+              : { admin: 'Direction', compta: 'Fiduciaire', employe: m.auteur };
             return '<div class="bulle ' + (m.role === moiRole ? 'moi' : 'eux') + '">' +
               '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + '</div>' +
               '<div class="txt">' + esc(m.texte) + '</div>' +
