@@ -110,6 +110,19 @@ h1{font-size:22px;font-weight:700}
 .sem-sub{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#334155;
   background:#eef3f1;border-radius:9px;padding:7px 12px;margin:2px 0 10px}
 .delta-sup{font-size:11px;font-weight:800;color:#047857;margin-left:4px;white-space:nowrap}
+.titre-carte{font-weight:700;font-size:15px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.bull-ligne{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--ligne)}
+.bull-ligne:last-child{border-bottom:none}
+.bull-mois{font-weight:600;text-transform:capitalize}
+.bull-info{font-size:12px;color:var(--gris)}
+.bull-vide{color:var(--gris);font-size:14px;padding:6px 0}
+.fils{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.fils button{font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px;background:#eef2f5;color:var(--gris)}
+.fils button.actif{background:var(--bleu);color:#fff}
+.fils .pastille{margin-left:5px}
+#emp-msg-texte{min-height:74px;resize:vertical;width:100%;border:1px solid var(--ligne);border-radius:10px;
+  padding:10px 12px;background:var(--carte);margin-bottom:8px;font:inherit;color:inherit}
+.dep-mois{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .note-verrou{background:#ecfdf5;color:#065f46;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;text-align:center;margin-top:10px}
 .btn-val{padding:6px 10px !important;font-size:12px !important}
 
@@ -236,6 +249,17 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <div id="emp-remplir"></div>
   </div>
   <div id="emp-liste"></div>
+  <div class="carte" id="carte-bulletins" hidden>
+    <div class="titre-carte">📄 Mes bulletins de salaire</div>
+    <div id="emp-bulletins"></div>
+  </div>
+  <div class="carte" id="carte-questions">
+    <div class="titre-carte">💬 Une question sur ce mois ?<span class="pastille" id="emp-msg-pastille" hidden></span></div>
+    <div class="muet" style="margin-bottom:8px" id="emp-msg-aide"></div>
+    <div id="emp-msg-fil"></div>
+    <textarea id="emp-msg-texte" maxlength="2000" placeholder="Votre question à la direction…"></textarea>
+    <button class="btn large" id="emp-msg-envoyer">Envoyer ma question</button>
+  </div>
 </div>
 
 <!-- ============ ADMIN ============ -->
@@ -256,11 +280,13 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <button data-ong="equipe" class="actif">🗓️ Feuilles de temps</button>
     <button data-ong="employes">👥 Employés</button>
     <button data-ong="export">📤 Export comptable</button>
+    <button data-ong="bulletins">📄 Bulletins de salaire</button>
     <button data-ong="messages" id="ong-btn-messages">💬 Questions</button>
   </div>
   <div id="ong-equipe"></div>
   <div id="ong-employes" hidden></div>
   <div id="ong-export" hidden></div>
+  <div id="ong-bulletins" hidden></div>
   <div id="ong-messages" hidden></div>
 </div>
 
@@ -585,7 +611,8 @@ const S = {
   ongletAdmin: 'equipe',
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
-  lecture: false, msgNonLus: 0, messages: [], msgCharges: false
+  lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
+  bulletins: [], bullCharges: false, filMsg: null, fils: []
 };
 const estCompta = () => !!(S.moi && S.moi.role === 'compta');
 function ptgMap() {
@@ -713,6 +740,9 @@ async function charger() {
       S.moi = res.employe; localStorage.setItem('hor_moi', JSON.stringify(S.moi));
       S.pointages = res.pointages.map(p => ({ ...p, employe_id: S.moi.id }));
       montrer('emp'); renderEmp();
+      chargerMsgEmp();                       // le fil du mois affiché
+      if (!S.bullCharges) chargerBulletins(); // les bulletins, tous mois confondus
+      else renderBulletinsEmp();
     }
   } catch (e) { toast(e.message); }
 }
@@ -1053,6 +1083,87 @@ function journeeType() {
   majStatuts();
 }
 
+/* ---------- Bulletins de salaire ---------- */
+const koLisible = o => o < 1024 ? o + ' o' : (o / 1024).toFixed(o < 102400 ? 1 : 0).replace('.', ',') + ' Ko';
+async function chargerBulletins() {
+  try {
+    const res = await rpc('bulletins_lister', { p_token: S.token });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); return; }
+    S.bulletins = res.bulletins; S.bullCharges = true;
+    if (!$('v-emp').hidden) renderBulletinsEmp();
+    else if (S.ongletAdmin === 'bulletins') renderBulletinsAdmin();
+  } catch (e) { toast(e.message); }
+}
+// Le PDF arrive en base64 : on le reconstitue puis on déclenche le téléchargement.
+async function telechargerBulletin(id, bouton) {
+  const libelle = bouton ? bouton.textContent : '';
+  if (bouton) { bouton.disabled = true; bouton.innerHTML = '<span class="spin"></span>'; }
+  try {
+    const res = await rpc('bulletin_telecharger', { p_token: S.token, p_bulletin: id });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
+    const bin = atob(res.contenu);
+    const octets = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([octets], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = res.nom;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast(e.message); }
+  finally { if (bouton) { bouton.disabled = false; bouton.textContent = libelle; } }
+}
+function renderBulletinsEmp() {
+  const liste = S.bulletins;
+  $('carte-bulletins').hidden = !liste.length;
+  if (!liste.length) return;
+  $('emp-bulletins').innerHTML = liste.map(b =>
+    '<div class="bull-ligne"><div><div class="bull-mois">' + MOIS[b.mois - 1] + ' ' + b.annee + '</div>' +
+    '<div class="bull-info">déposé le ' + esc(b.depose_le) + ' · ' + koLisible(b.taille) + '</div></div>' +
+    '<button class="btn sec btn-val" data-bull="' + b.id + '">Télécharger</button></div>').join('');
+  $('emp-bulletins').querySelectorAll('button[data-bull]').forEach(b =>
+    b.addEventListener('click', () => telechargerBulletin(b.dataset.bull, b)));
+}
+
+/* ---------- Questions (employé) ---------- */
+function bulleMsg(m) {
+  const roles = { admin: 'Direction', compta: 'Fiduciaire', employe: m.auteur };
+  const moi = m.role === S.moi.role && (m.role !== 'employe' || m.employe_id === S.moi.id);
+  return '<div class="bulle ' + (moi ? 'moi' : '') + '">' +
+    '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + ' · ' + esc(m.quand) + '</div>' +
+    '<div class="txt">' + esc(m.texte) + '</div></div>';
+}
+async function chargerMsgEmp() {
+  try {
+    const res = await rpc('messages_lire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); return; }
+    S.messages = res.messages; S.msgNonLus = res.non_lus; S.msgCharges = true;
+    renderMsgEmp();
+  } catch (e) { toast(e.message); }
+}
+function renderMsgEmp() {
+  const p = $('emp-msg-pastille');
+  p.hidden = !S.msgNonLus;
+  if (S.msgNonLus) p.textContent = S.msgNonLus;
+  $('emp-msg-aide').textContent = S.messages.length
+    ? 'Vos échanges avec la direction au sujet de ' + MOIS[S.mois - 1] + ' ' + S.annee + '.'
+    : 'Posez votre question sur ' + MOIS[S.mois - 1] + ' ' + S.annee + ' — la direction vous répondra ici.';
+  $('emp-msg-fil').innerHTML = S.messages.map(bulleMsg).join('');
+}
+async function envoyerMsgEmp() {
+  const texte = $('emp-msg-texte').value.trim();
+  if (!texte) { toast('Écrivez votre question'); return; }
+  const btn = $('emp-msg-envoyer');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await rpc('message_ecrire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
+    $('emp-msg-texte').value = '';
+    toast('✓ Question envoyée');
+    await chargerMsgEmp();
+  } catch (e) { toast(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Envoyer ma question'; }
+}
+
 /* ---------- Vue admin ---------- */
 function renderAdmin() {
   const compta = estCompta();
@@ -1068,51 +1179,74 @@ function renderAdmin() {
   $('ong-equipe').hidden = S.ongletAdmin !== 'equipe';
   $('ong-employes').hidden = S.ongletAdmin !== 'employes';
   $('ong-export').hidden = S.ongletAdmin !== 'export';
+  $('ong-bulletins').hidden = S.ongletAdmin !== 'bulletins';
   $('ong-messages').hidden = S.ongletAdmin !== 'messages';
   if (S.ongletAdmin === 'equipe') renderEquipe();
   if (S.ongletAdmin === 'employes') renderEmployes();
   if (S.ongletAdmin === 'export') renderExport();
+  if (S.ongletAdmin === 'bulletins') { renderBulletinsAdmin(); if (!S.bullCharges) chargerBulletins(); }
   if (S.ongletAdmin === 'messages') renderMessages();
 }
 
-/* ---------- Questions de la fiduciaire (fil par mois) ---------- */
+/* ---------- Questions : un fil général et un fil par collaborateur ---------- */
 async function chargerMessages() {
   try {
-    const res = await rpc('messages_lire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+    const res = await rpc('messages_lire', {
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_employe: S.filMsg });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
-    S.messages = res.messages; S.msgNonLus = res.non_lus; S.msgCharges = true;
+    S.messages = res.messages; S.msgNonLus = res.non_lus; S.fils = res.fils || []; S.msgCharges = true;
     if (S.ongletAdmin === 'messages') renderMessages();
     $('ong-btn-messages').innerHTML = '💬 Questions' +
       (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
   } catch (e) { toast(e.message); }
 }
+// Onglets de fils : « Général » (direction ↔ fiduciaire) puis un fil par collaborateur.
+function ongletsFils() {
+  const emps = S.employes.filter(e => e.role === 'employe' && e.actif);
+  const nonLus = {};
+  for (const f of S.fils) nonLus[f.employe_id || ''] = f.non_lus;
+  const bouton = (id, nom) =>
+    '<button data-fil="' + (id || '') + '" class="' + ((S.filMsg || '') === (id || '') ? 'actif' : '') + '">' +
+    esc(nom) + (nonLus[id || ''] ? '<span class="pastille">' + nonLus[id || ''] + '</span>' : '') + '</button>';
+  return '<div class="fils">' + bouton(null, 'Général') +
+    emps.map(e => bouton(e.id, e.prenom)).join('') + '</div>';
+}
 function renderMessages() {
   const moiRole = S.moi.role;
-  const brouillon = $('msg-texte') ? $('msg-texte').value : ''; // un rafraîchissement n'efface pas ce qu'on est en train d'écrire
+  const brouillon = $('msg-texte') ? $('msg-texte').value : ''; // un rafraîchissement n'efface pas ce qu'on écrit
+  const empFil = S.filMsg ? S.employes.find(e => e.id === S.filMsg) : null;
+  const libFil = empFil ? nomComplet(empFil) : 'la fiduciaire et la direction';
   const fil = S.msgCharges
     ? (S.messages.length
         ? S.messages.map(m => {
-            const libRole = m.role === 'compta' ? 'fiduciaire' : 'direction';
-            const qui = m.auteur.toLowerCase().includes(libRole) ? m.auteur : m.auteur + ' · ' + libRole;
+            const roles = { admin: 'Direction', compta: 'Fiduciaire', employe: m.auteur };
             return '<div class="bulle ' + (m.role === moiRole ? 'moi' : 'eux') + '">' +
-            '<div class="qui-msg">' + esc(qui) + '</div>' +
-            '<div class="txt">' + esc(m.texte) + '</div>' +
-            '<div class="quand">' + esc(m.quand) + '</div></div>';
+              '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + '</div>' +
+              '<div class="txt">' + esc(m.texte) + '</div>' +
+              '<div class="quand">' + esc(m.quand) + '</div></div>';
           }).join('')
-        : '<div class="fil-vide">Aucune question pour ' + MOIS[S.mois - 1] + ' ' + S.annee + '.<br>' +
-          (estCompta() ? 'Posez ici vos questions sur ce mois : la direction y répond directement.'
-                       : 'Les questions de la fiduciaire sur ce mois apparaîtront ici.') + '</div>')
+        : '<div class="fil-vide">Aucun échange avec ' + esc(libFil) + ' pour ' +
+          MOIS[S.mois - 1] + ' ' + S.annee + '.</div>')
     : '<div class="fil-vide">Chargement…</div>';
   $('ong-messages').innerHTML =
     '<div class="carte"><div style="font-weight:700;margin-bottom:4px">Questions sur ' +
       MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
-    '<div class="muet" style="margin-bottom:12px">Chaque mois a son propre fil : changez de mois en haut pour retrouver les échanges correspondants.</div>' +
+    '<div class="muet" style="margin-bottom:10px">Chaque mois et chaque personne ont leur propre fil. Un collaborateur ne voit que le sien.</div>' +
+    ongletsFils() +
     '<div class="fil">' + fil + '</div>' +
     '<textarea id="msg-texte" maxlength="2000" placeholder="' +
-      (estCompta() ? 'Votre question à la direction sur ce mois…' : 'Votre réponse à la fiduciaire…') + '"></textarea>' +
+      (empFil ? 'Votre réponse à ' + esc(empFil.prenom) + '…'
+              : (estCompta() ? 'Votre question à la direction sur ce mois…' : 'Votre réponse à la fiduciaire…')) +
+      '"></textarea>' +
     '<button class="btn large" id="msg-envoyer">Envoyer</button></div>';
   $('msg-texte').value = brouillon;
   $('msg-envoyer').addEventListener('click', envoyerMessage);
+  $('ong-messages').querySelectorAll('.fils button').forEach(b =>
+    b.addEventListener('click', () => {
+      S.filMsg = b.dataset.fil || null;
+      S.msgCharges = false; S.messages = [];
+      renderMessages(); chargerMessages();
+    }));
   if (!S.msgCharges) chargerMessages();
 }
 async function envoyerMessage() {
@@ -1121,11 +1255,11 @@ async function envoyerMessage() {
   const btn = $('msg-envoyer');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
-    const res = await rpc('message_ecrire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte });
+    const res = await rpc('message_ecrire', {
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte, p_employe: S.filMsg });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
     $('msg-texte').value = '';
     await chargerMessages();
-    toast('✓ Message envoyé');
   } catch (e) { toast(e.message); }
   finally { btn.disabled = false; btn.textContent = 'Envoyer'; }
 }
@@ -1194,6 +1328,70 @@ function renderEquipe() {
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
   $('ong-equipe').querySelectorAll('.emp-lien').forEach(b =>
     b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
+}
+
+/* ---------- Bulletins de salaire (fiduciaire / direction) ---------- */
+function renderBulletinsAdmin() {
+  const emps = S.employes.filter(e => e.role === 'employe' && e.actif);
+  const duMois = {};
+  for (const b of S.bulletins) if (b.annee === S.annee && b.mois === S.mois) duMois[b.employe_id] = b;
+  $('ong-bulletins').innerHTML =
+    '<div class="carte"><div class="titre-carte">📄 Bulletins de ' + MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
+    '<div class="muet" style="margin-bottom:10px">Déposez le bulletin PDF de chaque collaborateur : il le retrouve aussitôt dans son espace. Utilisez les flèches en haut pour changer de mois.</div>' +
+    emps.map(e => {
+      const b = duMois[e.id];
+      return '<div class="bull-ligne"><div><div class="bull-mois">' + esc(nomComplet(e)) + '</div>' +
+        '<div class="bull-info">' + (b
+            ? '✓ ' + esc(b.nom) + ' · ' + koLisible(b.taille) + ' · déposé le ' + esc(b.depose_le)
+            : 'aucun bulletin pour ce mois') + '</div></div>' +
+        '<div style="display:flex;gap:6px;flex:none">' +
+        (b ? '<button class="btn sec btn-val" data-bull="' + b.id + '">Voir</button>' +
+             '<button class="btn rouge btn-val" data-suppr="' + b.id + '">Retirer</button>' : '') +
+        '<button class="btn btn-val" data-depot="' + e.id + '">' + (b ? 'Remplacer' : 'Déposer') + '</button>' +
+        '</div></div>';
+    }).join('') +
+    (emps.length ? '' : '<div class="bull-vide">Aucun collaborateur actif.</div>') +
+    '</div><input type="file" id="bull-fichier" accept="application/pdf,.pdf" hidden>';
+
+  $('ong-bulletins').querySelectorAll('button[data-bull]').forEach(b =>
+    b.addEventListener('click', () => telechargerBulletin(b.dataset.bull, b)));
+  $('ong-bulletins').querySelectorAll('button[data-suppr]').forEach(b =>
+    b.addEventListener('click', () => supprimerBulletin(b.dataset.suppr)));
+  $('ong-bulletins').querySelectorAll('button[data-depot]').forEach(b =>
+    b.addEventListener('click', () => { BULL.employe = b.dataset.depot; $('bull-fichier').click(); }));
+  $('bull-fichier').addEventListener('change', deposerBulletin);
+}
+const BULL = { employe: null };
+async function deposerBulletin(ev) {
+  const fichier = ev.target.files && ev.target.files[0];
+  ev.target.value = '';                       // permet de redéposer le même fichier
+  if (!fichier || !BULL.employe) return;
+  if (fichier.size > 3 * 1024 * 1024) { toast('Fichier trop lourd (3 Mo maximum)', 4000); return; }
+  toast('Envoi du bulletin…', 4000);
+  try {
+    const base64 = await new Promise((ok, ko) => {
+      const l = new FileReader();
+      l.onload = () => ok(String(l.result).split(',')[1]);
+      l.onerror = () => ko(new Error('Lecture du fichier impossible'));
+      l.readAsDataURL(fichier);
+    });
+    const res = await rpc('bulletin_deposer', {
+      p_token: S.token, p_employe: BULL.employe, p_annee: S.annee, p_mois: S.mois,
+      p_nom: fichier.name, p_base64: base64
+    });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 4000); return; }
+    toast('✓ Bulletin déposé');
+    await chargerBulletins();
+  } catch (e) { toast(e.message, 4000); }
+}
+async function supprimerBulletin(id) {
+  if (!confirm('Retirer ce bulletin ? Le collaborateur ne pourra plus le télécharger.')) return;
+  try {
+    const res = await rpc('bulletin_supprimer', { p_token: S.token, p_bulletin: id });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+    toast('Bulletin retiré');
+    await chargerBulletins();
+  } catch (e) { toast(e.message); }
 }
 
 /* ---------- Revue détaillée d'un employé (direction) ---------- */
@@ -1724,6 +1922,7 @@ function init() {
   });
   $('det-fermer').addEventListener('click', fermerDetails);
   $('btn-pointer').addEventListener('click', journeeTypeAujourdhui);
+  $('emp-msg-envoyer').addEventListener('click', envoyerMsgEmp);
   $('btn-sortir-emp').addEventListener('click', deconnexion);
   $('btn-sortir-adm').addEventListener('click', deconnexion);
   $('emp-prev').addEventListener('click', () => moisNav(-1));
