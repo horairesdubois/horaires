@@ -100,6 +100,10 @@ h1{font-size:22px;font-weight:700}
 .plier:active{background:#eef2f5}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;color:#fff;margin-right:4px}
 .okv{color:var(--vert);font-weight:800}
+/* Jour férié : information de contexte, pas une alerte — teinte très douce. */
+.fer-doux{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.02em;
+  padding:1px 6px;border-radius:5px;background:#f1eefb;color:#7c6ba8}
+.fer-txt{color:#94a3b8;font-size:12px}
 .val-jour{flex:none;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
   font-weight:800;font-size:15px;color:#94a3b8;background:#eef2f5;margin-left:8px;cursor:pointer}
 .val-jour.on{background:var(--vert);color:#fff}
@@ -301,7 +305,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="modale">
     <h2 id="det-titre"></h2>
     <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
-    <div class="muet" style="margin:0 0 10px" id="det-aide">Touchez la coche ✓ à droite d’un jour pour le valider (ou le déverrouiller) individuellement. « Valider le mois » verrouille tout d’un coup.</div>
+    <div class="muet" style="margin:0 0 10px" id="det-aide">Touchez la coche ✓ à droite d’un jour pour le valider — ou le déverrouiller. Chaque journée se valide séparément.</div>
     <div class="carte" style="padding:12px">
       <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
       <div class="chips" id="det-chips"></div>
@@ -309,7 +313,6 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <div id="det-liste"></div>
     <div class="actions">
       <button class="btn sec" id="det-fermer">Fermer</button>
-      <button class="btn vert" id="det-valider" hidden></button>
     </div>
   </div>
 </div>
@@ -448,7 +451,7 @@ function feriesGE(an) {
 }
 function ferieGE(isoJour) { return feriesGE(+isoJour.slice(0, 4))[isoJour] || null; }
 function badgeFerie(nom) {
-  return '<span class="badge" style="background:' + COULEURS.ferie + '">FÉR</span> <span class="muet">' + nom + '</span>';
+  return '<span class="fer-doux">fér.</span> <span class="fer-txt">' + esc(nom) + '</span>';
 }
 /* Heures supplémentaires d'un jour saisi : tout ce qui dépasse la journée
    type (8h00, réduite de 4h00 par demi-journée d'absence). Le week-end et
@@ -1020,17 +1023,6 @@ async function approuverJour() {
     await charger();
   } catch (e) { toast(e.message); }
 }
-async function approuverMois(empId, approuve) {
-  try {
-    const res = await rpc('admin_approuver', {
-      p_token: S.token, p_employe: empId, p_annee: S.annee, p_mois: S.mois,
-      p_jour: null, p_approuve: approuve
-    });
-    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
-    toast(approuve ? '✓ Mois validé (' + res.nombre + ' jours)' : 'Mois déverrouillé');
-    await charger();
-  } catch (e) { toast(e.message); }
-}
 async function supprimerJour() {
   const admin = S.moi.role === 'admin';
   const args = admin ? { p_token: S.token, p_employe: MJ.empId, p_jour: MJ.jour } : { p_token: S.token, p_jour: MJ.jour };
@@ -1150,7 +1142,7 @@ function renderEquipe() {
   const auj = aujourdhui();
   const lecture = S.lecture;
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
-  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Solde</th><th>H. sup</th><th>Statut</th>' +
+  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
       JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
   for (const e of actifs) {
@@ -1164,19 +1156,12 @@ function renderEquipe() {
       const [aS, mS, dS] = p.jour.split('-').map(Number);
       supE += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
     }
-    const tous = lignes.length > 0 && lignes.every(p => p.approuve);
-    const statut = !lignes.length ? '<span class="muet">—</span>' :
-      tous ? '<span class="pill val">Validé</span>' : '<span class="pill att">En attente</span>';
-    const action = (lignes.length && !lecture) ?
-      '<button class="btn-val-lien" data-emp="' + e.id + '" data-app="' + (tous ? '0' : '1') + '">' +
-      (tous ? 'Déverrouiller' : 'Valider le mois') + '</button>' : '';
     html += '<tr><td><button class="emp-lien" data-emp="' + e.id + '" title="Voir le détail du mois">' +
       esc(e.prenom) + (e.nom ? ' ' + esc(e.nom[0]) + '.' : '') + ' ›</button>' +
-      (e.actif ? '' : '<span class="muet">(désactivé)</span>') + action + '</td>' +
+      (e.actif ? '' : '<span class="muet">(désactivé)</span>') + '</td>' +
       '<td class="tot-cell">' + (tot ? fmtMin(tot) : '—') + '</td>' +
-      '<td class="tot-cell" style="color:' + (solde >= 0 ? '#047857' : '#b91c1c') + '">' + fmtSolde(solde) + '</td>' +
       '<td class="tot-cell" style="color:#047857">' + (supE ? '+' + fmtMin(supE) : '—') + '</td>' +
-      '<td>' + statut + '</td>';
+      '';
     for (const j of jours) {
       const p = mapE[j.iso];
       const we = j.js === 0 || j.js === 6;
@@ -1184,7 +1169,7 @@ function renderEquipe() {
       const fer = ferieGE(j.iso);
       const manque = !p && !we && j.iso < auj && !fer;
       let contenu = '';
-      if (!p && fer) contenu = '<span class="badge" style="background:' + COULEURS.ferie + '" title="' + esc(fer) + '">FÉR</span>';
+      if (!p && fer) contenu = '<span class="fer-doux" title="' + esc(fer) + '">fér.</span>';
       if (p) {
         const morceaux = [];
         if (min) morceaux.push(fmtMin(min));
@@ -1203,12 +1188,10 @@ function renderEquipe() {
   html += '</table></div>';
   html += lecture
     ? '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour voir son mois jour par jour. Fond vert = jour validé par la direction · fond jaune = jour ouvré non encore saisi. Cette page se met à jour automatiquement dès qu’une saisie est ajoutée.</div>'
-    : '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour. Fond vert = validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · Solde = heures pointées moins les 8h00 dues par jour ouvré écoulé (absences déduites).</div>';
+    : '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour examiner son mois et <b>valider jour par jour</b>. Cliquez sur une case pour saisir ou corriger une journée. Fond vert = jour validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi.</div>';
   $('ong-equipe').innerHTML = html;
   if (!lecture) $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
-  $('ong-equipe').querySelectorAll('.btn-val-lien').forEach(b =>
-    b.addEventListener('click', () => approuverMois(b.dataset.emp, b.dataset.app === '1')));
   $('ong-equipe').querySelectorAll('.emp-lien').forEach(b =>
     b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
 }
@@ -1283,15 +1266,6 @@ function ouvrirDetails(empId) {
         ev.stopPropagation();
         approuverJourRevue(empId, s.dataset.jour, !s.classList.contains('on'));
       }));
-  }
-  const btn = $('det-valider');
-  if (!lignes.length || S.lecture) {
-    btn.hidden = true;
-  } else {
-    btn.hidden = false;
-    btn.className = 'btn ' + (tous ? 'sec' : 'vert');
-    btn.textContent = tous ? '🔓 Déverrouiller le mois' : '✓ Valider le mois';
-    btn.dataset.app = tous ? '0' : '1';
   }
   $('voile-det').classList.add('ouvert');
 }
@@ -1749,11 +1723,6 @@ function init() {
     } catch (e) { toast(e.message); }
   });
   $('det-fermer').addEventListener('click', fermerDetails);
-  $('det-valider').addEventListener('click', () => {
-    const app = $('det-valider').dataset.app === '1';
-    fermerDetails();
-    approuverMois(DET.empId, app);
-  });
   $('btn-pointer').addEventListener('click', journeeTypeAujourdhui);
   $('btn-sortir-emp').addEventListener('click', deconnexion);
   $('btn-sortir-adm').addEventListener('click', deconnexion);
