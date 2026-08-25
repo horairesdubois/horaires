@@ -72,6 +72,11 @@ h1{font-size:22px;font-weight:700}
 .totaux .gros{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .chips span{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:#e7f6ef;color:var(--bleu-f)}
+.etat-mois{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;padding:11px 13px;border-radius:12px}
+.etat-mois.attention{background:#fef3c7;color:#92400e}
+.etat-mois.ok{background:#e7f6ef;color:#047857}
+#btn-pointer{display:flex;flex-direction:column;gap:1px}
+#btn-pointer .btn-sous{font-size:12.5px;font-weight:600;opacity:.92}
 
 /* ---- Liste jours ---- */
 .jour-ligne{display:flex;align-items:center;gap:12px;background:var(--carte);border-radius:12px;
@@ -205,11 +210,8 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <div class="muet" id="pointer-info"></div>
     <button class="btn vert large" id="btn-pointer"></button>
   </div>
-  <div class="carte">
-    <div class="totaux">
-      <div>Total du mois</div>
-      <div class="gros" id="emp-total">0h00</div>
-    </div>
+  <div class="carte" id="carte-mois">
+    <div id="emp-etat"></div>
     <div class="chips" id="emp-chips"></div>
     <div id="emp-remplir"></div>
   </div>
@@ -630,33 +632,34 @@ function renderEmp() {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
 
-  let total = 0;
-  for (const p of S.pointages) total += jourMin(p);
-  $('emp-total').textContent = fmtMin(total);
+  // Côté employé, pas de total mensuel ni de solde (ils restent côté direction
+  // et dans l'export) : ce qui lui parle, c'est « reste-t-il des jours à saisir ? ».
   const abs = resumeAbsences(S.pointages);
-  const solde = total - heuresDues(jours, map);
   const manq = joursManquants(jours, map);
   let supMois = 0;
   for (const p of S.pointages) {
     const [aS, mS, dS] = p.jour.split('-').map(Number);
     supMois += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
   }
-  let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
-    '" title="8h00 dues par jour ouvré passé, absences déduites">Solde : ' + fmtSolde(solde) + '</span>';
+  const moisCommence = jours[0].iso <= auj;
+  $('emp-etat').innerHTML = manq > 0
+    ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</div>'
+    : (moisCommence ? '<div class="etat-mois ok">✓ Vos heures sont à jour</div>' : '');
+  let chips = '';
   if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
-  if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
   if (S.pointages.length && S.pointages.every(p => p.approuve)) {
     chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
   }
   $('emp-chips').innerHTML = chips;
   $('emp-remplir').innerHTML = manq > 0
     ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter les ' + manq +
-      ' jour' + (manq > 1 ? 's' : '') + ' manquant' + (manq > 1 ? 's' : '') + ' (journée type)</button>'
+      ' jour' + (manq > 1 ? 's' : '') + ' manquant' + (manq > 1 ? 's' : '') + ' avec l’horaire normal</button>'
     : '';
   if (manq > 0) $('btn-remplir').addEventListener('click', remplirManquants);
+  $('carte-mois').hidden = !$('emp-etat').innerHTML && !chips && manq === 0;
 
-  // Carte « Journée type » : un appui enregistre la journée standard du jour même.
+  // Carte du jour : un appui enregistre l'horaire normal de la journée en cours.
   const maintenant = new Date();
   const moisCourant = maintenant.getFullYear() === S.annee && (maintenant.getMonth() + 1) === S.mois;
   $('carte-pointer').hidden = !moisCourant;
@@ -666,23 +669,25 @@ function renderEmp() {
       ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
     const [anj, moj, jrj] = auj.split('-').map(Number);
     const jsAuj = new Date(anj, moj - 1, jrj).getDay();
+    const dateLib = JS_LONG[jsAuj] + ' ' + jrj + ' ' + MOIS[moj - 1];
     if (p && p.approuve) {
       $('btn-pointer').disabled = true;
       $('btn-pointer').textContent = '✓ Journée validée par la direction';
-      $('pointer-info').textContent = '';
+      $('pointer-info').textContent = dateLib;
     } else if (p) {
       const min = jourMin(p);
       $('btn-pointer').disabled = true;
-      $('btn-pointer').textContent = '✓ Aujourd’hui saisi' + (min ? ' · ' + fmtMin(min) : '');
-      $('pointer-info').textContent = 'Pour corriger, touchez le jour dans la liste.';
+      $('btn-pointer').textContent = '✓ Journée d’aujourd’hui enregistrée' + (min ? ' · ' + fmtMin(min) : '');
+      $('pointer-info').textContent = dateLib + ' — pour corriger, touchez le jour dans la liste.';
     } else if (ferieGE(auj)) {
       $('btn-pointer').disabled = true;
       $('btn-pointer').textContent = '🎉 ' + ferieGE(auj);
       $('pointer-info').textContent = 'Jour férié officiel à Genève — rien à saisir, la journée est créditée automatiquement.';
     } else {
       $('btn-pointer').disabled = false;
-      $('btn-pointer').textContent = 'Journée type';
-      $('pointer-info').textContent = JS_LONG[jsAuj] + ' ' + jrj + ' ' + MOIS[moj - 1] + ' — enregistre ' + lib;
+      $('btn-pointer').innerHTML = '<span>Enregistrer ma journée d’aujourd’hui</span>' +
+        '<span class="btn-sous">' + lib + '</span>';
+      $('pointer-info').textContent = dateLib + ' — horaire différent ou absence ? Touchez le jour dans la liste.';
     }
   }
 
@@ -801,7 +806,7 @@ async function journeeTypeAujourdhui() {
       await charger();
       return;
     }
-    toast('✓ Journée type enregistrée pour aujourd’hui');
+    toast('✓ Journée d’aujourd’hui enregistrée');
     await charger();
   } catch (e) { toast(e.message); $('btn-pointer').disabled = false; }
 }
@@ -861,6 +866,8 @@ function ouvrirJour(empId, jour) {
   }
   $('mj-suppr').hidden = !p || MJ.verrou;
   $('mj-defaut').hidden = MJ.verrou;
+  $('mj-defaut').textContent = 'Journée type (' + defPour('mj-md') + '–' + defPour('mj-mf') +
+    ' · ' + defPour('mj-ad') + '–' + defPour('mj-af') + ')';
   $('mj-save').hidden = MJ.verrou;
   $('mj-verrou').hidden = !MJ.verrou;
   const btnApp = $('mj-approuver');
