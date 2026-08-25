@@ -170,6 +170,22 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .exp-choix{display:flex;flex-direction:column;gap:8px;margin:10px 0}
 .exp-choix label{display:flex;align-items:center;gap:10px;font-weight:500}
 .exp-choix input{width:20px;height:20px}
+.pastille{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:99px;
+  background:var(--rouge);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center}
+.onglets button.actif .pastille{background:#fff;color:var(--rouge)}
+
+/* ---- Messagerie direction ↔ fiduciaire ---- */
+.fil{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.bulle{max-width:88%;padding:10px 13px;border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+.bulle .qui-msg{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;opacity:.75}
+.bulle .txt{font-size:14.5px;white-space:pre-wrap;word-break:break-word}
+.bulle .quand{font-size:11px;color:var(--gris);margin-top:4px}
+.bulle.moi{align-self:flex-end;background:#dcf5e9}
+.bulle.eux{align-self:flex-start;background:var(--carte)}
+.fil-vide{text-align:center;color:var(--gris);font-size:14px;padding:22px 10px}
+#msg-texte{min-height:84px;resize:vertical;width:100%;border:1px solid var(--ligne);border-radius:10px;
+  padding:11px 12px;background:var(--carte);margin-bottom:8px;font-family:inherit;font-size:15px}
+.lecture-seule{background:#eef2f7;color:#334155;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}
 
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(120%);
   background:#0f172a;color:#fff;padding:11px 20px;border-radius:99px;font-size:14px;transition:transform .25s;z-index:99;max-width:92vw;text-align:center}
@@ -222,7 +238,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 <div id="v-admin" class="vue" hidden>
   <div class="entete">
     <div>
-      <div class="qui">Administration</div>
+      <div class="qui" id="adm-titre">Administration</div>
       <div class="sous-qui" id="adm-entreprise-lib"></div>
     </div>
     <button class="ico" id="btn-sortir-adm" title="Se déconnecter">🚪</button>
@@ -236,10 +252,12 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <button data-ong="equipe" class="actif">🗓️ Feuilles de temps</button>
     <button data-ong="employes">👥 Employés</button>
     <button data-ong="export">📤 Export comptable</button>
+    <button data-ong="messages" id="ong-btn-messages">💬 Questions</button>
   </div>
   <div id="ong-equipe"></div>
   <div id="ong-employes" hidden></div>
   <div id="ong-export" hidden></div>
+  <div id="ong-messages" hidden></div>
 </div>
 
 <!-- ============ MODALE JOUR ============ -->
@@ -283,7 +301,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="modale">
     <h2 id="det-titre"></h2>
     <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
-    <div class="muet" style="margin:0 0 10px">Touchez la coche ✓ à droite d’un jour pour le valider (ou le déverrouiller) individuellement. « Valider le mois » verrouille tout d’un coup.</div>
+    <div class="muet" style="margin:0 0 10px" id="det-aide">Touchez la coche ✓ à droite d’un jour pour le valider (ou le déverrouiller) individuellement. « Valider le mois » verrouille tout d’un coup.</div>
     <div class="carte" style="padding:12px">
       <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
       <div class="chips" id="det-chips"></div>
@@ -306,10 +324,24 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <input type="text" id="me-nom" maxlength="60">
     <label class="lbl">Métier</label>
     <input type="text" id="me-metier" maxlength="60" placeholder="Sanitaire, Vitrerie…">
-    <label class="lbl">Journée type</label>
-    <div class="lignes-h" style="margin-bottom:8px">
-      <div class="champ-h"><label>Matin</label><input type="time" id="me-md"><span class="muet">→</span><input type="time" id="me-mf"></div>
-      <div class="champ-h"><label>A-midi</label><input type="time" id="me-ad"><span class="muet">→</span><input type="time" id="me-af"></div>
+    <label class="lbl">Type d’accès</label>
+    <select id="me-role">
+      <option value="employe">Employé — saisit ses heures</option>
+      <option value="compta">Fiduciaire / comptable — consulte et exporte</option>
+    </select>
+    <div id="me-champs-emp">
+      <label class="lbl">Convention collective (majorations des heures supplémentaires)</label>
+      <select id="me-cct">
+        <option value="ferblanterie">Ferblanterie / installations sanitaires — 40 h/sem.</option>
+        <option value="chauffage">Chauffage, climatisation et ventilation — 40 h/sem.</option>
+        <option value="vitrerie">Vitrerie (second-œuvre) — 41 h/sem.</option>
+      </select>
+      <div class="muet" id="me-cct-info" style="margin:-2px 0 8px"></div>
+      <label class="lbl">Journée type</label>
+      <div class="lignes-h" style="margin-bottom:8px">
+        <div class="champ-h"><label>Matin</label><input type="time" id="me-md"><span class="muet">→</span><input type="time" id="me-mf"></div>
+        <div class="champ-h"><label>A-midi</label><input type="time" id="me-ad"><span class="muet">→</span><input type="time" id="me-af"></div>
+      </div>
     </div>
     <label class="lbl">Nouveau code PIN (4 à 8 chiffres — laisser vide pour ne pas changer)</label>
     <input type="password" id="me-pin" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="••••••" autocomplete="new-password">
@@ -342,6 +374,9 @@ const COULEURS = {vacances:'#d97706', maladie:'#dc2626', accident:'#b91c1c', fer
 
 const parseT = t => { if (!t) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const fmtMin = m => Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0');
+// Notation de la comptable : 8:00, 25:00 (et non 8h00 / 25h00).
+const fmtHM = m => Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
+const fmtSoldeHM = m => (m < 0 ? '−' : '+') + fmtHM(Math.abs(m));
 // Valeur exacte (le format Excel '0.00' n'arrondit qu'à l'affichage) :
 // la somme des cellules journalières correspond ainsi toujours au total.
 const fmtDec = m => m / 60;
@@ -429,6 +464,72 @@ function heuresSupJour(p, iso, js) {
   }
   return Math.max(0, min - attendu);
 }
+/* Majorations conventionnelles, reprises de la table de référence du classeur
+   de la fiduciaire (onglet « Paramètres ») : ferblanterie/sanitaire et
+   chauffage relèvent de la CCT « Métiers techniques du bâtiment GE »,
+   la vitrerie de la CCT « Second-œuvre romand, avenant GE ». Chaque heure
+   travaillée tombe dans une seule catégorie ; en cas de cumul (nuit un
+   dimanche par exemple), c'est le taux le plus élevé qui s'applique. */
+const CCT_BRANCHES = {
+  ferblanterie: {
+    nom: 'Ferblanterie / installations sanitaires', conv: 'Métiers techniques du bâtiment GE',
+    sem: 40, baseCct: 8 * 60, nuitFin: '06:00', plageDebut: '07:00', plageFin: '18:00', nuitDebut: '20:00',
+    avant: 0.25, apres: 0.25, nuit: 0.75, samedi: 0.5, samediDes: '00:00', dimanche: 1, ferie: 1
+  },
+  chauffage: {
+    nom: 'Chauffage, climatisation et ventilation', conv: 'Métiers techniques du bâtiment GE',
+    sem: 40, baseCct: 8 * 60, nuitFin: '06:00', plageDebut: '07:00', plageFin: '18:00', nuitDebut: '20:00',
+    avant: 0.25, apres: 0.25, nuit: 0.5, samedi: 0.5, samediDes: '00:00', dimanche: 0.5, ferie: 1
+  },
+  vitrerie: {
+    nom: 'Vitrerie (second-œuvre)', conv: 'Second-œuvre romand, avenant GE',
+    sem: 41, baseCct: 8 * 60 + 12, nuitFin: '06:00', plageDebut: '06:00', plageFin: '18:00', nuitDebut: '22:00',
+    avant: 0, apres: 0, nuit: 1, samedi: 1, samediDes: '17:00', dimanche: 1, ferie: 1
+  }
+};
+const cctDe = emp => CCT_BRANCHES[emp && emp.cct] || CCT_BRANCHES.ferblanterie;
+const pourcent = t => (t * 100).toFixed(0) + ' %';
+// Segments de travail effectif de la journée, en minutes depuis minuit.
+function segmentsJour(p) {
+  const s = [];
+  if (!p) return s;
+  for (const [t, d, f] of [[p.matin_type, p.matin_debut, p.matin_fin], [p.apm_type, p.apm_debut, p.apm_fin]]) {
+    if (t !== 'travail') continue;
+    const a = parseT(d), b = parseT(f);
+    if (a != null && b != null && b > a) s.push([a, b]);
+  }
+  return s;
+}
+/* Ventilation d'une journée par catégorie de majoration, calquée sur les
+   colonnes N à S du classeur de la fiduciaire. */
+function majorationsJour(p, iso, js, c) {
+  const vide = { avant: 0, apres: 0, nuit: 0, samedi: 0, dimanche: 0, ferie: 0 };
+  const seg = segmentsJour(p);
+  if (!seg.length) return vide;
+  const nuitF = parseT(c.nuitFin), plageD = parseT(c.plageDebut),
+        plageF = parseT(c.plageFin), nuitD = parseT(c.nuitDebut), samDes = parseT(c.samediDes);
+  let total = 0, nuit = 0, avant = 0, apres = 0, sam = 0;
+  for (const [a, b] of seg) {
+    total += b - a;
+    nuit += Math.max(0, Math.min(b, nuitF) - Math.min(a, nuitF))
+          + Math.max(0, Math.max(b, nuitD) - Math.max(a, nuitD));
+    avant += Math.max(0, Math.min(b, plageD) - Math.max(a, nuitF));
+    apres += Math.max(0, Math.min(b, nuitD) - Math.max(a, plageF));
+    sam += Math.max(0, Math.min(b, 24 * 60) - Math.max(a, samDes));
+  }
+  const estFerie = !!ferieGE(iso) || (p.matin_type === 'ferie' && p.apm_type === 'ferie');
+  const estSam = js === 6, estDim = js === 0;
+  if (estDim) {
+    const n = c.nuit > c.dimanche ? nuit : 0;
+    return { ...vide, nuit: n, dimanche: total - n };
+  }
+  if (estFerie) {
+    const n = c.nuit > c.ferie ? nuit : 0;
+    return { ...vide, nuit: n, ferie: total - n };
+  }
+  if (estSam) return { ...vide, nuit, samedi: Math.max(0, sam - nuit) };
+  return { ...vide, avant, apres, nuit };
+}
 function heuresTexte(p) {
   const parts = [];
   for (const [t, d, f] of [[p.matin_type, p.matin_debut, p.matin_fin], [p.apm_type, p.apm_debut, p.apm_fin]]) {
@@ -479,8 +580,11 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
-  deplieAvant: false, deplieApres: false
+  deplieAvant: false, deplieApres: false,
+  // Accès fiduciaire : consultation seule, et fil de questions du mois.
+  lecture: false, msgNonLus: 0, messages: [], msgCharges: false
 };
+const estCompta = () => !!(S.moi && S.moi.role === 'compta');
 function ptgMap() {
   const m = {};
   for (const p of S.pointages) { (m[p.employe_id] = m[p.employe_id] || {})[p.jour] = p; }
@@ -488,7 +592,7 @@ function ptgMap() {
 }
 function sessionPerdue() {
   localStorage.removeItem('hor_token'); localStorage.removeItem('hor_moi');
-  S.token = null; S.moi = null;
+  S.token = null; S.moi = null; S.lecture = false;
   $('voile-jour').classList.remove('ouvert');
   $('voile-emp').classList.remove('ouvert');
   $('voile-det').classList.remove('ouvert');
@@ -587,12 +691,18 @@ let chargeSeq = 0;
 async function charger() {
   const seq = ++chargeSeq;
   try {
-    if (S.moi.role === 'admin') {
-      const res = await rpc('admin_donnees', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+    if (S.moi.role === 'admin' || S.moi.role === 'compta') {
+      const compta = S.moi.role === 'compta';
+      const res = await rpc(compta ? 'compta_donnees' : 'admin_donnees',
+        { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
       if (seq !== chargeSeq) return;
       if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
       S.employes = res.employes; S.pointages = res.pointages; S.entreprise = res.entreprise || '';
+      S.lecture = compta;
+      S.msgNonLus = res.msg_non_lus || 0;
+      if (compta && res.moi) { S.moi = res.moi; localStorage.setItem('hor_moi', JSON.stringify(S.moi)); }
       montrer('admin'); renderAdmin();
+      if (S.ongletAdmin === 'messages') chargerMessages();
     } else {
       const res = await rpc('mes_pointages', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
       if (seq !== chargeSeq) return;
@@ -608,6 +718,7 @@ function moisNav(delta) {
   if (S.mois > 12) { S.mois = 1; S.annee++; }
   if (S.mois < 1) { S.mois = 12; S.annee--; }
   S.deplieAvant = false; S.deplieApres = false;
+  S.messages = []; S.msgCharges = false; // chaque mois a son propre fil de questions
   charger();
 }
 
@@ -952,15 +1063,79 @@ function journeeType() {
 
 /* ---------- Vue admin ---------- */
 function renderAdmin() {
+  const compta = estCompta();
+  $('adm-titre').textContent = compta ? 'Espace fiduciaire' : 'Administration';
   $('adm-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
-  $('adm-entreprise-lib').textContent = S.entreprise || 'Nom d’entreprise à définir (onglet Export)';
+  $('adm-entreprise-lib').textContent = S.entreprise || (compta ? '' : 'Nom d’entreprise à définir (onglet Export)');
+  // La fiduciaire ne gère pas les comptes ; elle consulte, exporte et pose ses questions.
+  document.querySelector('.onglets button[data-ong="employes"]').hidden = compta;
+  if (compta && S.ongletAdmin === 'employes') S.ongletAdmin = 'equipe';
+  $('ong-btn-messages').innerHTML = '💬 Questions' +
+    (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
   document.querySelectorAll('.onglets button').forEach(b => b.classList.toggle('actif', b.dataset.ong === S.ongletAdmin));
   $('ong-equipe').hidden = S.ongletAdmin !== 'equipe';
   $('ong-employes').hidden = S.ongletAdmin !== 'employes';
   $('ong-export').hidden = S.ongletAdmin !== 'export';
+  $('ong-messages').hidden = S.ongletAdmin !== 'messages';
   if (S.ongletAdmin === 'equipe') renderEquipe();
   if (S.ongletAdmin === 'employes') renderEmployes();
   if (S.ongletAdmin === 'export') renderExport();
+  if (S.ongletAdmin === 'messages') renderMessages();
+}
+
+/* ---------- Questions de la fiduciaire (fil par mois) ---------- */
+async function chargerMessages() {
+  try {
+    const res = await rpc('messages_lire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+    S.messages = res.messages; S.msgNonLus = res.non_lus; S.msgCharges = true;
+    if (S.ongletAdmin === 'messages') renderMessages();
+    $('ong-btn-messages').innerHTML = '💬 Questions' +
+      (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
+  } catch (e) { toast(e.message); }
+}
+function renderMessages() {
+  const moiRole = S.moi.role;
+  const brouillon = $('msg-texte') ? $('msg-texte').value : ''; // un rafraîchissement n'efface pas ce qu'on est en train d'écrire
+  const fil = S.msgCharges
+    ? (S.messages.length
+        ? S.messages.map(m => {
+            const libRole = m.role === 'compta' ? 'fiduciaire' : 'direction';
+            const qui = m.auteur.toLowerCase().includes(libRole) ? m.auteur : m.auteur + ' · ' + libRole;
+            return '<div class="bulle ' + (m.role === moiRole ? 'moi' : 'eux') + '">' +
+            '<div class="qui-msg">' + esc(qui) + '</div>' +
+            '<div class="txt">' + esc(m.texte) + '</div>' +
+            '<div class="quand">' + esc(m.quand) + '</div></div>';
+          }).join('')
+        : '<div class="fil-vide">Aucune question pour ' + MOIS[S.mois - 1] + ' ' + S.annee + '.<br>' +
+          (estCompta() ? 'Posez ici vos questions sur ce mois : la direction y répond directement.'
+                       : 'Les questions de la fiduciaire sur ce mois apparaîtront ici.') + '</div>')
+    : '<div class="fil-vide">Chargement…</div>';
+  $('ong-messages').innerHTML =
+    '<div class="carte"><div style="font-weight:700;margin-bottom:4px">Questions sur ' +
+      MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
+    '<div class="muet" style="margin-bottom:12px">Chaque mois a son propre fil : changez de mois en haut pour retrouver les échanges correspondants.</div>' +
+    '<div class="fil">' + fil + '</div>' +
+    '<textarea id="msg-texte" maxlength="2000" placeholder="' +
+      (estCompta() ? 'Votre question à la direction sur ce mois…' : 'Votre réponse à la fiduciaire…') + '"></textarea>' +
+    '<button class="btn large" id="msg-envoyer">Envoyer</button></div>';
+  $('msg-texte').value = brouillon;
+  $('msg-envoyer').addEventListener('click', envoyerMessage);
+  if (!S.msgCharges) chargerMessages();
+}
+async function envoyerMessage() {
+  const texte = $('msg-texte').value.trim();
+  if (!texte) { toast('Écrivez votre message'); return; }
+  const btn = $('msg-envoyer');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await rpc('message_ecrire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
+    $('msg-texte').value = '';
+    await chargerMessages();
+    toast('✓ Message envoyé');
+  } catch (e) { toast(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Envoyer'; }
 }
 function renderEquipe() {
   const map = ptgMap();
@@ -969,10 +1144,11 @@ function renderEquipe() {
   // La Direction (admin) n'a pas de feuille de temps : elle valide, sauf si
   // des heures ont été saisies sur son compte.
   const actifs = S.employes.filter(e =>
-    (e.actif || Object.keys(map[e.id] || {}).length) &&
+    (e.actif || Object.keys(map[e.id] || {}).length) && e.role !== 'compta' &&
     (e.role !== 'admin' || Object.keys(map[e.id] || {}).length));
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
+  const lecture = S.lecture;
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
   let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Solde</th><th>H. sup</th><th>Statut</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
@@ -991,7 +1167,7 @@ function renderEquipe() {
     const tous = lignes.length > 0 && lignes.every(p => p.approuve);
     const statut = !lignes.length ? '<span class="muet">—</span>' :
       tous ? '<span class="pill val">Validé</span>' : '<span class="pill att">En attente</span>';
-    const action = lignes.length ?
+    const action = (lignes.length && !lecture) ?
       '<button class="btn-val-lien" data-emp="' + e.id + '" data-app="' + (tous ? '0' : '1') + '">' +
       (tous ? 'Déverrouiller' : 'Valider le mois') + '</button>' : '';
     html += '<tr><td><button class="emp-lien" data-emp="' + e.id + '" title="Voir le détail du mois">' +
@@ -1025,9 +1201,11 @@ function renderEquipe() {
     html += '</tr>';
   }
   html += '</table></div>';
-  html += '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour. Fond vert = validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · Solde = heures pointées moins les 8h00 dues par jour ouvré écoulé (absences déduites).</div>';
+  html += lecture
+    ? '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour voir son mois jour par jour. Fond vert = jour validé par la direction · fond jaune = jour ouvré non encore saisi. Cette page se met à jour automatiquement dès qu’une saisie est ajoutée.</div>'
+    : '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un employé pour examiner son mois en détail avant de valider. Cliquez sur une case pour saisir ou corriger un jour. Fond vert = validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · Solde = heures pointées moins les 8h00 dues par jour ouvré écoulé (absences déduites).</div>';
   $('ong-equipe').innerHTML = html;
-  $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
+  if (!lecture) $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
   $('ong-equipe').querySelectorAll('.btn-val-lien').forEach(b =>
     b.addEventListener('click', () => approuverMois(b.dataset.emp, b.dataset.app === '1')));
@@ -1046,7 +1224,9 @@ function ouvrirDetails(empId) {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
   $('det-titre').textContent = nomComplet(e);
-  $('det-sous').textContent = (e.metier ? e.metier + ' — ' : '') + MOIS[S.mois - 1] + ' ' + S.annee;
+  $('det-sous').textContent = (e.metier ? e.metier + ' — ' : '') + MOIS[S.mois - 1] + ' ' + S.annee +
+    ' · CCT ' + cctDe(e).nom;
+  $('det-aide').hidden = S.lecture;
   let total = 0;
   for (const p of lignes) total += jourMin(p);
   $('det-total').textContent = fmtMin(total);
@@ -1095,15 +1275,17 @@ function ouvrirDetails(empId) {
     }
   }
   $('det-liste').innerHTML = htmlDet;
-  $('det-liste').querySelectorAll('.jour-ligne').forEach(b =>
-    b.addEventListener('click', () => { fermerDetails(); ouvrirJour(empId, b.dataset.jour); }));
-  $('det-liste').querySelectorAll('.val-jour').forEach(s =>
-    s.addEventListener('click', ev => {
-      ev.stopPropagation();
-      approuverJourRevue(empId, s.dataset.jour, !s.classList.contains('on'));
-    }));
+  if (!S.lecture) {
+    $('det-liste').querySelectorAll('.jour-ligne').forEach(b =>
+      b.addEventListener('click', () => { fermerDetails(); ouvrirJour(empId, b.dataset.jour); }));
+    $('det-liste').querySelectorAll('.val-jour').forEach(s =>
+      s.addEventListener('click', ev => {
+        ev.stopPropagation();
+        approuverJourRevue(empId, s.dataset.jour, !s.classList.contains('on'));
+      }));
+  }
   const btn = $('det-valider');
-  if (!lignes.length) {
+  if (!lignes.length || S.lecture) {
     btn.hidden = true;
   } else {
     btn.hidden = false;
@@ -1137,15 +1319,19 @@ async function copierLien(cle, prenom) {
   }
 }
 function renderEmployes() {
+  const etiquette = e => e.role === 'admin' ? ' <span class="muet">(direction)</span>'
+    : e.role === 'compta' ? ' <span class="muet">(fiduciaire)</span>' : '';
+  const sousTitre = e => e.role === 'compta' ? 'Accès en consultation et export'
+    : (e.metier || '') + (e.role === 'employe' ? ' · CCT ' + cctDe(e).nom : '');
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
-    '<div><div class="nom">' + esc(nomComplet(e)) + (e.role === 'admin' ? ' <span class="muet">(admin)</span>' : '') + '</div>' +
-    '<div class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</div></div>' +
+    '<div><div class="nom">' + esc(nomComplet(e)) + etiquette(e) + '</div>' +
+    '<div class="muet">' + esc(sousTitre(e)) + (e.actif ? '' : ' · désactivé') + '</div></div>' +
     '<div style="display:flex;gap:6px;flex:none">' +
     (e.cle && e.actif ? '<button class="btn sec" data-lien="' + e.id + '">🔗 Lien</button>' : '') +
     '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div></div>').join('') +
-    '<button class="btn large" id="btn-ajout-emp">+ Ajouter un employé</button>' +
-    '<div class="muet centre" style="margin-top:8px">« 🔗 Lien » copie le lien personnel de connexion sans code — à envoyer à l’employé.</div>';
+    '<button class="btn large" id="btn-ajout-emp">+ Ajouter un accès (employé ou fiduciaire)</button>' +
+    '<div class="muet centre" style="margin-top:8px">« 🔗 Lien » copie le lien personnel de connexion sans code — à envoyer à l’employé ou à la fiduciaire.</div>';
   $('ong-employes').querySelectorAll('button[data-id]').forEach(b =>
     b.addEventListener('click', () => ouvrirEmp(b.dataset.id)));
   $('ong-employes').querySelectorAll('button[data-lien]').forEach(b =>
@@ -1158,18 +1344,20 @@ function renderEmployes() {
 function renderExport() {
   const map = ptgMap();
   const choix = S.employes.filter(e =>
-    (e.actif || Object.keys(map[e.id] || {}).length) &&
+    (e.actif || Object.keys(map[e.id] || {}).length) && e.role !== 'compta' &&
     (e.role !== 'admin' || Object.keys(map[e.id] || {}).length)).map(e =>
     '<label><input type="checkbox" data-id="' + e.id + '" ' + (e.role === 'admin' ? '' : 'checked') + '> ' +
     esc(nomComplet(e)) + ' <span class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</span></label>').join('');
   $('ong-export').innerHTML =
-    '<div class="carte"><label class="lbl">Nom de l’entreprise (apparaît sur le document Excel)</label>' +
-    '<input type="text" id="exp-entreprise" maxlength="120" value="' + esc(S.entreprise) + '" placeholder="Ex. Dupont Sanitaire &amp; Vitrerie Sàrl">' +
-    '<button class="btn sec" id="btn-save-entreprise">Enregistrer le nom</button></div>' +
-    '<div class="carte"><div style="font-weight:700;margin-bottom:6px">Employés à inclure — ' + MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
+    (S.lecture ? ''
+      : '<div class="carte"><label class="lbl">Nom de l’entreprise (apparaît sur le document Excel)</label>' +
+        '<input type="text" id="exp-entreprise" maxlength="120" value="' + esc(S.entreprise) + '" placeholder="Ex. Dupont Sanitaire &amp; Vitrerie Sàrl">' +
+        '<button class="btn sec" id="btn-save-entreprise">Enregistrer le nom</button></div>') +
+    '<div class="carte"><div style="font-weight:700;margin-bottom:6px">Collaborateurs à inclure — ' + MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
     '<div class="exp-choix">' + choix + '</div>' +
-    '<button class="btn large" id="btn-export">📥 Télécharger l’Excel pour la comptable</button>' +
-    '<div class="muet centre" style="margin-top:8px">Un onglet récapitulatif + un onglet détaillé par employé (.xlsx)</div></div>';
+    '<button class="btn large" id="btn-export">📥 Télécharger le fichier Excel du mois</button>' +
+    '<div class="muet centre" style="margin-top:8px">Un onglet récapitulatif + un onglet détaillé par collaborateur, avec les heures majorées selon la CCT de sa branche (.xlsx)</div></div>';
+  if (S.lecture) { $('btn-export').addEventListener('click', exporterExcel); return; }
   $('btn-save-entreprise').addEventListener('click', async () => {
     try {
       const res = await rpc('admin_parametre', { p_token: S.token, p_cle: 'entreprise', p_valeur: $('exp-entreprise').value.trim() });
@@ -1184,33 +1372,50 @@ function renderExport() {
 
 /* ---------- Modale employé (admin) ---------- */
 const ME = { id: null };
+// Rappel des majorations de la branche choisie, sous le menu déroulant.
+function majCctInfo() {
+  const c = CCT_BRANCHES[$('me-cct').value] || CCT_BRANCHES.ferblanterie;
+  const maj = [['Avant plage', c.avant], ['Après plage', c.apres], ['Nuit dès ' + c.nuitDebut, c.nuit],
+    ['Samedi dès ' + c.samediDes, c.samedi], ['Dimanche', c.dimanche], ['Jour férié', c.ferie]]
+    .filter(([, t]) => t > 0).map(([n, t]) => n + ' +' + pourcent(t)).join(' · ');
+  $('me-cct-info').textContent = c.conv + ' — plage normale ' + c.plageDebut + '–' + c.plageFin + '. ' + maj;
+}
 function ouvrirEmp(id) {
   const e = id ? S.employes.find(x => x.id === id) : null;
   ME.id = id;
-  $('me-titre').textContent = e ? 'Modifier — ' + nomComplet(e) : 'Nouvel employé';
+  const estFid = !!(e && e.role === 'compta');
+  $('me-titre').textContent = e ? 'Modifier — ' + nomComplet(e) : 'Nouvel accès';
   $('me-prenom').value = e ? e.prenom : '';
   $('me-nom').value = e ? e.nom : '';
   $('me-metier').value = e ? e.metier : '';
+  $('me-role').value = estFid ? 'compta' : 'employe';
+  // Le rôle de la direction ne se modifie pas depuis ce formulaire.
+  $('me-role').disabled = !!(e && e.role === 'admin');
+  $('me-cct').value = (e && e.cct) || 'ferblanterie';
+  majCctInfo();
+  $('me-champs-emp').hidden = estFid;
   $('me-md').value = e ? e.matin_debut_def : '08:00';
   $('me-mf').value = e ? e.matin_fin_def : '12:00';
   $('me-ad').value = e ? e.apm_debut_def : '13:00';
   $('me-af').value = e ? e.apm_fin_def : '17:00';
   $('me-pin').value = '';
   $('me-actif').checked = e ? e.actif : true;
-  $('me-regen').hidden = !(e && e.role === 'employe');
+  $('me-regen').hidden = !(e && e.role !== 'admin');
   $('voile-emp').classList.add('ouvert');
 }
 async function sauverEmp() {
+  const role = $('me-role').disabled ? null : $('me-role').value;
   const args = {
     p_token: S.token, p_id: ME.id,
     p_prenom: $('me-prenom').value.trim(), p_nom: $('me-nom').value.trim(),
     p_metier: $('me-metier').value.trim(), p_actif: $('me-actif').checked,
     p_md: $('me-md').value || null, p_mf: $('me-mf').value || null,
     p_ad: $('me-ad').value || null, p_af: $('me-af').value || null,
-    p_pin: $('me-pin').value.trim() || null
+    p_pin: $('me-pin').value.trim() || null,
+    p_cct: $('me-cct').value, p_role: role
   };
   if (!args.p_prenom) { toast('Le prénom est obligatoire'); return; }
-  if (!ME.id && !args.p_pin) { toast('Un code PIN est obligatoire pour un nouvel employé'); return; }
+  if (!ME.id && !args.p_pin) { toast('Un code PIN est obligatoire pour un nouvel accès'); return; }
   $('me-save').disabled = true;
   try {
     const res = await rpc('admin_employe', args);
@@ -1236,18 +1441,26 @@ function chargerXLSX() {
 const BORD = { top: { style: 'thin', color: { rgb: 'CBD5E1' } }, bottom: { style: 'thin', color: { rgb: 'CBD5E1' } }, left: { style: 'thin', color: { rgb: 'CBD5E1' } }, right: { style: 'thin', color: { rgb: 'CBD5E1' } } };
 const STY = {
   titre: { font: { bold: true, sz: 14 } },
+  mois: { font: { bold: true, sz: 20, color: { rgb: '1F4E79' } }, alignment: { horizontal: 'center' } },
   sous: { font: { sz: 11, color: { rgb: '475569' } } },
-  th: { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1F4E79' } }, alignment: { horizontal: 'center', vertical: 'center' }, border: BORD },
+  th: { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1F4E79' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: BORD },
   c: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10 } },
   cg: { border: BORD, alignment: { horizontal: 'left' }, font: { sz: 10 } },
-  we: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10, color: { rgb: '94A3B8' } }, fill: { fgColor: { rgb: 'F1F5F9' } } },
-  weg: { border: BORD, alignment: { horizontal: 'left' }, font: { sz: 10, color: { rgb: '94A3B8' } }, fill: { fgColor: { rgb: 'F1F5F9' } } },
-  abs: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10, italic: true, color: { rgb: '92400E' } }, fill: { fgColor: { rgb: 'FEF3C7' } } },
+  // Week-end et jours fériés : fond distinct, mais texte de la même couleur que
+  // les autres jours — les heures qui y sont travaillées doivent rester lisibles.
+  we: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10 }, fill: { fgColor: { rgb: 'E4EAF2' } } },
+  weg: { border: BORD, alignment: { horizontal: 'left' }, font: { sz: 10 }, fill: { fgColor: { rgb: 'E4EAF2' } } },
+  fer: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10 }, fill: { fgColor: { rgb: 'EDE4FB' } } },
+  ferg: { border: BORD, alignment: { horizontal: 'left' }, font: { sz: 10 }, fill: { fgColor: { rgb: 'EDE4FB' } } },
+  abs: { border: BORD, alignment: { horizontal: 'center' }, font: { sz: 10, bold: true, color: { rgb: '92400E' } }, fill: { fgColor: { rgb: 'FEF3C7' } } },
   tot: { font: { bold: true, sz: 11 }, border: { top: { style: 'medium', color: { rgb: '1F4E79' } } } },
   totv: { font: { bold: true, sz: 11 }, border: { top: { style: 'medium', color: { rgb: '1F4E79' } } }, alignment: { horizontal: 'center' } },
   sem: { font: { bold: true, sz: 10, color: { rgb: '334155' } }, fill: { fgColor: { rgb: 'EEF3F1' } }, border: BORD },
   semc: { font: { bold: true, sz: 10, color: { rgb: '334155' } }, fill: { fgColor: { rgb: 'EEF3F1' } }, border: BORD, alignment: { horizontal: 'center' } }
 };
+// Largeur d'une colonne : jamais moins que son titre, et jamais moins que ce
+// que son contenu exige — pour que rien ne soit tronqué à l'ouverture.
+const largeur = (titre, mini) => ({ wch: Math.max(String(titre).length + 3, mini || 8) });
 const cel = (v, s, t, fmt) => { const c = { v: v == null ? '' : v, t: t || 's', s: s || STY.c }; if (fmt) c.z = fmt; return c; };
 function libAbsence(p) {
   const m = p.matin_type, a = p.apm_type;
@@ -1270,11 +1483,34 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   let totTrav = 0, totCred = 0, totDues = 0, totPlus = 0, totMoins = 0;
   let semMin = 0, semDebut = null;
   const absCnt = {};
+  const cct = cctDe(emp);
+  // Une colonne par majoration réellement prévue par la CCT de la branche.
+  const majDefs = [
+    { k: 'avant', h: 'Avant plage', t: cct.avant },
+    { k: 'apres', h: 'Après plage', t: cct.apres },
+    { k: 'nuit', h: 'Nuit', t: cct.nuit },
+    { k: 'samedi', h: 'Samedi', t: cct.samedi },
+    { k: 'dimanche', h: 'Dimanche', t: cct.dimanche },
+    { k: 'ferie', h: 'Jour férié', t: cct.ferie }
+  ].filter(d => d.t > 0);
+  const totMaj = {};
+  for (const d of majDefs) totMaj[d.k] = 0;
+  const enTetes = ['Date', 'Jour', 'Type de jour', 'Matin début', 'Matin fin', 'Après-midi début',
+    'Après-midi fin', 'Heures travaillées', 'Absence', 'Heures créditées', 'Heures dues',
+    'Heures en +', 'Heures en −']
+    .concat(majDefs.map(d => d.h + ' +' + pourcent(d.t)))
+    .concat(['Remarque']);
+  const minis = [12, 7, 22, 12, 11, 17, 16, 18, 13, 17, 13, 12, 12]
+    .concat(majDefs.map(() => 13)).concat([26]);
+  const nCol = enTetes.length;
   aoa.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
-  aoa.push([cel('Relevé d’heures — ' + nomComplet(emp) + (emp.metier ? ' (' + emp.metier + ')' : ''), STY.sous)]);
-  aoa.push([cel('Mois : ' + titreMois + '   ·   Durée contractuelle : 42 h/semaine (8h24 par jour ouvré écoulé)   ·   Jours fériés officiels du canton de Genève crédités automatiquement', STY.sous)]);
+  aoa.push([cel(titreMois.toUpperCase(), STY.mois)]);
+  aoa.push([cel('Relevé d’heures de ' + nomComplet(emp) + (emp.metier ? ' — ' + emp.metier : ''), STY.titre)]);
+  aoa.push([cel('Durée contractuelle : 42 h/semaine (8:24 par jour ouvré écoulé)   ·   CCT : ' + cct.nom +
+    ' — ' + cct.conv + ' (' + cct.sem + ' h/semaine)   ·   Plage normale ' + cct.plageDebut + '–' + cct.plageFin +
+    ', nuit dès ' + cct.nuitDebut + '   ·   Jours fériés officiels du canton de Genève crédités automatiquement', STY.sous)]);
   aoa.push([]);
-  aoa.push(['Date', 'Jour', 'Type de jour', 'Matin début', 'Matin fin', 'Après-midi début', 'Après-midi fin', 'Heures travaillées', 'Absence', 'Heures créditées', 'Heures dues', 'Heures en +', 'Heures en −', 'Remarque'].map(h => cel(h, STY.th)));
+  aoa.push(enTetes.map(h => cel(h, STY.th)));
   for (const j of jours) {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
@@ -1306,7 +1542,9 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     let cred = 0, dues = 0;
     if (passe) {
       if (typeJour === 'Férié') {
-        cred = BASE_CONTRAT_MIN;
+        // Un férié tombant un samedi ou un dimanche ne crédite rien : ce jour-là
+        // n'était de toute façon pas travaillé (convention du classeur).
+        if (!we) cred = BASE_CONTRAT_MIN;
       } else if (!we) {
         dues = BASE_CONTRAT_MIN;
         if (p) {
@@ -1319,45 +1557,54 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     const ecart = min + cred - dues;
     const enPlus = Math.max(0, ecart), enMoins = Math.max(0, -ecart);
     totPlus += enPlus; totMoins += enMoins;
-    const sc = (we || typeJour === 'Férié') ? STY.we : STY.c;
-    const sg = we ? STY.weg : STY.cg;
+    const sc = typeJour === 'Férié' ? STY.fer : (we ? STY.we : STY.c);
+    const sg = typeJour === 'Férié' ? STY.ferg : (we ? STY.weg : STY.cg);
+    const maj = majorationsJour(p, j.iso, j.js, cct);
+    for (const d of majDefs) totMaj[d.k] += maj[d.k];
     aoa.push([
       cel(String(j.num).padStart(2, '0') + '.' + String(S.mois).padStart(2, '0') + '.' + S.annee, sc),
       cel(JS_COURT[j.js], sc),
-      cel(typeJour === 'Férié' && fer ? 'Férié — ' + fer : typeJour, typeJour === 'Férié' ? STY.abs : sc),
+      cel(typeJour === 'Férié' && fer ? 'Férié — ' + fer : typeJour, sc),
       cel(p ? (p.matin_debut || '') : '', sc), cel(p ? (p.matin_fin || '') : '', sc),
       cel(p ? (p.apm_debut || '') : '', sc), cel(p ? (p.apm_fin || '') : '', sc),
-      cel(min ? fmtMin(min) : '', sc),
+      cel(min ? fmtHM(min) : '', sc),
       cel(code, code ? STY.abs : sc),
-      cel(cred ? fmtMin(cred) : '', sc),
-      cel(dues ? fmtMin(dues) : '', sc),
+      cel(cred ? fmtHM(cred) : '', sc),
+      cel(dues ? fmtHM(dues) : '', sc),
       enPlus ? cel(fmtDec(enPlus), sc, 'n', '0.00') : cel('', sc),
-      enMoins ? cel(fmtDec(enMoins), sc, 'n', '0.00') : cel('', sc),
-      cel(p ? (p.remarque || '') : '', sg)
-    ]);
+      enMoins ? cel(fmtDec(enMoins), sc, 'n', '0.00') : cel('', sc)
+    ].concat(majDefs.map(d => maj[d.k] ? cel(fmtDec(maj[d.k]), sc, 'n', '0.00') : cel('', sc)))
+     .concat([cel(p ? (p.remarque || '') : '', sg)]));
     if (j.js === 0 || j.num === jours.length) { // dimanche ou fin de mois : sous-total hebdomadaire
       if (semMin > 0) {
-        aoa.push([cel('', STY.sem), cel('', STY.sem), cel('Total semaine ' + semDebut + '–' + j.num, STY.sem),
-          cel('', STY.sem), cel('', STY.sem), cel('', STY.sem), cel('', STY.sem),
-          cel(fmtMin(semMin), STY.semc), cel('', STY.sem), cel('', STY.sem), cel('', STY.sem),
-          cel('', STY.sem), cel('', STY.sem), cel('', STY.sem)]);
+        const ligne = Array.from({ length: nCol }, () => cel('', STY.sem));
+        ligne[2] = cel('Total semaine ' + semDebut + '–' + j.num, STY.sem);
+        ligne[7] = cel(fmtHM(semMin), STY.semc);
+        aoa.push(ligne);
       }
       semMin = 0; semDebut = null;
     }
   }
-  aoa.push([cel('TOTAUX DU MOIS', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot),
-    cel('', STY.tot), cel('', STY.tot),
-    cel(fmtMin(totTrav), STY.totv), cel('', STY.tot), cel(totCred ? fmtMin(totCred) : '', STY.totv),
-    cel(totDues ? fmtMin(totDues) : '', STY.totv),
-    cel(fmtDec(totPlus), STY.totv, 'n', '0.00'), cel(fmtDec(totMoins), STY.totv, 'n', '0.00'), cel('', STY.tot)]);
+  const totaux = Array.from({ length: nCol }, () => cel('', STY.tot));
+  totaux[0] = cel('TOTAUX DU MOIS', STY.tot);
+  totaux[7] = cel(fmtHM(totTrav), STY.totv);
+  totaux[9] = cel(totCred ? fmtHM(totCred) : '', STY.totv);
+  totaux[10] = cel(totDues ? fmtHM(totDues) : '', STY.totv);
+  totaux[11] = cel(fmtDec(totPlus), STY.totv, 'n', '0.00');
+  totaux[12] = cel(fmtDec(totMoins), STY.totv, 'n', '0.00');
+  majDefs.forEach((d, i) => { totaux[13 + i] = cel(fmtDec(totMaj[d.k]), STY.totv, 'n', '0.00'); });
+  aoa.push(totaux);
   const solde = totTrav + totCred - totDues;
   aoa.push([]);
   const autres = Object.entries(absCnt).filter(([t]) => !['vacances', 'maladie', 'accident'].includes(t))
     .reduce((somme, [, n]) => somme + n, 0);
   aoa.push([cel('Vacances prises : ' + fmtJours(absCnt.vacances || 0) + '   ·   Maladie : ' + fmtJours(absCnt.maladie || 0) +
     '   ·   Accident : ' + fmtJours(absCnt.accident || 0) + '   ·   Autres absences : ' + fmtJours(autres), STY.sous)]);
-  aoa.push([cel('Jours travaillés : ' + fmtJours(jt) + '   ·   Solde du mois (travaillé + crédité − dû) : ' + fmtSolde(solde) +
+  aoa.push([cel('Jours travaillés : ' + fmtJours(jt) + '   ·   Solde du mois (travaillé + crédité − dû) : ' + fmtSoldeHM(solde) +
     ' soit ' + (solde / 60).toFixed(2).replace('.', ',') + ' h en décimal', STY.sous)]);
+  const detailMaj = majDefs.filter(d => totMaj[d.k] > 0)
+    .map(d => d.h + ' +' + pourcent(d.t) + ' : ' + fmtHM(totMaj[d.k]));
+  aoa.push([cel('Heures majorées selon la CCT — ' + (detailMaj.length ? detailMaj.join('   ·   ') : 'aucune ce mois'), STY.sous)]);
   const valide = present > 0 && nApp === present;
   aoa.push([cel(valide ? '✓ Validé par la direction' + (dateVal ? ' le ' + dateVal : '')
                        : 'En attente de validation par la direction',
@@ -1367,14 +1614,10 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   aoa.push([cel('Signature employé : ______________________', STY.sous), null, null, null, null, null, null,
     cel('Signature direction : ______________________', STY.sous)]);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 10 }, { wch: 5 }, { wch: 19 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 },
-    { wch: 10 }, { wch: 11 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 24 }];
-  ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 13 } }
-  ];
-  return { ws, totMin: totTrav, totCred, totDues, totPlus, totMoins, solde, absCnt, valide, nApp, present, jt };
+  ws['!cols'] = enTetes.map((h, i) => largeur(h, minis[i]));
+  ws['!rows'] = [{ hpt: 20 }, { hpt: 28 }, { hpt: 18 }];
+  ws['!merges'] = [0, 1, 2, 3].map(r => ({ s: { r, c: 0 }, e: { r, c: nCol - 1 } }));
+  return { ws, totMin: totTrav, totCred, totDues, totPlus, totMoins, totMaj, solde, absCnt, valide, nApp, present, jt, cct };
 }
 async function exporterExcel() {
   const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked')).map(c => c.dataset.id);
@@ -1387,11 +1630,18 @@ async function exporterExcel() {
     const jours = joursDuMois(S.annee, S.mois);
     const titreMois = MOIS[S.mois - 1] + ' ' + S.annee;
     const wb = XLSX.utils.book_new();
+    const enTetesR = ['Employé', 'Métier', 'CCT applicable', 'Heures travaillées', 'Heures créditées',
+      'Heures dues', 'Heures en +', 'Heures en −', 'Solde', 'Jours travaillés',
+      'Maj. avant plage', 'Maj. après plage', 'Maj. nuit', 'Maj. samedi', 'Maj. dimanche', 'Maj. jour férié',
+      'Vacances', 'Maladie', 'Accident', 'Autres absences', 'Validé'];
+    const minisR = [24, 14, 26, 18, 17, 13, 12, 12, 10, 16, 17, 17, 11, 13, 14, 16, 11, 10, 11, 16, 9];
+    const nColR = enTetesR.length;
     const recap = [];
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
-    recap.push([cel('Récapitulatif des heures — ' + titreMois + '   ·   Base contractuelle : 42 h/semaine (8h24 par jour ouvré écoulé)', STY.sous)]);
+    recap.push([cel(titreMois.toUpperCase(), STY.mois)]);
+    recap.push([cel('Récapitulatif des heures de l’équipe   ·   Base contractuelle : 42 h/semaine (8:24 par jour ouvré écoulé)   ·   Majorations selon la CCT de chaque branche (détail dans l’onglet de chaque collaborateur)', STY.sous)]);
     recap.push([]);
-    recap.push(['Employé', 'Métier', 'Heures travaillées', 'Créditées', 'Dues', 'En +', 'En −', 'Solde', 'Jours trav.', 'Vacances', 'Maladie', 'Accident', 'Autres', 'Validé'].map(h => cel(h, STY.th)));
+    recap.push(enTetesR.map(h => cel(h, STY.th)));
     const feuilles = [];
     for (const id of ids) {
       const emp = S.employes.find(e => e.id === id);
@@ -1400,15 +1650,17 @@ async function exporterExcel() {
       feuilles.push({ emp, ws: f.ws });
       const autres = Object.entries(f.absCnt).filter(([t]) => !['vacances', 'maladie', 'accident'].includes(t))
         .reduce((somme, [, n]) => somme + n, 0);
+      const m = k => (f.totMaj[k] ? cel(fmtDec(f.totMaj[k]), STY.c, 'n', '0.00') : cel('', STY.c));
       recap.push([
-        cel(nomComplet(emp), STY.cg), cel(emp.metier || '', STY.cg),
-        cel(fmtMin(f.totMin), STY.c),
-        cel(f.totCred ? fmtMin(f.totCred) : '', STY.c),
-        cel(f.totDues ? fmtMin(f.totDues) : '', STY.c),
+        cel(nomComplet(emp), STY.cg), cel(emp.metier || '', STY.cg), cel(f.cct.nom, STY.cg),
+        cel(fmtHM(f.totMin), STY.c),
+        cel(f.totCred ? fmtHM(f.totCred) : '', STY.c),
+        cel(f.totDues ? fmtHM(f.totDues) : '', STY.c),
         cel(fmtDec(f.totPlus), STY.c, 'n', '0.00'),
         cel(fmtDec(f.totMoins), STY.c, 'n', '0.00'),
-        cel(fmtSolde(f.solde), STY.c),
+        cel(fmtSoldeHM(f.solde), STY.c),
         cel(f.jt ? fmtJours(f.jt) : '', STY.c),
+        m('avant'), m('apres'), m('nuit'), m('samedi'), m('dimanche'), m('ferie'),
         cel(f.absCnt.vacances ? fmtJours(f.absCnt.vacances) : '', STY.c),
         cel(f.absCnt.maladie ? fmtJours(f.absCnt.maladie) : '', STY.c),
         cel(f.absCnt.accident ? fmtJours(f.absCnt.accident) : '', STY.c),
@@ -1417,9 +1669,10 @@ async function exporterExcel() {
       ]);
     }
     const wsr = XLSX.utils.aoa_to_sheet(recap);
-    wsr['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 8 }, { wch: 8 }];
-    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } }];
-    XLSX.utils.book_append_sheet(wb, wsr, 'Récapitulatif');
+    wsr['!cols'] = enTetesR.map((h, i) => largeur(h, minisR[i]));
+    wsr['!rows'] = [{ hpt: 20 }, { hpt: 28 }, { hpt: 18 }];
+    wsr['!merges'] = [0, 1, 2].map(r => ({ s: { r, c: 0 }, e: { r, c: nColR - 1 } }));
+    XLSX.utils.book_append_sheet(wb, wsr, 'Récapitulatif ' + MOIS[S.mois - 1]);
     for (const f of feuilles) {
       let nomF = nomComplet(f.emp).replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Employé';
       let n = nomF, i = 2;
@@ -1481,8 +1734,24 @@ function init() {
   $('emp-next').addEventListener('click', () => moisNav(1));
   $('adm-prev').addEventListener('click', () => moisNav(-1));
   $('adm-next').addEventListener('click', () => moisNav(1));
+  $('me-role').addEventListener('change', () => {
+    $('me-champs-emp').hidden = $('me-role').value === 'compta';
+  });
+  $('me-cct').addEventListener('change', majCctInfo);
   document.querySelectorAll('.onglets button').forEach(b =>
-    b.addEventListener('click', () => { S.ongletAdmin = b.dataset.ong; renderAdmin(); }));
+    b.addEventListener('click', () => {
+      S.ongletAdmin = b.dataset.ong;
+      if (b.dataset.ong === 'messages') S.msgCharges = false;
+      renderAdmin();
+    }));
+  // Espace fiduciaire : la page se rafraîchit toute seule pour refléter les
+  // saisies faites entre-temps par les techniciens.
+  setInterval(() => {
+    if (!S.token || !estCompta() || document.hidden) return;
+    if ($('voile-det').classList.contains('ouvert')) return;
+    charger();
+    if (S.ongletAdmin !== 'messages') chargerMessages();
+  }, 60000);
   [$('voile-jour'), $('voile-emp'), $('voile-det')].forEach(v =>
     v.addEventListener('click', e => { if (e.target === v) v.classList.remove('ouvert'); }));
   const cle = cleDansUrl();
