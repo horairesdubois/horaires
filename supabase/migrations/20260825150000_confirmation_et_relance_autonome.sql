@@ -133,6 +133,11 @@ begin
 end $$;
 revoke execute on function public.relancer_saisies() from anon, authenticated, public;
 
--- select cron.schedule('relance-saisies-soir', '0 18 * * 1-5',
---                      $$select public.relancer_saisies();$$);
--- (Planification posée une seule fois ; cron.schedule échouerait à rejouer.)
+-- Planification (posée une seule fois) :
+--   select cron.schedule('relance-saisies-soir', '0 18 * * 1-5',
+--                        $$select public.relancer_saisies();$$);
+-- Laissée en commentaire : cron.schedule refuserait un nom déjà pris au rejeu.
+
+-- Le libellé du bouton varie selon que la journée est déjà posée
+-- (« Enregistrer ma journée » ou « Confirmer ma journée ») : le texte du
+-- rappel reste donc neutre et renvoie simplement au bouton vert.
