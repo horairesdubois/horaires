@@ -41,15 +41,41 @@ les feuilles de temps, puis exporte un fichier Excel complet pour la comptable.
 - **Employés** : ajouter/modifier (nom, métier, journée type, code PIN,
   activer/désactiver).
 - **Export comptable** : fichier **Excel (.xlsx)** du mois — un onglet
-  récapitulatif (heures, vacances, maladie, accident… par employé) + un onglet
-  détaillé par employé (jour par jour, totaux, mention de validation,
-  lignes de signature). Prêt à envoyer à la comptable.
+  récapitulatif (heures, majorations, vacances, maladie, accident… par employé)
+  + un onglet détaillé par employé (jour par jour, totaux, mention de
+  validation, lignes de signature). Prêt à envoyer à la comptable.
+- **Questions** : fil de discussion par mois avec la fiduciaire, avec pastille
+  de messages non lus.
+
+### Côté fiduciaire (comptable)
+- Accès dédié **en consultation seule**, par lien personnel sans mot de passe :
+  mêmes feuilles de temps que la direction, mais aucune saisie ni validation
+  possible. La page se rafraîchit toute seule (toutes les minutes) pour
+  refléter les heures ajoutées entre-temps.
+- **Téléchargement du fichier Excel** du mois à tout moment, sans passer par
+  la direction.
+- **Questions** : un fil par mois pour demander une précision ; la direction
+  répond depuis son propre onglet « Questions ».
+
+### Heures majorées (CCT)
+Chaque collaborateur est rattaché à une branche, qui détermine les taux
+appliqués dans l'export (valeurs reprises du classeur de la fiduciaire) :
+
+| Branche | Plage normale | Avant / après plage | Nuit | Samedi | Dimanche | Férié |
+|---|---|---|---|---|---|---|
+| Ferblanterie / sanitaire (40 h) | 07:00–18:00 | +25 % | +75 % (dès 20:00) | +50 % | +100 % | +100 % |
+| Chauffage / ventilation (40 h) | 07:00–18:00 | +25 % | +50 % (dès 20:00) | +50 % | +50 % | +100 % |
+| Vitrerie, second-œuvre (41 h) | 06:00–18:00 | — | +100 % (dès 22:00) | +100 % (dès 17:00) | +100 % | +100 % |
+
+Chaque heure ne tombe que dans une seule catégorie : en cas de cumul (une
+heure de nuit un dimanche, par exemple), c'est le taux le plus élevé qui
+s'applique — même règle que dans le classeur de la fiduciaire.
 
 ## Architecture (tout est gratuit)
 
 | Élément | Où | Rôle |
 |---|---|---|
-| Base de données | Supabase (projet `horaires`, région Zurich) | tables `employes`, `pointages`, `sessions`, `parametres` |
+| Base de données | Supabase (projet `horaires`, région Zurich) | tables `employes`, `pointages`, `sessions`, `parametres`, `messages` |
 | API | Fonctions SQL RPC (`supabase/migrations/`) | authentification par PIN + jeton, règles métier, validation direction |
 | Interface | `app/index.html` → construit dans `docs/` | servi par GitHub Pages (branche du projet, dossier `/docs`) |
 | Ancienne adresse | Fonction Edge `horaires` | simple redirection 302 vers GitHub Pages |
@@ -102,6 +128,9 @@ update employes
 - Les employés (avec leurs PIN) ont été créés directement en base — aucun PIN
   n'est stocké dans ce dépôt. Pour promouvoir quelqu'un admin :
   `update employes set role = 'admin' where prenom = '...';` (SQL Editor).
+- **Créer l'accès de la fiduciaire** : onglet **Employés** → « + Ajouter un
+  accès » → type d'accès « Fiduciaire / comptable » → un code PIN → puis
+  bouton « 🔗 Lien » pour lui envoyer son lien personnel.
 - « Valider le mois » verrouille **toutes** les saisies existantes du mois,
   y compris la journée en cours : à faire de préférence en fin de mois
   (sinon déverrouiller le jour concerné depuis la case du tableau).
