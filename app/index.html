@@ -787,9 +787,13 @@ function renderEmp() {
     supMois += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
   }
   const moisCommence = jours[0].iso <= auj;
+  const pAuj = map[auj] || null;
+  const aConfirmerAuj = !!(pAuj && !pAuj.confirme && !pAuj.approuve);
   $('emp-etat').innerHTML = manq > 0
     ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</div>'
-    : (moisCommence ? '<div class="etat-mois ok">✓ Vos heures sont à jour</div>' : '');
+    : aConfirmerAuj
+      ? '<div class="etat-mois attention">⚠ Journée d’aujourd’hui à confirmer</div>'
+      : (moisCommence ? '<div class="etat-mois ok">✓ Vos heures sont à jour</div>' : '');
   let chips = '';
   if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
@@ -819,11 +823,21 @@ function renderEmp() {
       $('btn-pointer').disabled = true;
       $('btn-pointer').textContent = '✓ Journée validée par la direction';
       $('pointer-info').textContent = dateLib;
-    } else if (p) {
+    } else if (p && p.confirme) {
       const min = jourMin(p);
       $('btn-pointer').disabled = true;
-      $('btn-pointer').textContent = '✓ Journée d’aujourd’hui enregistrée' + (min ? ' · ' + fmtMin(min) : '');
+      $('btn-pointer').textContent = '✓ Journée confirmée' + (min ? ' · ' + fmtMin(min) : '');
       $('pointer-info').textContent = dateLib + ' — pour corriger, touchez le jour dans la liste.';
+    } else if (p) {
+      // Journée déjà posée (horaire pré-rempli ou saisie par la direction) :
+      // le collaborateur doit pouvoir la confirmer, c'est ce qui atteste son passage.
+      const min = jourMin(p);
+      $('btn-pointer').disabled = false;
+      $('btn-pointer').innerHTML = '<span>Confirmer ma journée</span>' +
+        '<span class="btn-sous">' + heuresTexte(p).replace(/<[^>]+>/g, '') +
+        (min ? ' · ' + fmtMin(min) : '') + '</span>';
+      $('pointer-info').textContent = dateLib + ' — vérifiez l’horaire ci-dessus, puis confirmez. ' +
+        'S’il est différent, touchez le jour dans la liste pour le corriger.';
     } else if (ferieGE(auj)) {
       $('btn-pointer').disabled = true;
       $('btn-pointer').textContent = '🎉 ' + ferieGE(auj);
@@ -931,17 +945,26 @@ async function remplirManquants() {
   } catch (e) { toast(e.message); }
   await charger();
 }
+/* Un seul bouton pour deux gestes : enregistrer la journée type si rien n'est
+   posé, ou confirmer telle quelle la journée déjà là. Dans les deux cas
+   l'enregistrement passe par le compte du collaborateur, ce qui atteste son
+   passage — c'est précisément ce que contrôle le back office chaque soir. */
 async function journeeTypeAujourdhui() {
   const auj = aujourdhui();
-  if ((ptgMap()[S.moi.id] || {})[auj]) return; // déjà saisi : on ne remplace rien
-  const args = {
-    p_token: S.token, p_jour: auj,
-    p_matin_type: 'travail',
-    p_matin_debut: S.moi.matin_debut_def || '08:00', p_matin_fin: S.moi.matin_fin_def || '12:00',
-    p_apm_type: 'travail',
-    p_apm_debut: S.moi.apm_debut_def || '13:00', p_apm_fin: S.moi.apm_fin_def || '17:00',
-    p_remarque: ''
-  };
+  const p = (ptgMap()[S.moi.id] || {})[auj] || null;
+  if (p && p.approuve) return;            // verrouillée par la direction
+  if (p && p.confirme) return;            // déjà confirmée : rien à refaire
+  const args = p
+    ? { p_token: S.token, p_jour: auj,     // confirmation : on reprend l'horaire tel quel
+        p_matin_type: p.matin_type, p_matin_debut: p.matin_debut, p_matin_fin: p.matin_fin,
+        p_apm_type: p.apm_type, p_apm_debut: p.apm_debut, p_apm_fin: p.apm_fin,
+        p_remarque: p.remarque || '' }
+    : { p_token: S.token, p_jour: auj,     // première saisie : journée type
+        p_matin_type: 'travail',
+        p_matin_debut: S.moi.matin_debut_def || '08:00', p_matin_fin: S.moi.matin_fin_def || '12:00',
+        p_apm_type: 'travail',
+        p_apm_debut: S.moi.apm_debut_def || '13:00', p_apm_fin: S.moi.apm_fin_def || '17:00',
+        p_remarque: '' };
   $('btn-pointer').disabled = true;
   try {
     const res = await rpc('enregistrer_jour', args);
@@ -951,7 +974,7 @@ async function journeeTypeAujourdhui() {
       await charger();
       return;
     }
-    toast('✓ Journée d’aujourd’hui enregistrée');
+    toast(p ? '✓ Journée confirmée' : '✓ Journée d’aujourd’hui enregistrée');
     await charger();
   } catch (e) { toast(e.message); $('btn-pointer').disabled = false; }
 }
