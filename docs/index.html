@@ -113,6 +113,10 @@ h1{font-size:22px;font-weight:700}
 .modale h2{font-size:18px;margin-bottom:12px;text-transform:capitalize}
 .demi{background:var(--carte);border-radius:12px;padding:12px;margin-bottom:10px}
 .demi .titre-demi{font-weight:700;font-size:14px;margin-bottom:8px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px}
+.entete-demi{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.entete-demi .titre-demi{margin-bottom:0}
+select.statut{width:auto;margin-bottom:0;padding:8px 10px;border:1px solid var(--ligne);border-radius:10px;
+  background:#f8fafc;font-size:14px;font-weight:600;color:var(--texte)}
 .types{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
 .types button{flex:none;font-size:13px;font-weight:600;padding:7px 12px;border-radius:99px;background:#f1f5f9;color:var(--gris)}
 .types button.actif{background:var(--bleu);color:#fff}
@@ -206,6 +210,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
       <div class="gros" id="emp-total">0h00</div>
     </div>
     <div class="chips" id="emp-chips"></div>
+    <div id="emp-remplir"></div>
   </div>
   <div id="emp-liste"></div>
 </div>
@@ -240,16 +245,14 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <h2 id="mj-titre"></h2>
     <div class="muet" id="mj-emp" style="margin:-8px 0 10px"></div>
     <div class="demi">
-      <div class="titre-demi">Matin</div>
-      <div class="types" id="mj-types-m"></div>
+      <div class="entete-demi"><span class="titre-demi">Matin</span><select id="mj-statut-m" class="statut"></select></div>
       <div class="lignes-h" id="mj-heures-m">
         <div class="champ-h"><label>Début</label><input type="time" id="mj-md"><button class="now" data-cible="mj-md" title="Maintenant">⏱</button></div>
         <div class="champ-h"><label>Fin</label><input type="time" id="mj-mf"><button class="now" data-cible="mj-mf" title="Maintenant">⏱</button></div>
       </div>
     </div>
     <div class="demi">
-      <div class="titre-demi">Après-midi</div>
-      <div class="types" id="mj-types-a"></div>
+      <div class="entete-demi"><span class="titre-demi">Après-midi</span><select id="mj-statut-a" class="statut"></select></div>
       <div class="lignes-h" id="mj-heures-a">
         <div class="champ-h"><label>Début</label><input type="time" id="mj-ad"><button class="now" data-cible="mj-ad" title="Maintenant">⏱</button></div>
         <div class="champ-h"><label>Fin</label><input type="time" id="mj-af"><button class="now" data-cible="mj-af" title="Maintenant">⏱</button></div>
@@ -309,6 +312,9 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <input type="password" id="me-pin" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="••••••" autocomplete="new-password">
     <div class="exp-choix" style="margin:4px 0 10px"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="me-actif" checked> Actif (peut se connecter)</label></div>
     <div class="actions">
+      <button class="btn sec" id="me-regen" hidden>🔗 Régénérer le lien personnel</button>
+    </div>
+    <div class="actions">
       <button class="btn sec" id="me-annuler">Annuler</button>
       <button class="btn" id="me-save">Enregistrer</button>
     </div>
@@ -327,9 +333,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const JS_COURT = ['dim','lun','mar','mer','jeu','ven','sam'];
 const JS_LONG = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-const TYPES = {travail:'Travail', vacances:'Vacances', maladie:'Maladie', accident:'Accident', ferie:'Jour férié', armee:'Armée / PC', ecole:'Formation', autre:'Autre'};
-const BADGES = {vacances:'VAC', maladie:'MAL', accident:'ACC', ferie:'FÉR', armee:'ARM', ecole:'FOR', autre:'AUT'};
-const COULEURS = {vacances:'#d97706', maladie:'#dc2626', accident:'#b91c1c', ferie:'#7c3aed', armee:'#0d9488', ecole:'#0284c7', autre:'#64748b'};
+const TYPES = {travail:'Travail', vacances:'Vacances', maladie:'Maladie', accident:'Accident', ferie:'Jour férié', armee:'Armée / PC', ecole:'Formation', conge_np:'Congé non payé', autre:'Autre'};
+const BADGES = {vacances:'VAC', maladie:'MAL', accident:'ACC', ferie:'FÉR', armee:'MIL', ecole:'FOR', conge_np:'CNP', autre:'AUT'};
+const COULEURS = {vacances:'#d97706', maladie:'#dc2626', accident:'#b91c1c', ferie:'#7c3aed', armee:'#0d9488', ecole:'#0284c7', conge_np:'#6b7280', autre:'#64748b'};
 
 const parseT = t => { if (!t) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const fmtMin = m => Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0');
@@ -355,7 +361,7 @@ function heuresDues(jours, map, baseMin) {
   const auj = aujourdhui();
   let due = 0;
   for (const j of jours) {
-    if (j.js === 0 || j.js === 6 || j.iso > auj) continue;
+    if (j.js === 0 || j.js === 6 || j.iso > auj || ferieGE(j.iso)) continue;
     const p = map[j.iso];
     let d = base;
     if (p) {
@@ -368,7 +374,43 @@ function heuresDues(jours, map, baseMin) {
 }
 function joursManquants(jours, map) {
   const auj = aujourdhui();
-  return jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso]).length;
+  return jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso] && !ferieGE(j.iso)).length;
+}
+/* Jours fériés officiels du canton de Genève, calculés pour n'importe quelle
+   année (source : ge.ch — 9 jours) : 1er janvier, Vendredi saint, lundi de
+   Pâques, Ascension, lundi de Pentecôte, 1er août, Jeûne genevois (jeudi qui
+   suit le premier dimanche de septembre), Noël, 31 décembre (Restauration de
+   la République). Pâques : algorithme de Gauss/Meeus. */
+function paquesDim(an) {
+  const a = an % 19, b = Math.floor(an / 100), c = an % 100,
+    d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25),
+    g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30,
+    i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7,
+    m = Math.floor((a + 11 * h + 22 * l) / 451),
+    mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(an, mois - 1, jour);
+}
+const _feries = {};
+function feriesGE(an) {
+  if (_feries[an]) return _feries[an];
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const plus = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const p = paquesDim(an), m = {};
+  m[an + '-01-01'] = 'Nouvel An';
+  m[iso(plus(p, -2))] = 'Vendredi saint';
+  m[iso(plus(p, 1))] = 'Lundi de Pâques';
+  m[iso(plus(p, 39))] = 'Ascension';
+  m[iso(plus(p, 50))] = 'Lundi de Pentecôte';
+  m[an + '-08-01'] = 'Fête nationale';
+  const d1 = new Date(an, 8, 1);
+  m[an + '-09-' + String(1 + ((7 - d1.getDay()) % 7) + 4).padStart(2, '0')] = 'Jeûne genevois';
+  m[an + '-12-25'] = 'Noël';
+  m[an + '-12-31'] = 'Restauration de la République';
+  return _feries[an] = m;
+}
+function ferieGE(isoJour) { return feriesGE(+isoJour.slice(0, 4))[isoJour] || null; }
+function badgeFerie(nom) {
+  return '<span class="badge" style="background:' + COULEURS.ferie + '">FÉR</span> <span class="muet">' + nom + '</span>';
 }
 function heuresTexte(p) {
   const parts = [];
@@ -434,6 +476,8 @@ function sessionPerdue() {
   $('voile-emp').classList.remove('ouvert');
   $('voile-det').classList.remove('ouvert');
   montrer('login');
+  const cle = cleDansUrl();
+  if (cle && !cleEssayee) { connexionParCle(cle); return; }
   toast('Session expirée, reconnectez-vous');
 }
 
@@ -491,6 +535,29 @@ async function connexion() {
     await charger();
   } catch (e) { $('login-err').textContent = e.message; }
   finally { connexionEnCours = false; $('btn-login').textContent = 'Se connecter'; $('btn-login').disabled = pinBuf.length < 4; }
+}
+/* Connexion par lien personnel : la clé voyage dans le fragment (#c=…),
+   jamais envoyée au serveur web, seulement à l'API pour ouvrir la session. */
+let cleEssayee = false;
+async function connexionParCle(cle) {
+  cleEssayee = true;
+  montrer('login');
+  $('btn-login').disabled = true;
+  $('btn-login').innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await rpc('connexion_cle', { p_cle: cle });
+    if (!res.ok) { $('login-err').textContent = res.erreur; return; }
+    S.token = res.token; S.moi = res.employe;
+    localStorage.setItem('hor_token', S.token);
+    localStorage.setItem('hor_moi', JSON.stringify(S.moi));
+    const d = new Date(); S.annee = d.getFullYear(); S.mois = d.getMonth() + 1;
+    await charger();
+  } catch (e) { $('login-err').textContent = e.message; }
+  finally { $('btn-login').textContent = 'Se connecter'; $('btn-login').disabled = pinBuf.length < 4; }
+}
+function cleDansUrl() {
+  const m = (location.hash || '').match(/c=([0-9a-f]{32})/);
+  return m ? m[1] : null;
 }
 async function deconnexion() {
   try { await rpc('deconnexion', { p_token: S.token }); } catch (e) {}
@@ -562,6 +629,11 @@ function renderEmp() {
     chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
   }
   $('emp-chips').innerHTML = chips;
+  $('emp-remplir').innerHTML = manq > 0
+    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter les ' + manq +
+      ' jour' + (manq > 1 ? 's' : '') + ' manquant' + (manq > 1 ? 's' : '') + ' (journée type)</button>'
+    : '';
+  if (manq > 0) $('btn-remplir').addEventListener('click', remplirManquants);
 
   // Carte « Journée type » : un appui enregistre la journée standard du jour même.
   const maintenant = new Date();
@@ -582,6 +654,10 @@ function renderEmp() {
       $('btn-pointer').disabled = true;
       $('btn-pointer').textContent = '✓ Aujourd’hui saisi' + (min ? ' · ' + fmtMin(min) : '');
       $('pointer-info').textContent = 'Pour corriger, touchez le jour dans la liste.';
+    } else if (ferieGE(auj)) {
+      $('btn-pointer').disabled = true;
+      $('btn-pointer').textContent = '🎉 ' + ferieGE(auj);
+      $('pointer-info').textContent = 'Jour férié officiel à Genève — rien à saisir, la journée est créditée automatiquement.';
     } else {
       $('btn-pointer').disabled = false;
       $('btn-pointer').textContent = 'Journée type';
@@ -593,10 +669,11 @@ function renderEmp() {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
-    const manque = !p && !we && j.iso < auj;
+    const fer = ferieGE(j.iso);
+    const manque = !p && !we && j.iso < auj && !fer;
     return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
-      '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
+      '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
       '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') + '</div></button>';
   };
@@ -635,6 +712,33 @@ function renderEmp() {
   if (pp) pp.addEventListener('click', () => { S.deplieApres = !S.deplieApres; renderEmp(); });
 }
 
+async function remplirManquants() {
+  const jours = joursDuMois(S.annee, S.mois);
+  const map = ptgMap()[S.moi.id] || {};
+  const auj = aujourdhui();
+  const cibles = jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso] && !ferieGE(j.iso));
+  if (!cibles.length) return;
+  const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
+    ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
+  if (!confirm('Remplir ' + cibles.length + ' jour(s) ouvré(s) avec la journée type (' + lib + ') ?\nVous pourrez corriger chaque jour ensuite.')) return;
+  const btn = $('btn-remplir');
+  if (btn) { btn.disabled = true; btn.textContent = 'Remplissage en cours…'; }
+  try {
+    for (const j of cibles) {
+      const res = await rpc('enregistrer_jour', {
+        p_token: S.token, p_jour: j.iso,
+        p_matin_type: 'travail',
+        p_matin_debut: S.moi.matin_debut_def || '08:00', p_matin_fin: S.moi.matin_fin_def || '12:00',
+        p_apm_type: 'travail',
+        p_apm_debut: S.moi.apm_debut_def || '13:00', p_apm_fin: S.moi.apm_fin_def || '17:00',
+        p_remarque: ''
+      });
+      if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); break; }
+    }
+    toast('✓ Jours complétés avec la journée type');
+  } catch (e) { toast(e.message); }
+  await charger();
+}
 async function journeeTypeAujourdhui() {
   const auj = aujourdhui();
   if ((ptgMap()[S.moi.id] || {})[auj]) return; // déjà saisi : on ne remplace rien
@@ -662,22 +766,21 @@ async function journeeTypeAujourdhui() {
 
 /* ---------- Modale jour ---------- */
 const MJ = { empId: null, jour: null, matin: 'travail', apm: 'travail', existe: false, approuve: false, verrou: false };
-function chipsTypes(conteneur, groupe) {
-  const c = $(conteneur);
-  c.innerHTML = Object.entries(TYPES).map(([k, v]) =>
-    '<button data-type="' + k + '">' + v + '</button>').join('');
-  c.addEventListener('click', e => {
-    if (MJ.verrou) return;
-    const b = e.target.closest('button'); if (!b) return;
-    MJ[groupe] = b.dataset.type;
-    majChips();
-  });
+// Les absences sont regroupées dans un menu « Statut » : par défaut, seule la
+// présence normale (les heures) est visible.
+function initStatuts() {
+  const opts = Object.entries(TYPES).map(([k, v]) =>
+    '<option value="' + k + '">' + (k === 'travail' ? 'Présence' : v) + '</option>').join('');
+  $('mj-statut-m').innerHTML = opts;
+  $('mj-statut-a').innerHTML = opts;
+  $('mj-statut-m').addEventListener('change', () => { if (MJ.verrou) return; MJ.matin = $('mj-statut-m').value; majStatuts(); });
+  $('mj-statut-a').addEventListener('change', () => { if (MJ.verrou) return; MJ.apm = $('mj-statut-a').value; majStatuts(); });
 }
-function majChips() {
-  for (const [cont, groupe, zone] of [['mj-types-m', 'matin', 'mj-heures-m'], ['mj-types-a', 'apm', 'mj-heures-a']]) {
-    $(cont).querySelectorAll('button').forEach(b => b.classList.toggle('actif', b.dataset.type === MJ[groupe]));
-    $(zone).style.display = MJ[groupe] === 'travail' ? '' : 'none';
-  }
+function majStatuts() {
+  $('mj-statut-m').value = MJ.matin;
+  $('mj-statut-a').value = MJ.apm;
+  $('mj-heures-m').style.display = MJ.matin === 'travail' ? '' : 'none';
+  $('mj-heures-a').style.display = MJ.apm === 'travail' ? '' : 'none';
   majTotalApercu();
 }
 function majTotalApercu() {
@@ -696,13 +799,24 @@ function ouvrirJour(empId, jour) {
   const js = new Date(an, mo - 1, jr).getDay();
   $('mj-titre').textContent = JS_LONG[js] + ' ' + jr + ' ' + MOIS[mo - 1] + ' ' + an;
   const e = admin ? S.employes.find(x => x.id === empId) : S.moi;
-  $('mj-emp').textContent = admin && e ? nomComplet(e) : '';
+  const ferJour = ferieGE(jour);
+  const infosJour = [];
+  if (admin && e) infosJour.push(nomComplet(e));
+  if (ferJour) infosJour.push('🎉 Jour férié officiel : ' + ferJour);
+  $('mj-emp').textContent = infosJour.join(' · ');
   $('mj-md').value = p ? (p.matin_debut || '') : '';
   $('mj-mf').value = p ? (p.matin_fin || '') : '';
   $('mj-ad').value = p ? (p.apm_debut || '') : '';
   $('mj-af').value = p ? (p.apm_fin || '') : '';
   $('mj-rem').value = p ? (p.remarque || '') : '';
-  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem'].forEach(id => { $(id).disabled = MJ.verrou; });
+  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem', 'mj-statut-m', 'mj-statut-a'].forEach(id => { $(id).disabled = MJ.verrou; });
+  // Jour ouvré vide : la présence normale est déjà proposée, il n'y a plus qu'à enregistrer.
+  if (!p && !MJ.verrou && js >= 1 && js <= 5 && !ferJour) {
+    $('mj-md').value = defPour('mj-md');
+    $('mj-mf').value = defPour('mj-mf');
+    $('mj-ad').value = defPour('mj-ad');
+    $('mj-af').value = defPour('mj-af');
+  }
   $('mj-suppr').hidden = !p || MJ.verrou;
   $('mj-defaut').hidden = MJ.verrou;
   $('mj-save').hidden = MJ.verrou;
@@ -712,7 +826,7 @@ function ouvrirJour(empId, jour) {
     btnApp.hidden = false;
     btnApp.textContent = MJ.approuve ? '🔓 Déverrouiller ce jour' : '✓ Valider ce jour (direction)';
   } else { btnApp.hidden = true; }
-  majChips();
+  majStatuts();
   $('voile-jour').classList.add('ouvert');
 }
 function fermerJour() { $('voile-jour').classList.remove('ouvert'); }
@@ -784,7 +898,7 @@ function journeeType() {
   $('mj-mf').value = defPour('mj-mf');
   $('mj-ad').value = defPour('mj-ad');
   $('mj-af').value = defPour('mj-af');
-  majChips();
+  majStatuts();
 }
 
 /* ---------- Vue admin ---------- */
@@ -836,8 +950,10 @@ function renderEquipe() {
       const p = mapE[j.iso];
       const we = j.js === 0 || j.js === 6;
       const min = jourMin(p);
-      const manque = !p && !we && j.iso < auj;
+      const fer = ferieGE(j.iso);
+      const manque = !p && !we && j.iso < auj && !fer;
       let contenu = '';
+      if (!p && fer) contenu = '<span class="badge" style="background:' + COULEURS.ferie + '" title="' + esc(fer) + '">FÉR</span>';
       if (p) {
         const morceaux = [];
         if (min) morceaux.push(fmtMin(min));
@@ -895,14 +1011,15 @@ function ouvrirDetails(empId) {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
-    const manque = !p && !we && j.iso < auj;
+    const fer = ferieGE(j.iso);
+    const manque = !p && !we && j.iso < auj && !fer;
     if (semDebut === null) semDebut = j.num;
     semMin += min;
     const coche = p ? '<span class="val-jour' + (p.approuve ? ' on' : '') + '" data-jour="' + j.iso +
       '" title="' + (p.approuve ? 'Déverrouiller ce jour' : 'Valider ce jour') + '">✓</span>' : '';
     htmlDet += '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
-      '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : '<span class="vide">—</span>') + '</div>' +
+      '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
       '<div class="tot">' + (min ? fmtMin(min) : '') + '</div>' + coche + '</button>';
     if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
@@ -944,15 +1061,33 @@ async function approuverJourRevue(empId, jour, approuve) {
     ouvrirDetails(empId); // la revue reste ouverte, rafraîchie
   } catch (e) { toast(e.message); }
 }
+function lienPersonnel(cle) { return location.origin + location.pathname + '#c=' + cle; }
+async function copierLien(cle, prenom) {
+  const lien = lienPersonnel(cle);
+  try {
+    await navigator.clipboard.writeText(lien);
+    toast('✓ Lien personnel de ' + prenom + ' copié — collez-le dans WhatsApp/SMS');
+  } catch (err) {
+    prompt('Copiez le lien personnel de ' + prenom + ' :', lien);
+  }
+}
 function renderEmployes() {
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
     '<div><div class="nom">' + esc(nomComplet(e)) + (e.role === 'admin' ? ' <span class="muet">(admin)</span>' : '') + '</div>' +
     '<div class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</div></div>' +
-    '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div>').join('') +
-    '<button class="btn large" id="btn-ajout-emp">+ Ajouter un employé</button>';
+    '<div style="display:flex;gap:6px;flex:none">' +
+    (e.cle && e.actif ? '<button class="btn sec" data-lien="' + e.id + '">🔗 Lien</button>' : '') +
+    '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div></div>').join('') +
+    '<button class="btn large" id="btn-ajout-emp">+ Ajouter un employé</button>' +
+    '<div class="muet centre" style="margin-top:8px">« 🔗 Lien » copie le lien personnel de connexion sans code — à envoyer à l’employé.</div>';
   $('ong-employes').querySelectorAll('button[data-id]').forEach(b =>
     b.addEventListener('click', () => ouvrirEmp(b.dataset.id)));
+  $('ong-employes').querySelectorAll('button[data-lien]').forEach(b =>
+    b.addEventListener('click', () => {
+      const e = S.employes.find(x => x.id === b.dataset.lien);
+      if (e && e.cle) copierLien(e.cle, e.prenom);
+    }));
   $('btn-ajout-emp').addEventListener('click', () => ouvrirEmp(null));
 }
 function renderExport() {
@@ -997,6 +1132,7 @@ function ouvrirEmp(id) {
   $('me-af').value = e ? e.apm_fin_def : '17:00';
   $('me-pin').value = '';
   $('me-actif').checked = e ? e.actif : true;
+  $('me-regen').hidden = !(e && e.role === 'employe');
   $('voile-emp').classList.add('ouvert');
 }
 async function sauverEmp() {
@@ -1057,85 +1193,123 @@ function libAbsence(p) {
   if (a !== 'travail') parts.push(TYPES[a] + ' (a-m)');
   return parts.join(' + ');
 }
+/* Correspondance avec les codes d'absence du classeur de la fiduciaire (CCT). */
+const CODE_ABS = { vacances: 'VAC', maladie: 'MAL', accident: 'ACC', armee: 'MIL', ecole: 'FOR', conge_np: 'CNP', autre: 'ABSJ', ferie: 'FÉR' };
+const ABS_PAYEE = { vacances: true, maladie: true, accident: true, armee: true, ecole: true, autre: true, ferie: true, conge_np: false };
+const BASE_CONTRAT_MIN = 8 * 60 + 24; // contrat 42 h/semaine → 8h24 par jour ouvré
+
 function feuilleEmploye(emp, map, jours, titreMois) {
+  const auj = aujourdhui();
   const aoa = [];
   let present = 0, nApp = 0, dateVal = '', jt = 0;
+  let totTrav = 0, totCred = 0, totDues = 0, totPlus = 0, totMoins = 0;
+  let semMin = 0, semDebut = null;
+  const absCnt = {};
   aoa.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
   aoa.push([cel('Relevé d’heures — ' + nomComplet(emp) + (emp.metier ? ' (' + emp.metier + ')' : ''), STY.sous)]);
-  aoa.push([cel('Mois : ' + titreMois, STY.sous)]);
+  aoa.push([cel('Mois : ' + titreMois + '   ·   Durée contractuelle : 42 h/semaine (8h24 par jour ouvré écoulé)   ·   Jours fériés officiels du canton de Genève crédités automatiquement', STY.sous)]);
   aoa.push([]);
-  aoa.push(['Date', 'Jour', 'Matin', 'Après-midi', 'Heures', 'Heures (déc.)', 'Absence', 'Remarque'].map(h => cel(h, STY.th)));
-  let totMin = 0, semMin = 0, semDebut = null;
-  const absCnt = {};
+  aoa.push(['Date', 'Jour', 'Type de jour', 'Matin début', 'Matin fin', 'Après-midi début', 'Après-midi fin', 'Heures travaillées', 'Absence', 'Heures créditées', 'Heures dues', 'Heures en +', 'Heures en −', 'Remarque'].map(h => cel(h, STY.th)));
   for (const j of jours) {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
+    const fer = ferieGE(j.iso);
+    const passe = j.iso <= auj;
     const min = jourMin(p);
-    totMin += min;
-    let matin = '', apm = '', absence = '', rem = '';
+    totTrav += min;
+    if (semDebut === null) semDebut = j.num;
+    semMin += min;
     if (p) {
       present++;
       if (p.approuve) { nApp++; if (p.approuve_le) dateVal = p.approuve_le; }
       if (demiMin(p.matin_type, p.matin_debut, p.matin_fin) > 0) jt += 0.5;
       if (demiMin(p.apm_type, p.apm_debut, p.apm_fin) > 0) jt += 0.5;
-      matin = p.matin_type !== 'travail' ? TYPES[p.matin_type] : (p.matin_debut || p.matin_fin ? (p.matin_debut || '?') + ' – ' + (p.matin_fin || '?') : '');
-      apm = p.apm_type !== 'travail' ? TYPES[p.apm_type] : (p.apm_debut || p.apm_fin ? (p.apm_debut || '?') + ' – ' + (p.apm_fin || '?') : '');
-      absence = libAbsence(p);
-      rem = p.remarque || '';
       for (const t of [p.matin_type, p.apm_type]) if (t !== 'travail') absCnt[t] = (absCnt[t] || 0) + 0.5;
     }
-    const sc = we ? STY.we : STY.c, sg = we ? STY.weg : STY.cg;
-    if (semDebut === null) semDebut = j.num;
-    semMin += min;
+    const ferManuel = p && p.matin_type === 'ferie' && p.apm_type === 'ferie';
+    const typeJour = (fer || ferManuel) ? 'Férié' : (j.js === 6 ? 'Samedi' : j.js === 0 ? 'Dimanche' : 'Ouvré');
+    let code = '';
+    if (p) {
+      const mt = p.matin_type, at = p.apm_type;
+      if (mt !== 'travail' && at !== 'travail') code = mt === at ? CODE_ABS[mt] : CODE_ABS[mt] + ' ½ + ' + CODE_ABS[at] + ' ½';
+      else if (mt !== 'travail') code = CODE_ABS[mt] + ' ½';
+      else if (at !== 'travail') code = CODE_ABS[at] + ' ½';
+    }
+    // Heures créditées / dues, base contractuelle, jours écoulés uniquement.
+    // Convention du classeur : un jour férié est crédité (8h24) et rien n'est dû ;
+    // une absence payée crédite sa demi-journée ; un congé non payé ne crédite rien.
+    let cred = 0, dues = 0;
+    if (passe) {
+      if (typeJour === 'Férié') {
+        cred = BASE_CONTRAT_MIN;
+      } else if (!we) {
+        dues = BASE_CONTRAT_MIN;
+        if (p) {
+          if (p.matin_type !== 'travail' && ABS_PAYEE[p.matin_type]) cred += BASE_CONTRAT_MIN / 2;
+          if (p.apm_type !== 'travail' && ABS_PAYEE[p.apm_type]) cred += BASE_CONTRAT_MIN / 2;
+        }
+      }
+    }
+    totCred += cred; totDues += dues;
+    const ecart = min + cred - dues;
+    const enPlus = Math.max(0, ecart), enMoins = Math.max(0, -ecart);
+    totPlus += enPlus; totMoins += enMoins;
+    const sc = (we || typeJour === 'Férié') ? STY.we : STY.c;
+    const sg = we ? STY.weg : STY.cg;
     aoa.push([
       cel(String(j.num).padStart(2, '0') + '.' + String(S.mois).padStart(2, '0') + '.' + S.annee, sc),
       cel(JS_COURT[j.js], sc),
-      cel(matin, p && p.matin_type !== 'travail' && !we ? STY.abs : sc),
-      cel(apm, p && p.apm_type !== 'travail' && !we ? STY.abs : sc),
+      cel(typeJour === 'Férié' && fer ? 'Férié — ' + fer : typeJour, typeJour === 'Férié' ? STY.abs : sc),
+      cel(p ? (p.matin_debut || '') : '', sc), cel(p ? (p.matin_fin || '') : '', sc),
+      cel(p ? (p.apm_debut || '') : '', sc), cel(p ? (p.apm_fin || '') : '', sc),
       cel(min ? fmtMin(min) : '', sc),
-      min ? cel(fmtDec(min), sc, 'n', '0.00') : cel('', sc),
-      cel(absence, sc),
-      cel(rem, sg)
+      cel(code, code ? STY.abs : sc),
+      cel(cred ? fmtMin(cred) : '', sc),
+      cel(dues ? fmtMin(dues) : '', sc),
+      enPlus ? cel(fmtDec(enPlus), sc, 'n', '0.00') : cel('', sc),
+      enMoins ? cel(fmtDec(enMoins), sc, 'n', '0.00') : cel('', sc),
+      cel(p ? (p.remarque || '') : '', sg)
     ]);
     if (j.js === 0 || j.num === jours.length) { // dimanche ou fin de mois : sous-total hebdomadaire
       if (semMin > 0) {
-        aoa.push([cel('', STY.sem), cel('', STY.sem), cel('Total semaine ' + semDebut + '–' + j.num, STY.sem), cel('', STY.sem),
-          cel(fmtMin(semMin), STY.semc), cel(fmtDec(semMin), STY.semc, 'n', '0.00'), cel('', STY.sem), cel('', STY.sem)]);
+        aoa.push([cel('', STY.sem), cel('', STY.sem), cel('Total semaine ' + semDebut + '–' + j.num, STY.sem),
+          cel('', STY.sem), cel('', STY.sem), cel('', STY.sem), cel('', STY.sem),
+          cel(fmtMin(semMin), STY.semc), cel('', STY.sem), cel('', STY.sem), cel('', STY.sem),
+          cel('', STY.sem), cel('', STY.sem), cel('', STY.sem)]);
       }
       semMin = 0; semDebut = null;
     }
   }
-  aoa.push([cel('TOTAL', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot),
-    cel(fmtMin(totMin), STY.totv), cel(fmtDec(totMin), STY.totv, 'n', '0.00'), cel('', STY.tot), cel('', STY.tot)]);
-  const dues = heuresDues(jours, map);
-  const solde = totMin - dues;
-  const dues42 = heuresDues(jours, map, 8 * 60 + 24);
-  const solde42 = totMin - dues42;
+  aoa.push([cel('TOTAUX DU MOIS', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot), cel('', STY.tot),
+    cel('', STY.tot), cel('', STY.tot),
+    cel(fmtMin(totTrav), STY.totv), cel('', STY.tot), cel(totCred ? fmtMin(totCred) : '', STY.totv),
+    cel(totDues ? fmtMin(totDues) : '', STY.totv),
+    cel(fmtDec(totPlus), STY.totv, 'n', '0.00'), cel(fmtDec(totMoins), STY.totv, 'n', '0.00'), cel('', STY.tot)]);
+  const solde = totTrav + totCred - totDues;
   aoa.push([]);
-  aoa.push([cel('Jours travaillés : ' + fmtJours(jt), STY.sous)]);
-  // Les deux bases contractuelles possibles, au choix de la fiduciaire.
-  aoa.push([cel('Base 40 h/sem. (8h00 par jour ouvré, absences déduites) — dues : ' + fmtMin(dues) +
-    '  ·  Solde : ' + fmtSolde(solde), STY.sous)]);
-  aoa.push([cel('Base 42 h/sem. (8h24 par jour ouvré, absences déduites) — dues : ' + fmtMin(dues42) +
-    '  ·  Solde : ' + fmtSolde(solde42), STY.sous)]);
-  const nomsAbs = Object.entries(absCnt).map(([t, n]) => TYPES[t] + ' : ' + fmtJours(n));
-  if (nomsAbs.length) { aoa.push([cel('Absences — ' + nomsAbs.join(' · '), STY.sous)]); }
+  const autres = Object.entries(absCnt).filter(([t]) => !['vacances', 'maladie', 'accident'].includes(t))
+    .reduce((somme, [, n]) => somme + n, 0);
+  aoa.push([cel('Vacances prises : ' + fmtJours(absCnt.vacances || 0) + '   ·   Maladie : ' + fmtJours(absCnt.maladie || 0) +
+    '   ·   Accident : ' + fmtJours(absCnt.accident || 0) + '   ·   Autres absences : ' + fmtJours(autres), STY.sous)]);
+  aoa.push([cel('Jours travaillés : ' + fmtJours(jt) + '   ·   Solde du mois (travaillé + crédité − dû) : ' + fmtSolde(solde) +
+    ' soit ' + (solde / 60).toFixed(2).replace('.', ',') + ' h en décimal', STY.sous)]);
   const valide = present > 0 && nApp === present;
   aoa.push([cel(valide ? '✓ Validé par la direction' + (dateVal ? ' le ' + dateVal : '')
                        : 'En attente de validation par la direction',
     valide ? { font: { bold: true, sz: 11, color: { rgb: '065F46' } } }
            : { font: { italic: true, sz: 11, color: { rgb: '92400E' } } })]);
   aoa.push([]);
-  aoa.push([cel('Signature employé : ______________________', STY.sous), null, null, null,
+  aoa.push([cel('Signature employé : ______________________', STY.sous), null, null, null, null, null, null,
     cel('Signature direction : ______________________', STY.sous)]);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 11 }, { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 8 }, { wch: 11 }, { wch: 20 }, { wch: 28 }];
+  ws['!cols'] = [{ wch: 10 }, { wch: 5 }, { wch: 19 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 },
+    { wch: 10 }, { wch: 11 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 24 }];
   ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 13 } }
   ];
-  return { ws, totMin, absCnt, valide, nApp, present, jt, solde, solde42 };
+  return { ws, totMin: totTrav, totCred, totDues, totPlus, totMoins, solde, absCnt, valide, nApp, present, jt };
 }
 async function exporterExcel() {
   const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked')).map(c => c.dataset.id);
@@ -1150,32 +1324,36 @@ async function exporterExcel() {
     const wb = XLSX.utils.book_new();
     const recap = [];
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
-    recap.push([cel('Récapitulatif des heures — ' + titreMois, STY.sous)]);
+    recap.push([cel('Récapitulatif des heures — ' + titreMois + '   ·   Base contractuelle : 42 h/semaine (8h24 par jour ouvré écoulé)', STY.sous)]);
     recap.push([]);
-    recap.push(['Employé', 'Métier', 'Heures', 'Heures (déc.)', 'Jours trav.', 'Solde 40 h', 'Solde 42 h', 'Vacances', 'Maladie', 'Accident', 'Fériés', 'Armée / PC', 'Formation', 'Autre', 'Validé'].map(h => cel(h, STY.th)));
+    recap.push(['Employé', 'Métier', 'Heures travaillées', 'Créditées', 'Dues', 'En +', 'En −', 'Solde', 'Jours trav.', 'Vacances', 'Maladie', 'Accident', 'Autres', 'Validé'].map(h => cel(h, STY.th)));
     const feuilles = [];
     for (const id of ids) {
       const emp = S.employes.find(e => e.id === id);
       if (!emp) continue;
       const f = feuilleEmploye(emp, map[id] || {}, jours, titreMois);
       feuilles.push({ emp, ws: f.ws });
-      const a = f.absCnt;
+      const autres = Object.entries(f.absCnt).filter(([t]) => !['vacances', 'maladie', 'accident'].includes(t))
+        .reduce((somme, [, n]) => somme + n, 0);
       recap.push([
         cel(nomComplet(emp), STY.cg), cel(emp.metier || '', STY.cg),
-        cel(fmtMin(f.totMin), STY.c), cel(fmtDec(f.totMin), STY.c, 'n', '0.00'),
-        cel(f.jt ? fmtJours(f.jt) : '', STY.c),
+        cel(fmtMin(f.totMin), STY.c),
+        cel(f.totCred ? fmtMin(f.totCred) : '', STY.c),
+        cel(f.totDues ? fmtMin(f.totDues) : '', STY.c),
+        cel(fmtDec(f.totPlus), STY.c, 'n', '0.00'),
+        cel(fmtDec(f.totMoins), STY.c, 'n', '0.00'),
         cel(fmtSolde(f.solde), STY.c),
-        cel(fmtSolde(f.solde42), STY.c),
-        cel(a.vacances ? fmtJours(a.vacances) : '', STY.c), cel(a.maladie ? fmtJours(a.maladie) : '', STY.c),
-        cel(a.accident ? fmtJours(a.accident) : '', STY.c), cel(a.ferie ? fmtJours(a.ferie) : '', STY.c),
-        cel(a.armee ? fmtJours(a.armee) : '', STY.c), cel(a.ecole ? fmtJours(a.ecole) : '', STY.c),
-        cel(a.autre ? fmtJours(a.autre) : '', STY.c),
+        cel(f.jt ? fmtJours(f.jt) : '', STY.c),
+        cel(f.absCnt.vacances ? fmtJours(f.absCnt.vacances) : '', STY.c),
+        cel(f.absCnt.maladie ? fmtJours(f.absCnt.maladie) : '', STY.c),
+        cel(f.absCnt.accident ? fmtJours(f.absCnt.accident) : '', STY.c),
+        cel(autres ? fmtJours(autres) : '', STY.c),
         cel(f.valide ? 'OUI' : (f.nApp > 0 ? 'Partiel' : 'Non'), STY.c)
       ]);
     }
     const wsr = XLSX.utils.aoa_to_sheet(recap);
-    wsr['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 9 }, { wch: 11 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
-    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } }];
+    wsr['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 8 }, { wch: 8 }];
+    wsr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } }];
     XLSX.utils.book_append_sheet(wb, wsr, 'Récapitulatif');
     for (const f of feuilles) {
       let nomF = nomComplet(f.emp).replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Employé';
@@ -1194,8 +1372,7 @@ async function exporterExcel() {
 /* ---------- Initialisation ---------- */
 function init() {
   initLogin();
-  chipsTypes('mj-types-m', 'matin');
-  chipsTypes('mj-types-a', 'apm');
+  initStatuts();
   ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => {
     $(id).addEventListener('input', majTotalApercu);
     // Champ vide touché → on propose directement l'heure de la journée type.
@@ -1214,6 +1391,18 @@ function init() {
   $('mj-approuver').addEventListener('click', approuverJour);
   $('me-annuler').addEventListener('click', () => $('voile-emp').classList.remove('ouvert'));
   $('me-save').addEventListener('click', sauverEmp);
+  $('me-regen').addEventListener('click', async () => {
+    if (!ME.id) return;
+    if (!confirm('Régénérer le lien personnel ? L’ancien lien cessera de fonctionner et l’employé sera déconnecté.')) return;
+    try {
+      const res = await rpc('admin_regenerer_cle', { p_token: S.token, p_employe: ME.id });
+      if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+      const e = S.employes.find(x => x.id === ME.id);
+      await copierLien(res.cle, e ? e.prenom : '');
+      $('voile-emp').classList.remove('ouvert');
+      await charger();
+    } catch (e) { toast(e.message); }
+  });
   $('det-fermer').addEventListener('click', fermerDetails);
   $('det-valider').addEventListener('click', () => {
     const app = $('det-valider').dataset.app === '1';
@@ -1231,7 +1420,10 @@ function init() {
     b.addEventListener('click', () => { S.ongletAdmin = b.dataset.ong; renderAdmin(); }));
   [$('voile-jour'), $('voile-emp'), $('voile-det')].forEach(v =>
     v.addEventListener('click', e => { if (e.target === v) v.classList.remove('ouvert'); }));
-  if (S.token && S.moi) { charger(); } else { montrer('login'); }
+  const cle = cleDansUrl();
+  if (S.token && S.moi) { charger(); }
+  else if (cle) { connexionParCle(cle); }
+  else { montrer('login'); }
 }
 init();
 </script>
