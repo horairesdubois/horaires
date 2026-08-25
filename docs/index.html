@@ -113,6 +113,10 @@ h1{font-size:22px;font-weight:700}
 .modale h2{font-size:18px;margin-bottom:12px;text-transform:capitalize}
 .demi{background:var(--carte);border-radius:12px;padding:12px;margin-bottom:10px}
 .demi .titre-demi{font-weight:700;font-size:14px;margin-bottom:8px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px}
+.entete-demi{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.entete-demi .titre-demi{margin-bottom:0}
+select.statut{width:auto;margin-bottom:0;padding:8px 10px;border:1px solid var(--ligne);border-radius:10px;
+  background:#f8fafc;font-size:14px;font-weight:600;color:var(--texte)}
 .types{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
 .types button{flex:none;font-size:13px;font-weight:600;padding:7px 12px;border-radius:99px;background:#f1f5f9;color:var(--gris)}
 .types button.actif{background:var(--bleu);color:#fff}
@@ -206,6 +210,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
       <div class="gros" id="emp-total">0h00</div>
     </div>
     <div class="chips" id="emp-chips"></div>
+    <div id="emp-remplir"></div>
   </div>
   <div id="emp-liste"></div>
 </div>
@@ -240,16 +245,14 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <h2 id="mj-titre"></h2>
     <div class="muet" id="mj-emp" style="margin:-8px 0 10px"></div>
     <div class="demi">
-      <div class="titre-demi">Matin</div>
-      <div class="types" id="mj-types-m"></div>
+      <div class="entete-demi"><span class="titre-demi">Matin</span><select id="mj-statut-m" class="statut"></select></div>
       <div class="lignes-h" id="mj-heures-m">
         <div class="champ-h"><label>Début</label><input type="time" id="mj-md"><button class="now" data-cible="mj-md" title="Maintenant">⏱</button></div>
         <div class="champ-h"><label>Fin</label><input type="time" id="mj-mf"><button class="now" data-cible="mj-mf" title="Maintenant">⏱</button></div>
       </div>
     </div>
     <div class="demi">
-      <div class="titre-demi">Après-midi</div>
-      <div class="types" id="mj-types-a"></div>
+      <div class="entete-demi"><span class="titre-demi">Après-midi</span><select id="mj-statut-a" class="statut"></select></div>
       <div class="lignes-h" id="mj-heures-a">
         <div class="champ-h"><label>Début</label><input type="time" id="mj-ad"><button class="now" data-cible="mj-ad" title="Maintenant">⏱</button></div>
         <div class="champ-h"><label>Fin</label><input type="time" id="mj-af"><button class="now" data-cible="mj-af" title="Maintenant">⏱</button></div>
@@ -308,6 +311,9 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <label class="lbl">Nouveau code PIN (4 à 8 chiffres — laisser vide pour ne pas changer)</label>
     <input type="password" id="me-pin" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="••••••" autocomplete="new-password">
     <div class="exp-choix" style="margin:4px 0 10px"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="me-actif" checked> Actif (peut se connecter)</label></div>
+    <div class="actions">
+      <button class="btn sec" id="me-regen" hidden>🔗 Régénérer le lien personnel</button>
+    </div>
     <div class="actions">
       <button class="btn sec" id="me-annuler">Annuler</button>
       <button class="btn" id="me-save">Enregistrer</button>
@@ -470,6 +476,8 @@ function sessionPerdue() {
   $('voile-emp').classList.remove('ouvert');
   $('voile-det').classList.remove('ouvert');
   montrer('login');
+  const cle = cleDansUrl();
+  if (cle && !cleEssayee) { connexionParCle(cle); return; }
   toast('Session expirée, reconnectez-vous');
 }
 
@@ -527,6 +535,29 @@ async function connexion() {
     await charger();
   } catch (e) { $('login-err').textContent = e.message; }
   finally { connexionEnCours = false; $('btn-login').textContent = 'Se connecter'; $('btn-login').disabled = pinBuf.length < 4; }
+}
+/* Connexion par lien personnel : la clé voyage dans le fragment (#c=…),
+   jamais envoyée au serveur web, seulement à l'API pour ouvrir la session. */
+let cleEssayee = false;
+async function connexionParCle(cle) {
+  cleEssayee = true;
+  montrer('login');
+  $('btn-login').disabled = true;
+  $('btn-login').innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await rpc('connexion_cle', { p_cle: cle });
+    if (!res.ok) { $('login-err').textContent = res.erreur; return; }
+    S.token = res.token; S.moi = res.employe;
+    localStorage.setItem('hor_token', S.token);
+    localStorage.setItem('hor_moi', JSON.stringify(S.moi));
+    const d = new Date(); S.annee = d.getFullYear(); S.mois = d.getMonth() + 1;
+    await charger();
+  } catch (e) { $('login-err').textContent = e.message; }
+  finally { $('btn-login').textContent = 'Se connecter'; $('btn-login').disabled = pinBuf.length < 4; }
+}
+function cleDansUrl() {
+  const m = (location.hash || '').match(/c=([0-9a-f]{32})/);
+  return m ? m[1] : null;
 }
 async function deconnexion() {
   try { await rpc('deconnexion', { p_token: S.token }); } catch (e) {}
@@ -598,6 +629,11 @@ function renderEmp() {
     chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par la direction</span>';
   }
   $('emp-chips').innerHTML = chips;
+  $('emp-remplir').innerHTML = manq > 0
+    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter les ' + manq +
+      ' jour' + (manq > 1 ? 's' : '') + ' manquant' + (manq > 1 ? 's' : '') + ' (journée type)</button>'
+    : '';
+  if (manq > 0) $('btn-remplir').addEventListener('click', remplirManquants);
 
   // Carte « Journée type » : un appui enregistre la journée standard du jour même.
   const maintenant = new Date();
@@ -676,6 +712,33 @@ function renderEmp() {
   if (pp) pp.addEventListener('click', () => { S.deplieApres = !S.deplieApres; renderEmp(); });
 }
 
+async function remplirManquants() {
+  const jours = joursDuMois(S.annee, S.mois);
+  const map = ptgMap()[S.moi.id] || {};
+  const auj = aujourdhui();
+  const cibles = jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso] && !ferieGE(j.iso));
+  if (!cibles.length) return;
+  const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
+    ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
+  if (!confirm('Remplir ' + cibles.length + ' jour(s) ouvré(s) avec la journée type (' + lib + ') ?\nVous pourrez corriger chaque jour ensuite.')) return;
+  const btn = $('btn-remplir');
+  if (btn) { btn.disabled = true; btn.textContent = 'Remplissage en cours…'; }
+  try {
+    for (const j of cibles) {
+      const res = await rpc('enregistrer_jour', {
+        p_token: S.token, p_jour: j.iso,
+        p_matin_type: 'travail',
+        p_matin_debut: S.moi.matin_debut_def || '08:00', p_matin_fin: S.moi.matin_fin_def || '12:00',
+        p_apm_type: 'travail',
+        p_apm_debut: S.moi.apm_debut_def || '13:00', p_apm_fin: S.moi.apm_fin_def || '17:00',
+        p_remarque: ''
+      });
+      if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); break; }
+    }
+    toast('✓ Jours complétés avec la journée type');
+  } catch (e) { toast(e.message); }
+  await charger();
+}
 async function journeeTypeAujourdhui() {
   const auj = aujourdhui();
   if ((ptgMap()[S.moi.id] || {})[auj]) return; // déjà saisi : on ne remplace rien
@@ -703,22 +766,21 @@ async function journeeTypeAujourdhui() {
 
 /* ---------- Modale jour ---------- */
 const MJ = { empId: null, jour: null, matin: 'travail', apm: 'travail', existe: false, approuve: false, verrou: false };
-function chipsTypes(conteneur, groupe) {
-  const c = $(conteneur);
-  c.innerHTML = Object.entries(TYPES).map(([k, v]) =>
-    '<button data-type="' + k + '">' + v + '</button>').join('');
-  c.addEventListener('click', e => {
-    if (MJ.verrou) return;
-    const b = e.target.closest('button'); if (!b) return;
-    MJ[groupe] = b.dataset.type;
-    majChips();
-  });
+// Les absences sont regroupées dans un menu « Statut » : par défaut, seule la
+// présence normale (les heures) est visible.
+function initStatuts() {
+  const opts = Object.entries(TYPES).map(([k, v]) =>
+    '<option value="' + k + '">' + (k === 'travail' ? 'Présence' : v) + '</option>').join('');
+  $('mj-statut-m').innerHTML = opts;
+  $('mj-statut-a').innerHTML = opts;
+  $('mj-statut-m').addEventListener('change', () => { if (MJ.verrou) return; MJ.matin = $('mj-statut-m').value; majStatuts(); });
+  $('mj-statut-a').addEventListener('change', () => { if (MJ.verrou) return; MJ.apm = $('mj-statut-a').value; majStatuts(); });
 }
-function majChips() {
-  for (const [cont, groupe, zone] of [['mj-types-m', 'matin', 'mj-heures-m'], ['mj-types-a', 'apm', 'mj-heures-a']]) {
-    $(cont).querySelectorAll('button').forEach(b => b.classList.toggle('actif', b.dataset.type === MJ[groupe]));
-    $(zone).style.display = MJ[groupe] === 'travail' ? '' : 'none';
-  }
+function majStatuts() {
+  $('mj-statut-m').value = MJ.matin;
+  $('mj-statut-a').value = MJ.apm;
+  $('mj-heures-m').style.display = MJ.matin === 'travail' ? '' : 'none';
+  $('mj-heures-a').style.display = MJ.apm === 'travail' ? '' : 'none';
   majTotalApercu();
 }
 function majTotalApercu() {
@@ -747,7 +809,14 @@ function ouvrirJour(empId, jour) {
   $('mj-ad').value = p ? (p.apm_debut || '') : '';
   $('mj-af').value = p ? (p.apm_fin || '') : '';
   $('mj-rem').value = p ? (p.remarque || '') : '';
-  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem'].forEach(id => { $(id).disabled = MJ.verrou; });
+  ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem', 'mj-statut-m', 'mj-statut-a'].forEach(id => { $(id).disabled = MJ.verrou; });
+  // Jour ouvré vide : la présence normale est déjà proposée, il n'y a plus qu'à enregistrer.
+  if (!p && !MJ.verrou && js >= 1 && js <= 5 && !ferJour) {
+    $('mj-md').value = defPour('mj-md');
+    $('mj-mf').value = defPour('mj-mf');
+    $('mj-ad').value = defPour('mj-ad');
+    $('mj-af').value = defPour('mj-af');
+  }
   $('mj-suppr').hidden = !p || MJ.verrou;
   $('mj-defaut').hidden = MJ.verrou;
   $('mj-save').hidden = MJ.verrou;
@@ -757,7 +826,7 @@ function ouvrirJour(empId, jour) {
     btnApp.hidden = false;
     btnApp.textContent = MJ.approuve ? '🔓 Déverrouiller ce jour' : '✓ Valider ce jour (direction)';
   } else { btnApp.hidden = true; }
-  majChips();
+  majStatuts();
   $('voile-jour').classList.add('ouvert');
 }
 function fermerJour() { $('voile-jour').classList.remove('ouvert'); }
@@ -829,7 +898,7 @@ function journeeType() {
   $('mj-mf').value = defPour('mj-mf');
   $('mj-ad').value = defPour('mj-ad');
   $('mj-af').value = defPour('mj-af');
-  majChips();
+  majStatuts();
 }
 
 /* ---------- Vue admin ---------- */
@@ -992,15 +1061,33 @@ async function approuverJourRevue(empId, jour, approuve) {
     ouvrirDetails(empId); // la revue reste ouverte, rafraîchie
   } catch (e) { toast(e.message); }
 }
+function lienPersonnel(cle) { return location.origin + location.pathname + '#c=' + cle; }
+async function copierLien(cle, prenom) {
+  const lien = lienPersonnel(cle);
+  try {
+    await navigator.clipboard.writeText(lien);
+    toast('✓ Lien personnel de ' + prenom + ' copié — collez-le dans WhatsApp/SMS');
+  } catch (err) {
+    prompt('Copiez le lien personnel de ' + prenom + ' :', lien);
+  }
+}
 function renderEmployes() {
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
     '<div><div class="nom">' + esc(nomComplet(e)) + (e.role === 'admin' ? ' <span class="muet">(admin)</span>' : '') + '</div>' +
     '<div class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</div></div>' +
-    '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div>').join('') +
-    '<button class="btn large" id="btn-ajout-emp">+ Ajouter un employé</button>';
+    '<div style="display:flex;gap:6px;flex:none">' +
+    (e.cle && e.actif ? '<button class="btn sec" data-lien="' + e.id + '">🔗 Lien</button>' : '') +
+    '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div></div>').join('') +
+    '<button class="btn large" id="btn-ajout-emp">+ Ajouter un employé</button>' +
+    '<div class="muet centre" style="margin-top:8px">« 🔗 Lien » copie le lien personnel de connexion sans code — à envoyer à l’employé.</div>';
   $('ong-employes').querySelectorAll('button[data-id]').forEach(b =>
     b.addEventListener('click', () => ouvrirEmp(b.dataset.id)));
+  $('ong-employes').querySelectorAll('button[data-lien]').forEach(b =>
+    b.addEventListener('click', () => {
+      const e = S.employes.find(x => x.id === b.dataset.lien);
+      if (e && e.cle) copierLien(e.cle, e.prenom);
+    }));
   $('btn-ajout-emp').addEventListener('click', () => ouvrirEmp(null));
 }
 function renderExport() {
@@ -1045,6 +1132,7 @@ function ouvrirEmp(id) {
   $('me-af').value = e ? e.apm_fin_def : '17:00';
   $('me-pin').value = '';
   $('me-actif').checked = e ? e.actif : true;
+  $('me-regen').hidden = !(e && e.role === 'employe');
   $('voile-emp').classList.add('ouvert');
 }
 async function sauverEmp() {
@@ -1284,8 +1372,7 @@ async function exporterExcel() {
 /* ---------- Initialisation ---------- */
 function init() {
   initLogin();
-  chipsTypes('mj-types-m', 'matin');
-  chipsTypes('mj-types-a', 'apm');
+  initStatuts();
   ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => {
     $(id).addEventListener('input', majTotalApercu);
     // Champ vide touché → on propose directement l'heure de la journée type.
@@ -1304,6 +1391,18 @@ function init() {
   $('mj-approuver').addEventListener('click', approuverJour);
   $('me-annuler').addEventListener('click', () => $('voile-emp').classList.remove('ouvert'));
   $('me-save').addEventListener('click', sauverEmp);
+  $('me-regen').addEventListener('click', async () => {
+    if (!ME.id) return;
+    if (!confirm('Régénérer le lien personnel ? L’ancien lien cessera de fonctionner et l’employé sera déconnecté.')) return;
+    try {
+      const res = await rpc('admin_regenerer_cle', { p_token: S.token, p_employe: ME.id });
+      if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
+      const e = S.employes.find(x => x.id === ME.id);
+      await copierLien(res.cle, e ? e.prenom : '');
+      $('voile-emp').classList.remove('ouvert');
+      await charger();
+    } catch (e) { toast(e.message); }
+  });
   $('det-fermer').addEventListener('click', fermerDetails);
   $('det-valider').addEventListener('click', () => {
     const app = $('det-valider').dataset.app === '1';
@@ -1321,7 +1420,10 @@ function init() {
     b.addEventListener('click', () => { S.ongletAdmin = b.dataset.ong; renderAdmin(); }));
   [$('voile-jour'), $('voile-emp'), $('voile-det')].forEach(v =>
     v.addEventListener('click', e => { if (e.target === v) v.classList.remove('ouvert'); }));
-  if (S.token && S.moi) { charger(); } else { montrer('login'); }
+  const cle = cleDansUrl();
+  if (S.token && S.moi) { charger(); }
+  else if (cle) { connexionParCle(cle); }
+  else { montrer('login'); }
 }
 init();
 </script>
