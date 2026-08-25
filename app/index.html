@@ -1400,7 +1400,7 @@ function ouvrirEmp(id) {
   $('me-af').value = e ? e.apm_fin_def : '17:00';
   $('me-pin').value = '';
   $('me-actif').checked = e ? e.actif : true;
-  $('me-regen').hidden = !(e && e.role !== 'admin');
+  $('me-regen').hidden = !(e && e.cle); // la direction aussi a son lien personnel
   $('voile-emp').classList.add('ouvert');
 }
 async function sauverEmp() {
@@ -1474,7 +1474,33 @@ function libAbsence(p) {
 /* Correspondance avec les codes d'absence du classeur de la fiduciaire (CCT). */
 const CODE_ABS = { vacances: 'VAC', maladie: 'MAL', accident: 'ACC', armee: 'MIL', ecole: 'FOR', conge_np: 'CNP', autre: 'ABSJ', ferie: 'FÉR' };
 const ABS_PAYEE = { vacances: true, maladie: true, accident: true, armee: true, ecole: true, autre: true, ferie: true, conge_np: false };
-const BASE_CONTRAT_MIN = 8 * 60 + 24; // contrat 42 h/semaine → 8h24 par jour ouvré
+/* Contrat 42 h/semaine réparti sans minutes bâtardes : 8h00 dus par jour ouvré,
+   plus un complément de 2h00 posé sur le premier jour ouvré de la semaine
+   (5 jours × 24 min = exactement 2h00). Le total hebdomadaire reste 42h00,
+   mais plus aucun « :24 » n'apparaît dans le relevé. */
+const BASE_CONTRAT_MIN = 8 * 60;
+const COMPLEMENT_SEMAINE_MIN = 2 * 60;
+const isoDate = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+  '-' + String(d.getDate()).padStart(2, '0');
+/* Premier jour ouvré de la semaine civile qui contient ce jour : le lundi, ou
+   le jour suivant si le lundi est férié. Calculé sur la semaine entière, donc
+   une semaine à cheval sur deux mois ne porte le complément qu'une seule fois. */
+function premierJourOuvreSemaine(iso) {
+  const [a, m, d] = iso.split('-').map(Number);
+  const dt = new Date(a, m - 1, d);
+  const lundi = new Date(dt);
+  lundi.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+  for (let i = 0; i < 5; i++) {
+    const x = new Date(lundi);
+    x.setDate(lundi.getDate() + i);
+    const xi = isoDate(x);
+    if (!ferieGE(xi)) return xi;
+  }
+  return null; // semaine entièrement fériée
+}
+// Heures dues (ou créditées si le jour est férié/absent) pour un jour ouvré.
+const dueDuJour = iso =>
+  BASE_CONTRAT_MIN + (premierJourOuvreSemaine(iso) === iso ? COMPLEMENT_SEMAINE_MIN : 0);
 
 function feuilleEmploye(emp, map, jours, titreMois) {
   const auj = aujourdhui();
@@ -1506,7 +1532,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   aoa.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
   aoa.push([cel(titreMois.toUpperCase(), STY.mois)]);
   aoa.push([cel('Relevé d’heures de ' + nomComplet(emp) + (emp.metier ? ' — ' + emp.metier : ''), STY.titre)]);
-  aoa.push([cel('Durée contractuelle : 42 h/semaine (8:24 par jour ouvré écoulé)   ·   CCT : ' + cct.nom +
+  aoa.push([cel('Durée contractuelle : 42 h/semaine — 8:00 dues par jour ouvré écoulé, plus 2:00 le premier jour ouvré de chaque semaine   ·   CCT : ' + cct.nom +
     ' — ' + cct.conv + ' (' + cct.sem + ' h/semaine)   ·   Plage normale ' + cct.plageDebut + '–' + cct.plageFin +
     ', nuit dès ' + cct.nuitDebut + '   ·   Jours fériés officiels du canton de Genève crédités automatiquement', STY.sous)]);
   aoa.push([]);
@@ -1537,19 +1563,20 @@ function feuilleEmploye(emp, map, jours, titreMois) {
       else if (at !== 'travail') code = CODE_ABS[at] + ' ½';
     }
     // Heures créditées / dues, base contractuelle, jours écoulés uniquement.
-    // Convention du classeur : un jour férié est crédité (8h24) et rien n'est dû ;
+    // Convention du classeur : un jour férié est crédité et rien n'est dû ;
     // une absence payée crédite sa demi-journée ; un congé non payé ne crédite rien.
     let cred = 0, dues = 0;
     if (passe) {
+      // Un férié crédite ce que la journée aurait dû ; un férié tombant un
+      // samedi ou un dimanche ne crédite rien (convention du classeur).
+      const du = we ? 0 : dueDuJour(j.iso);
       if (typeJour === 'Férié') {
-        // Un férié tombant un samedi ou un dimanche ne crédite rien : ce jour-là
-        // n'était de toute façon pas travaillé (convention du classeur).
-        if (!we) cred = BASE_CONTRAT_MIN;
+        cred = du;
       } else if (!we) {
-        dues = BASE_CONTRAT_MIN;
+        dues = du;
         if (p) {
-          if (p.matin_type !== 'travail' && ABS_PAYEE[p.matin_type]) cred += BASE_CONTRAT_MIN / 2;
-          if (p.apm_type !== 'travail' && ABS_PAYEE[p.apm_type]) cred += BASE_CONTRAT_MIN / 2;
+          if (p.matin_type !== 'travail' && ABS_PAYEE[p.matin_type]) cred += du / 2;
+          if (p.apm_type !== 'travail' && ABS_PAYEE[p.apm_type]) cred += du / 2;
         }
       }
     }
@@ -1639,7 +1666,7 @@ async function exporterExcel() {
     const recap = [];
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
     recap.push([cel(titreMois.toUpperCase(), STY.mois)]);
-    recap.push([cel('Récapitulatif des heures de l’équipe   ·   Base contractuelle : 42 h/semaine (8:24 par jour ouvré écoulé)   ·   Majorations selon la CCT de chaque branche (détail dans l’onglet de chaque collaborateur)', STY.sous)]);
+    recap.push([cel('Récapitulatif des heures de l’équipe   ·   Base contractuelle : 42 h/semaine — 8:00 dues par jour ouvré écoulé, plus 2:00 le premier jour ouvré de chaque semaine   ·   Majorations selon la CCT de chaque branche (détail dans l’onglet de chaque collaborateur)', STY.sous)]);
     recap.push([]);
     recap.push(enTetesR.map(h => cel(h, STY.th)));
     const feuilles = [];
