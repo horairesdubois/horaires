@@ -372,7 +372,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
         <div class="champ-h"><label>A-midi</label><input type="time" id="me-ad"><span class="muet">→</span><input type="time" id="me-af"></div>
       </div>
     </div>
-    <label class="lbl">Nouveau code PIN (4 à 8 chiffres — laisser vide pour ne pas changer)</label>
+    <label class="lbl">Nouveau code PIN (6 à 10 chiffres — laisser vide pour ne pas changer)</label>
     <input type="password" id="me-pin" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="••••••" autocomplete="new-password">
     <div class="exp-choix" style="margin:4px 0 10px"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="me-actif" checked> Actif (peut se connecter)</label></div>
     <div class="actions">
@@ -665,7 +665,7 @@ function initLogin() {
 function renderPin() {
   $('pin-aff').innerHTML = pinBuf.length
     ? Array.from({ length: pinBuf.length }, () => '<i class="on"></i>').join('')
-    : '<span class="pin-vide">Code PIN de 4 à 8 chiffres</span>';
+    : '<span class="pin-vide">Code PIN de 4 à 10 chiffres</span>';
   $('btn-login').disabled = pinBuf.length < 4;
   $('login-err').textContent = '';
 }
