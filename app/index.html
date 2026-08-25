@@ -100,6 +100,7 @@ h1{font-size:22px;font-weight:700}
 .val-jour.on{background:var(--vert);color:#fff}
 .sem-sub{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#334155;
   background:#eef3f1;border-radius:9px;padding:7px 12px;margin:2px 0 10px}
+.delta-sup{font-size:11px;font-weight:800;color:#047857;margin-left:4px;white-space:nowrap}
 .note-verrou{background:#ecfdf5;color:#065f46;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;text-align:center;margin-top:10px}
 .btn-val{padding:6px 10px !important;font-size:12px !important}
 
@@ -412,6 +413,20 @@ function ferieGE(isoJour) { return feriesGE(+isoJour.slice(0, 4))[isoJour] || nu
 function badgeFerie(nom) {
   return '<span class="badge" style="background:' + COULEURS.ferie + '">FÉR</span> <span class="muet">' + nom + '</span>';
 }
+/* Heures supplémentaires d'un jour saisi : tout ce qui dépasse la journée
+   type (8h00, réduite de 4h00 par demi-journée d'absence). Le week-end et
+   les jours fériés, tout ce qui est travaillé compte en heures sup. */
+function heuresSupJour(p, iso, js) {
+  if (!p) return 0;
+  const min = jourMin(p);
+  if (!min) return 0;
+  let attendu = 0;
+  if (js >= 1 && js <= 5 && !ferieGE(iso)) {
+    if (p.matin_type === 'travail') attendu += BASE_JOUR_MIN / 2;
+    if (p.apm_type === 'travail') attendu += BASE_JOUR_MIN / 2;
+  }
+  return Math.max(0, min - attendu);
+}
 function heuresTexte(p) {
   const parts = [];
   for (const [t, d, f] of [[p.matin_type, p.matin_debut, p.matin_fin], [p.apm_type, p.apm_debut, p.apm_fin]]) {
@@ -621,8 +636,14 @@ function renderEmp() {
   const abs = resumeAbsences(S.pointages);
   const solde = total - heuresDues(jours, map);
   const manq = joursManquants(jours, map);
+  let supMois = 0;
+  for (const p of S.pointages) {
+    const [aS, mS, dS] = p.jour.split('-').map(Number);
+    supMois += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
+  }
   let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
     '" title="8h00 dues par jour ouvré passé, absences déduites">Solde : ' + fmtSolde(solde) + '</span>';
+  if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
   if (S.pointages.length && S.pointages.every(p => p.approuve)) {
@@ -675,7 +696,28 @@ function renderEmp() {
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
-      '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') + '</div></button>';
+      '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') +
+      (heuresSupJour(p, j.iso, j.js) ? ' <span class="delta-sup">+' + fmtMin(heuresSupJour(p, j.iso, j.js)) + '</span>' : '') +
+      '</div></button>';
+  };
+  // Insère un sous-total (heures + heures sup) à la fin de chaque semaine.
+  const avecSemaines = (liste, cloture) => {
+    let html = '', sMin = 0, sSup = 0, sDebut = null;
+    for (const j of liste) {
+      const p = map[j.iso];
+      if (sDebut === null) sDebut = j.num;
+      sMin += jourMin(p);
+      sSup += heuresSupJour(p, j.iso, j.js);
+      html += ligneJour(j);
+      if (j.js === 0 || (cloture && j === liste[liste.length - 1])) {
+        if (sMin > 0) {
+          html += '<div class="sem-sub"><span>Semaine ' + sDebut + '–' + j.num + '</span><span>' + fmtMin(sMin) +
+            (sSup ? ' <span class="delta-sup">dont +' + fmtMin(sSup) + ' sup</span>' : '') + '</span></div>';
+        }
+        sMin = 0; sSup = 0; sDebut = null;
+      }
+    }
+    return html;
   };
   let htmlListe;
   if (moisCourant) {
@@ -691,7 +733,7 @@ function renderEmp() {
                        : '▸ Jours précédents (1–' + (jAuj.num - 1) + ' ' + MOIS[S.mois - 1] + ' · ' +
                          nSaisis + ' saisi' + (nSaisis > 1 ? 's' : '') +
                          (manq ? ' · <span style="color:#b45309">⚠ ' + manq + ' à compléter</span>' : '') + ')') + '</button>';
-      if (S.deplieAvant) htmlListe += avant.map(ligneJour).join('');
+      if (S.deplieAvant) htmlListe += avecSemaines(avant, false);
     }
     if (jAuj) htmlListe += ligneJour(jAuj);
     if (apres.length) {
@@ -701,7 +743,7 @@ function renderEmp() {
       if (S.deplieApres) htmlListe += apres.map(ligneJour).join('');
     }
   } else {
-    htmlListe = jours.map(ligneJour).join('');
+    htmlListe = avecSemaines(jours, true);
   }
   $('emp-liste').innerHTML = htmlListe;
   $('emp-liste').querySelectorAll('.jour-ligne').forEach(b =>
@@ -925,7 +967,7 @@ function renderEquipe() {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
-  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Solde</th><th>Statut</th>' +
+  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>Solde</th><th>H. sup</th><th>Statut</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
       JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
   for (const e of actifs) {
@@ -934,6 +976,11 @@ function renderEquipe() {
     let tot = 0;
     for (const p of lignes) tot += jourMin(p);
     const solde = tot - heuresDues(jours, mapE);
+    let supE = 0;
+    for (const p of lignes) {
+      const [aS, mS, dS] = p.jour.split('-').map(Number);
+      supE += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
+    }
     const tous = lignes.length > 0 && lignes.every(p => p.approuve);
     const statut = !lignes.length ? '<span class="muet">—</span>' :
       tous ? '<span class="pill val">Validé</span>' : '<span class="pill att">En attente</span>';
@@ -945,6 +992,7 @@ function renderEquipe() {
       (e.actif ? '' : '<span class="muet">(désactivé)</span>') + action + '</td>' +
       '<td class="tot-cell">' + (tot ? fmtMin(tot) : '—') + '</td>' +
       '<td class="tot-cell" style="color:' + (solde >= 0 ? '#047857' : '#b91c1c') + '">' + fmtSolde(solde) + '</td>' +
+      '<td class="tot-cell" style="color:#047857">' + (supE ? '+' + fmtMin(supE) : '—') + '</td>' +
       '<td>' + statut + '</td>';
     for (const j of jours) {
       const p = mapE[j.iso];
@@ -998,35 +1046,45 @@ function ouvrirDetails(empId) {
   const abs = resumeAbsences(lignes);
   const solde = total - heuresDues(jours, map);
   const manq = joursManquants(jours, map);
+  let supMois = 0;
+  for (const p of lignes) {
+    const [aS, mS, dS] = p.jour.split('-').map(Number);
+    supMois += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
+  }
   let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
     '" title="8h00 dues par jour ouvré passé, absences déduites">Solde : ' + fmtSolde(solde) + '</span>';
+  if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
   const tous = lignes.length > 0 && lignes.every(p => p.approuve);
   if (tous) chips += '<span style="background:#ecfdf5;color:#065f46">✓ Mois validé</span>';
   $('det-chips').innerHTML = chips;
   // Fiches horaires façon Jibble : jours + sous-total à la fin de chaque semaine.
-  let htmlDet = '', semMin = 0, semDebut = null;
+  let htmlDet = '', semMin = 0, semSup = 0, semDebut = null;
   for (const j of jours) {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
     const fer = ferieGE(j.iso);
+    const sup = heuresSupJour(p, j.iso, j.js);
     const manque = !p && !we && j.iso < auj && !fer;
     if (semDebut === null) semDebut = j.num;
     semMin += min;
+    semSup += sup;
     const coche = p ? '<span class="val-jour' + (p.approuve ? ' on' : '') + '" data-jour="' + j.iso +
       '" title="' + (p.approuve ? 'Déverrouiller ce jour' : 'Valider ce jour') + '">✓</span>' : '';
     htmlDet += '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
-      '<div class="tot">' + (min ? fmtMin(min) : '') + '</div>' + coche + '</button>';
+      '<div class="tot">' + (min ? fmtMin(min) : '') +
+      (sup ? ' <span class="delta-sup">+' + fmtMin(sup) + '</span>' : '') + '</div>' + coche + '</button>';
     if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
       if (semMin > 0) {
-        htmlDet += '<div class="sem-sub"><span>Semaine ' + semDebut + '–' + j.num + ' ' + MOIS[S.mois - 1] + '</span><span>' + fmtMin(semMin) + '</span></div>';
+        htmlDet += '<div class="sem-sub"><span>Semaine ' + semDebut + '–' + j.num + ' ' + MOIS[S.mois - 1] + '</span><span>' + fmtMin(semMin) +
+          (semSup ? ' <span class="delta-sup">dont +' + fmtMin(semSup) + ' sup</span>' : '') + '</span></div>';
       }
-      semMin = 0; semDebut = null;
+      semMin = 0; semSup = 0; semDebut = null;
     }
   }
   $('det-liste').innerHTML = htmlDet;
