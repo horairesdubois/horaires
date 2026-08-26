@@ -16,6 +16,20 @@
 -- Les références sont celles que produit facturation/reference.mjs pour le
 -- client 1047 : les deux moitiés du système doivent tomber d'accord.
 
+\set ON_ERROR_STOP on
+
+-- GARDE-FOU — À LIRE AVANT DE LANCER
+-- Ce scénario écrit de fausses données. Joué par mégarde sur la base de
+-- production, il y injecterait des clients et des documents fictifs. Il refuse
+-- donc de démarrer sur une base qui contient de vrais employés ou de vrais
+-- pointages : seule une base jetable passe.
+do $$
+begin
+  if exists (select 1 from public.employes) or exists (select 1 from public.pointages) then
+    raise exception 'REFUS : cette base contient des données réelles. Ce scénario ne se joue que sur une base jetable.';
+  end if;
+end $$;
+
 insert into public.clients (nom, adresse, npa, ville, email)
 values ('Régie Beaulieu SA','Av. de Champel 18','1206','Genève','compta@beaulieu.ch');
 

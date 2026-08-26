@@ -9,6 +9,20 @@
 --   4. accepter un devis éteint la relance en attente, dans la même transaction ;
 --   5. la file unifiée rend les deux natures de document au back office.
 
+\set ON_ERROR_STOP on
+
+-- GARDE-FOU — À LIRE AVANT DE LANCER
+-- Ce scénario écrit de fausses données. Joué par mégarde sur la base de
+-- production, il y injecterait des clients et des documents fictifs. Il refuse
+-- donc de démarrer sur une base qui contient de vrais employés ou de vrais
+-- pointages : seule une base jetable passe.
+do $$
+begin
+  if exists (select 1 from public.employes) or exists (select 1 from public.pointages) then
+    raise exception 'REFUS : cette base contient des données réelles. Ce scénario ne se joue que sur une base jetable.';
+  end if;
+end $$;
+
 insert into public.clients (nom, adresse, npa, ville, email)
 values ('Régie Beaulieu SA','Av. de Champel 18','1206','Genève','compta@beaulieu.ch');
 
@@ -39,11 +53,14 @@ select d.numero, d.etat, r.niveau,
 select '— 3. le client accepte le D-2026-053 —' as etape;
 insert into public.employes (prenom, nom, pin_hash, role)
 values ('Back', 'office', 'x', 'admin');
-insert into public.sessions (token, employe_id)
-select '11111111-1111-1111-1111-111111111111', id from public.employes where prenom='Back';
+-- Le jeton est engendré à chaque exécution : un jeton fixe écrit dans un dépôt
+-- est une clé d'administration publiée, même si le fichier ne vise qu'un test.
+insert into public.sessions (employe_id)
+select id from public.employes where prenom='Back'
+returning token as jeton \gset
 
 select jsonb_pretty(public.repondre_devis(
-  '11111111-1111-1111-1111-111111111111',
+  :'jeton',
   (select id from public.devis where numero='D-2026-053'), 'accepte'));
 
 select d.numero, d.etat, (r.annulee_le is not null) as relance_eteinte
@@ -60,4 +77,4 @@ select '— 5. file unifiée telle que la lit le travailleur —' as etape;
 select r->>'cible' as cible, r->>'niveau' as niveau,
        r->'document'->>'numero' as document, r->>'montant_du' as montant
   from jsonb_array_elements(
-         public.relances_a_envoyer('11111111-1111-1111-1111-111111111111')->'relances') r;
+         public.relances_a_envoyer(:'jeton')->'relances') r;
