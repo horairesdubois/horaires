@@ -171,6 +171,17 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .grille td.auj-td{background:#fffbeb}
 .grille td.ok-td{background:#e9f9f1}
 .grille td.manque-td{background:#fef7e6}
+/* Journée posée par le back office et jamais confirmée par l'intéressé.
+   Marque en coin, sur le canal background-image : les quatre règles de fond
+   ci-dessus emploient la propriété raccourcie « background », qui réinitialise
+   l'image — d'où la déclaration après elles, et non avant. */
+.grille td.pasconf{background-image:linear-gradient(225deg,#e8a33d 0 6px,transparent 6px)}
+.emp-vu{font-size:10.5px;font-weight:600;color:#94a3b8;letter-spacing:.2px;margin-top:1px;
+  display:flex;align-items:center;gap:4px;white-space:nowrap}
+.emp-vu i{width:5px;height:5px;border-radius:50%;background:#cbd5e1;flex:none}
+.emp-vu.auj{color:var(--bleu-f)}
+.emp-vu.auj i{background:var(--bleu)}
+.rem.posee{color:#8a6116;font-style:italic}
 .grille td.cellule{cursor:pointer;font-variant-numeric:tabular-nums;font-size:11px;line-height:1.25;padding:4px 5px;min-width:38px}
 .grille td.cellule:hover{outline:2px solid var(--bleu);outline-offset:-2px}
 .tot-cell{font-weight:700;font-variant-numeric:tabular-nums}
@@ -613,7 +624,10 @@ const S = {
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
   lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
-  bulletins: [], bullCharges: false, filMsg: null, fils: []
+  bulletins: [], bullCharges: false, filMsg: null, fils: [],
+  // Repli volontaire sur une date impossible : si le paramètre manque,
+  // l'interface se tait plutôt que de signaler à tort des mois d'historique.
+  depuis: '9999-12-31', auj: aujourdhui()
 };
 const estCompta = () => !!(S.moi && S.moi.role === 'compta');
 function ptgMap() {
@@ -731,6 +745,10 @@ async function charger() {
       S.employes = res.employes; S.pointages = res.pointages; S.entreprise = res.entreprise || '';
       S.lecture = compta;
       S.msgNonLus = res.msg_non_lus || 0;
+      // Date de Genève renvoyée par le serveur : « vu aujourd'hui » ne doit pas
+      // dépendre du réglage de l'appareil qui consulte.
+      S.auj = res.aujourdhui || aujourdhui();
+      S.depuis = res.tracabilite_depuis || '9999-12-31';
       if (compta && res.moi) { S.moi = res.moi; localStorage.setItem('hor_moi', JSON.stringify(S.moi)); }
       montrer('admin'); renderAdmin();
       if (S.ongletAdmin === 'messages') chargerMessages();
@@ -1290,6 +1308,43 @@ async function envoyerMessage() {
   } catch (e) { toast(e.message); }
   finally { btn.disabled = false; btn.textContent = 'Envoyer'; }
 }
+/* ---------- Confirmation des journées par le technicien ---------- */
+// « Vu aujourd'hui » n'a aucun sens quand on consulte un mois passé.
+function estMoisCourant() {
+  const a = S.auj || aujourdhui();
+  return S.annee === +a.slice(0, 4) && S.mois === +a.slice(5, 7);
+}
+// Journée posée par le back office et jamais confirmée par l'intéressé.
+// Chaque condition qui tombe éteint le signal : dans le doute, on se tait.
+function nonConfirme(e, p, iso) {
+  return !S.lecture                    // affaire interne, pas comptable
+    && !!p                             // rien de saisi = déjà signalé en jaune
+    && !p.confirme
+    && !p.approuve                     // la validation direction absorbe la confirmation
+    && e.role === 'employe' && e.actif
+    && iso >= S.depuis                 // avant la traçabilité, l'auteur est inconnu
+    && iso < (S.auj || aujourdhui())   // le jour même n'est jamais en défaut
+    && (p.matin_type === 'travail' || p.apm_type === 'travail');
+}
+function htmlVu(e) {
+  if (S.lecture || e.role !== 'employe' || !e.actif || !estMoisCourant()) return '';
+  const v = e.derniere_connexion;      // 'AAAA-MM-JJTHH:MM' (Genève) ou null
+  if (!v) return '<div class="emp-vu" title="Aucune ouverture de l’application enregistrée"><i></i>jamais vu</div>';
+  const cejour = v.slice(0, 10) === (S.auj || aujourdhui());
+  const complet = v.slice(8, 10) + '.' + v.slice(5, 7) + '.' + v.slice(0, 4) + ' à ' + v.slice(11);
+  return '<div class="emp-vu' + (cejour ? ' auj' : '') +
+    '" title="Dernière ouverture de l’application : ' + complet + '"><i></i>' +
+    (cejour ? 'vu ' + v.slice(11) : 'vu ' + v.slice(8, 10) + '.' + v.slice(5, 7)) + '</div>';
+}
+function txtVu(e) {
+  if (S.lecture || e.role !== 'employe' || !e.actif || !estMoisCourant()) return '';
+  const v = e.derniere_connexion;
+  if (!v) return ' · jamais vu';
+  return v.slice(0, 10) === (S.auj || aujourdhui())
+    ? ' · vu aujourd’hui à ' + v.slice(11)
+    : ' · vu le ' + v.slice(8, 10) + '.' + v.slice(5, 7) + ' à ' + v.slice(11);
+}
+
 function renderEquipe() {
   const map = ptgMap();
   // Les employés désactivés qui ont des heures ce mois restent visibles :
@@ -1300,7 +1355,7 @@ function renderEquipe() {
     (e.actif || Object.keys(map[e.id] || {}).length) && e.role !== 'compta' &&
     (e.role !== 'admin' || Object.keys(map[e.id] || {}).length));
   const jours = joursDuMois(S.annee, S.mois);
-  const auj = aujourdhui();
+  const auj = S.auj || aujourdhui();   // date de Genève renvoyée par le serveur
   const lecture = S.lecture;
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
   let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
@@ -1319,7 +1374,7 @@ function renderEquipe() {
     }
     html += '<tr><td><button class="emp-lien" data-emp="' + e.id + '" title="Voir le détail du mois">' +
       esc(e.prenom) + (e.nom ? ' ' + esc(e.nom[0]) + '.' : '') + ' ›</button>' +
-      (e.actif ? '' : '<span class="muet">(désactivé)</span>') + '</td>' +
+      (e.actif ? '' : '<span class="muet">(désactivé)</span>') + htmlVu(e) + '</td>' +
       '<td class="tot-cell">' + (tot ? fmtMin(tot) : '—') + '</td>' +
       '<td class="tot-cell" style="color:#047857">' + (supE ? '+' + fmtMin(supE) : '—') + '</td>' +
       '';
@@ -1340,16 +1395,19 @@ function renderEquipe() {
         contenu = morceaux.join('<br>');
         if (!contenu && (p.matin_debut || p.apm_debut)) contenu = '<span class="muet">…</span>';
       }
+      const pasconf = nonConfirme(e, p, j.iso);
       html += '<td class="cellule' + (we ? ' we-td' : '') + (j.iso === auj ? ' auj-td' : '') +
-        (p && p.approuve ? ' ok-td' : '') + (manque ? ' manque-td' : '') +
-        '" data-emp="' + e.id + '" data-jour="' + j.iso + '">' + contenu + '</td>';
+        (p && p.approuve ? ' ok-td' : '') + (manque ? ' manque-td' : '') + (pasconf ? ' pasconf' : '') +
+        '" data-emp="' + e.id + '" data-jour="' + j.iso + '"' +
+        (pasconf ? ' title="Journée posée par le back office — le technicien ne l’a pas confirmée"' : '') +
+        '>' + contenu + '</td>';
     }
     html += '</tr>';
   }
   html += '</table></div>';
   html += lecture
     ? '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour voir son mois jour par jour. Fond vert = jour validé par la direction · fond jaune = jour ouvré non encore saisi. Cette page se met à jour automatiquement dès qu’une saisie est ajoutée.</div>'
-    : '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour examiner son mois et <b>valider jour par jour</b>. Cliquez sur une case pour saisir ou corriger une journée. Fond vert = jour validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi.</div>';
+    : '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour examiner son mois et <b>valider jour par jour</b>. Cliquez sur une case pour saisir ou corriger une journée. Fond vert = jour validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · <b>coin orangé</b> = journée posée par le back office, que le technicien n’a pas confirmée. Sous chaque nom, la dernière ouverture de l’application.</div>';
   $('ong-equipe').innerHTML = html;
   if (!lecture) $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
@@ -1430,10 +1488,10 @@ function ouvrirDetails(empId) {
   const map = ptgMap()[empId] || {};
   const lignes = Object.values(map);
   const jours = joursDuMois(S.annee, S.mois);
-  const auj = aujourdhui();
+  const auj = S.auj || aujourdhui();   // date de Genève renvoyée par le serveur
   $('det-titre').textContent = nomComplet(e);
   $('det-sous').textContent = (e.metier ? e.metier + ' — ' : '') + MOIS[S.mois - 1] + ' ' + S.annee +
-    ' · CCT ' + cctDe(e).nom;
+    ' · CCT ' + cctDe(e).nom + txtVu(e);
   $('det-aide').hidden = S.lecture;
   let total = 0;
   for (const p of lignes) total += jourMin(p);
@@ -1451,6 +1509,11 @@ function ouvrirDetails(empId) {
   if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
+  // C'est avant de valider que l'information sert : combien de journées le
+  // collaborateur n'a-t-il jamais confirmées lui-même ?
+  const nonConf = jours.filter(j => nonConfirme(e, map[j.iso], j.iso)).length;
+  if (nonConf) chips += '<span style="background:#fdf1dd;color:#8a6116">' + nonConf +
+    ' jour' + (nonConf > 1 ? 's' : '') + ' posé' + (nonConf > 1 ? 's' : '') + ' par le back office</span>';
   const tous = lignes.length > 0 && lignes.every(p => p.approuve);
   if (tous) chips += '<span style="background:#ecfdf5;color:#065f46">✓ Mois validé</span>';
   $('det-chips').innerHTML = chips;
@@ -1471,7 +1534,8 @@ function ouvrirDetails(empId) {
     htmlDet += '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
-      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
+      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
+      (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') + '</div>' +
       '<div class="tot">' + (min ? fmtMin(min) : '') +
       (sup ? ' <span class="delta-sup">+' + fmtMin(sup) + '</span>' : '') + '</div>' + coche + '</button>';
     if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
@@ -1966,10 +2030,13 @@ function init() {
       if (b.dataset.ong === 'messages') S.msgCharges = false;
       renderAdmin();
     }));
-  // Espace fiduciaire : la page se rafraîchit toute seule pour refléter les
-  // saisies faites entre-temps par les techniciens.
+  // Direction et fiduciaire : la page se rafraîchit toute seule pour refléter
+  // les saisies et confirmations faites entre-temps par les techniciens.
   setInterval(() => {
-    if (!S.token || !estCompta() || document.hidden) return;
+    if (!S.token || !S.moi || document.hidden) return;
+    if (S.moi.role !== 'admin' && S.moi.role !== 'compta') return;
+    if ($('voile-jour').classList.contains('ouvert')) return;
+    if ($('voile-emp').classList.contains('ouvert')) return;
     if ($('voile-det').classList.contains('ouvert')) return;
     charger();
     if (S.ongletAdmin !== 'messages') chargerMessages();
