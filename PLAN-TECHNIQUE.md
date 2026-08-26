@@ -415,3 +415,89 @@ les premiers mois de serveur.
 **Le poste qui domine reste bexio, pas l'IA.** Sur CHF 106, l'intelligence artificielle
 en représente 25 — moins qu'un quart, et moins que ce que vous coûte une heure de
 technicien à ne pas facturer.
+
+---
+
+## 13. Devis, QR-factures et relances : c'est fait, et c'est gratuit
+
+Réponse courte à « est-ce possible gratuitement par API » : **oui, et il n'y a
+même pas d'API à appeler.** `swissqrbill` est une bibliothèque sous licence MIT
+qui tourne chez vous. Pas d'abonnement, pas de coût par facture, pas de compte
+tiers — et surtout aucune donnée client qui sort de votre serveur pour aller
+chercher un QR code ailleurs.
+
+Le module est dans `facturation/`, la base dans
+`supabase/migrations/20260826160000_devis_factures_relances.sql`, et le scénario
+de bout en bout dans `supabase/tests/relances.sql`. Tout a été exécuté, pas
+seulement écrit.
+
+### 13.1 Ce qui est en place
+
+| Brique | Où | État |
+|---|---|---|
+| Référence de paiement QRR et SCOR | `facturation/reference.mjs` | testée contre la base |
+| Facture A4 conforme art. 26 LTVA, avec section QR | `facturation/facture.mjs` | PDF généré, une page |
+| Rappel et mise en demeure, même référence | idem, paramètre `niveau` | PDF généré, une page |
+| Intérêt moratoire 5 % (art. 104 al. 1 CO) | `_interet_moratoire()` | à la mise en demeure seulement |
+| Escalade J+7 / J+21 / J+35 | `poser_relances()`, pg_cron | scénario passé |
+| Rapprochement camt.054 | `enregistrer_paiement()` | scénario passé |
+| Blocage d'une facture contestée | `bloquer_facture()` | scénario passé |
+
+### 13.2 Les trois règles qui portent le module
+
+**La référence ne change jamais.** Elle est calculée à l'émission et reprise
+telle quelle sur le rappel et sur la mise en demeure. C'est elle qui permet au
+camt.054 de dire quelle facture a été payée. Une référence qui bouge, c'est un
+client relancé après avoir payé — la faute qui coûte le plus cher en réputation.
+
+**Le paiement éteint la relance dans la même transaction.** `enregistrer_paiement()`
+solde la facture *puis* annule les relances en attente, sans fenêtre entre les
+deux. L'ordre inverse laisse passer un rappel pour une facture encaissée le
+matin même.
+
+**Une facture contestée se bloque.** Un client qui a écrit et qu'on relance
+quand même ne revient pas. `bloquer_facture()` sort la facture du cycle et
+annule ce qui était en attente.
+
+### 13.3 Ce que le rapprochement fait quand il ne sait pas
+
+La référence lue fait foi, en comparant sur la forme nue — les banques rendent
+la référence groupée par cinq depuis la droite, parfois avec des tirets. À
+défaut, repli sur le solde exact d'une facture ouverte, **et seulement s'il n'y
+en a qu'une**. Deux factures au même montant : l'écriture est conservée sans
+facture et attend un humain. On ne devine pas.
+
+### 13.4 Ce qu'il vous reste à faire, et qui ne dépend pas de moi
+
+1. **Demander le QR-IBAN à votre banque.** Il est gratuit sur simple demande.
+   Sans lui, on reste sur référence SCOR avec votre IBAN ordinaire — ça marche,
+   c'est juste moins lisible sur un extrait. Le code gère les deux et choisit
+   tout seul : un QR-IBAN impose une référence QRR, un IBAN ordinaire une SCOR,
+   et la banque refuse la combinaison inverse.
+2. **Vérifier que la banque livre le camt.054 sans supplément.** C'est ce
+   fichier qui ferme la boucle. Sans lui, les relances tournent à l'aveugle.
+3. **Écrire les frais de rappel dans vos conditions générales.** L'intérêt
+   moratoire de 5 % est dû de plein droit ; les frais de rappel, eux, ne tiennent
+   que s'ils sont prévus au contrat avec un montant identifiable.
+4. **Valider un exemplaire sur le portail de validation QR-facture** avant le
+   premier envoi réel.
+
+### 13.5 Ce que ça change pour bexio
+
+Vos trois priorités — QR-factures, devis, relances automatiques — sont couvertes
+gratuitement. Ce que bexio vend encore, ce n'est donc plus la facturation :
+c'est la TVA, le plan comptable et l'accès de votre fiduciaire. **La question
+n'est plus « acheter ou construire », elle est devenue « votre fiduciaire
+accepte-t-il un export ? ».** Posez-lui celle-là, et rien d'autre.
+
+### 13.6 Deux choses trouvées en exécutant vos migrations
+
+En rejouant l'historique du dépôt sur une base vierge, **quatre migrations sur
+dix-sept échouent** : elles référencent une colonne `employes.cle_acces` qu'aucune
+migration ne crée. Elle a été ajoutée à la main en production.
+
+Ça n'a aucun effet aujourd'hui — mais ça veut dire que **votre schéma ne se
+reconstruit pas depuis le dépôt**. Le jour où vous montez le serveur suisse, ou
+le jour où vous devez restaurer, il manquera cette colonne et quatre migrations
+refuseront de passer. Une migration de rattrapage de trois lignes suffit à
+refermer le trou. À faire avant la migration, pas pendant.

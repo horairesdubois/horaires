@@ -1,0 +1,14 @@
+{
+  "name": "facturation",
+  "version": "0.1.0",
+  "description": "Devis, factures QR suisses et rappels automatiques",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "demo": "node demo.mjs"
+  },
+  "dependencies": {
+    "pdfkit": "^0.17.2",
+    "swissqrbill": "^4.4.1"
+  }
+}
