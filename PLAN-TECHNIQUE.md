@@ -501,3 +501,126 @@ reconstruit pas depuis le dépôt**. Le jour où vous montez le serveur suisse, 
 le jour où vous devez restaurer, il manquera cette colonne et quatre migrations
 refuseront de passer. Une migration de rattrapage de trois lignes suffit à
 refermer le trou. À faire avant la migration, pas pendant.
+
+---
+
+## 14. La BCGE peut-elle donner un accès API à la Sàrl ?
+
+**Réponse honnête : pas au sens où vous l'entendez, et il ne faut pas attendre
+après elle pour démarrer.**
+
+### 14.1 Ce que j'ai trouvé, et ce que ça vaut
+
+| Piste | Ce que c'est | Verdict |
+|---|---|---|
+| `developer.bcgef.fr` | Portail développeur avec bac à sable | **BCGE France**, entité distincte, sous DSP2 européenne. Ne couvre pas un compte genevois. |
+| Multibanking PME | Offre BCGE pour les PME | Mentionne **EBICS** — et uniquement EBICS. Demande un contrat spécifique, un compte BCGE, le Netbanking actif et un administrateur Multibanking désigné. |
+| bLink (SIX) | Plateforme suisse d'open banking, plus de 30 banques | La BCGE n'apparaît pas dans les participants que j'ai pu vérifier. |
+
+Autrement dit : **il n'existe pas d'API REST publique BCGE pour un compte
+d'entreprise suisse.** La voie automatisée réelle en Suisse, pour une PME, c'est
+EBICS — un protocole bancaire, pas une API web. C'est plus lourd à mettre en
+place, et c'est ce que font tous les logiciels comptables suisses.
+
+### 14.2 Les quatre questions à poser à votre conseiller
+
+Pas « avez-vous une API » — on vous répondra non, et ce sera une réponse inutile.
+Demandez ceci, dans cet ordre :
+
+1. **Un contrat EBICS direct sur nos propres comptes BCGE** est-il possible pour
+   une Sàrl, et à quel tarif ? (Le Multibanking sert à atteindre des banques
+   tierces ; c'est l'accès à vos comptes BCGE qui vous intéresse.)
+2. **La livraison quotidienne du camt.054** (avis de crédit détaillés) est-elle
+   incluse ou facturée en supplément ?
+3. **Le QR-IBAN** — gratuit, et sous quel délai ?
+4. **Si EBICS n'est pas envisageable à notre taille** : le camt.054 est-il
+   téléchargeable depuis le Netbanking, dans quel format et à quelle fréquence ?
+
+### 14.3 Pourquoi ça ne bloque rien
+
+`enregistrer_paiement()` se moque de savoir comment le fichier est arrivé. Un
+camt.054 téléchargé à la main depuis le Netbanking une fois par jour, déposé
+dans un dossier, produit exactement le même résultat qu'une livraison EBICS.
+
+**Démarrez comme ça.** Deux minutes par jour au back office, et la boucle est
+fermée dès la première semaine. EBICS devient une optimisation à faire quand le
+reste tourne — pas une condition préalable qui repousse le projet d'un trimestre.
+
+---
+
+## 15. Le programme de facturation dirigé par l'IA
+
+Votre exigence : **l'IA dirige le contenu, elle ne touche pas au format.** Le
+module `facturation/ia.mjs` la tient par construction, pas par consigne.
+
+### 15.1 La garantie, et pourquoi elle tient
+
+Le modèle ne renvoie que **des codes de prestation et des quantités**. Le schéma
+de sortie ne contient aucun champ de prix, aucun total, aucun élément de mise en
+page. Ce qu'il ne peut pas exprimer, il ne peut pas le fausser.
+
+Ensuite, dans notre code :
+
+- le prix est relu **dans le catalogue en base**, jamais dans la réponse ;
+- un code inventé est **refusé**, sans repêchage par ressemblance — c'est ainsi
+  qu'on éviterait le pire, une prestation approchante facturée pour une autre ;
+- une quantité aberrante est refusée ;
+- une prestation absente du catalogue part **sans prix** dans une liste « à
+  valider », et le document n'est pas envoyable tant qu'il en reste une ;
+- la mise en page vient de `facture.mjs`, qui n'expose aucun paramètre que le
+  modèle puisse atteindre.
+
+Neuf tests dans `facturation/test-ia.mjs` vérifient tout ça sans réseau, en
+injectant des réponses de modèle volontairement mauvaises. Le dernier compare
+deux PDF — l'un composé à la main, l'autre depuis des lignes proposées par
+l'IA — et vérifie qu'ils sont identiques à l'octet près.
+
+### 15.2 Les relances aussi sont bridées
+
+Le texte de la **mise en demeure est figé, mot pour mot** : il constitue le
+débiteur en demeure au sens de l'art. 102 CO et fait courir l'intérêt moratoire.
+L'IA n'est même pas appelée à ce niveau.
+
+Aux niveaux 1 et 2 elle rédige deux phrases, mais **sans aucun chiffre, date ni
+numéro** — ceux-là sont réinjectés par nous dans le PDF. Et si la réponse
+contient malgré tout un chiffre, elle est écartée au profit d'un gabarit fixe.
+Un montant halluciné ne peut pas partir chez un client.
+
+### 15.3 Le catalogue est la pièce à remplir
+
+`supabase/migrations/20260826170000_…` crée la table `prestations` avec sept
+lignes de départ — main-d'œuvre ordinaire, samedi, nuit, déplacement, urgence,
+diagnostic. **Les prix sont des ordres de grandeur, pas les vôtres.** C'est la
+première chose à corriger : tant que le catalogue est faux, l'IA proposera des
+devis faux avec une parfaite assurance.
+
+---
+
+## 16. Relances des devis
+
+Un devis sans réponse n'est pas un refus, c'est un oubli — et c'est le poste où
+une relance rapporte le plus, parce qu'elle ramène du chiffre d'affaires au lieu
+d'aller le chercher.
+
+- **J+5** puis **J+15** après l'envoi. Deux paliers, pas trois : au-delà,
+  insister abîme la relation sans rien changer.
+- Un devis dont la validité est passée **se classe en « expiré »** au lieu d'être
+  relancé.
+- Accepter ou refuser un devis **éteint la relance en attente dans la même
+  transaction**, comme un paiement éteint le rappel d'une facture.
+- `relances_a_envoyer()` rend désormais **une seule file** au back office, où
+  chaque ligne dit si elle vise une facture ou un devis.
+
+Scénario vérifié dans `supabase/tests/relances_devis.sql`.
+
+### 16.1 Un défaut trouvé en exécutant, pas en relisant
+
+La migration des devis remplaçait la contrainte d'unicité des relances par des
+index partiels — et le `on conflict (facture_id, niveau)` de la migration
+précédente ne savait plus les viser. Les relances de **factures** échouaient
+alors à l'exécution, pas au déploiement : la migration passait, et le premier
+cron du matin plantait.
+
+Corrigé en répétant la condition de l'index dans l'inférence. Le genre de panne
+qu'aucune relecture ne trouve et qu'un scénario rejoué trouve en trente secondes
+— raison pour laquelle les deux scénarios sont versés au dépôt.
