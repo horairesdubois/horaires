@@ -297,3 +297,121 @@ suppression du keepalive, lien heures ↔ interventions.
 4. **Combien de demandes par jour, réellement ?** En dessous de ~30, tout ce
    document tient sur une seule VM à CHF 15/mois, et les coûts IA restent sous
    CHF 20/mois. Au-delà, seul le poste IA bouge, et lentement.
+
+---
+
+## 11. Claude : quelle porte d'entrée, et combien ça coûte
+
+### 11.1 Amazon propose deux choses différentes — et aucune ne met Claude en Suisse
+
+| Route | Qui l'exploite | Où tourne l'inférence | Identifiants de modèle |
+|---|---|---|---|
+| **API Anthropic directe** | Anthropic | `us` ou `global` — pas d'option européenne | `claude-opus-5` |
+| **Claude Platform on AWS** | Anthropic, via AWS (IAM, facturation Marketplace) | idem API directe | `claude-opus-5` |
+| **Amazon Bedrock** | AWS (partenaire) | **la région AWS que vous choisissez** | `anthropic.claude-opus-5` |
+
+Le point qui compte pour vous : **Claude ne tourne nulle part en Suisse.** La région AWS
+Europe (Zurich) `eu-central-2` existe, mais tous les modèles Claude récents n'y sont
+accessibles que par *profil d'inférence inter-régions* — servis par la région du profil
+qui a de la capacité, pas forcément Zurich. Et le profil européen ne comprend que des
+régions UE : Francfort, Irlande, Paris, Stockholm, Milan, Espagne. La Suisse n'en fait
+pas partie, puisqu'elle n'est pas dans l'UE.
+
+**Ce n'est pas bloquant.** Un traitement en UE est un transfert vers un pays à protection
+adéquate : c'est propre sous nLPD, sans paperasse supplémentaire. Et Anthropic
+n'entraîne pas ses modèles sur les données commerciales.
+
+### 11.2 L'architecture qui règle vraiment la question suisse
+
+C'est le découpage, pas le fournisseur, qui protège vos clients :
+
+- **l'enregistrement audio de l'appel — la donnée la plus sensible — reste en Suisse**,
+  transcrit par Whisper chez Infomaniak ;
+- **seul le texte part chez Claude** pour être compris, résumé, transformé en devis.
+
+Claude ne prend d'ailleurs pas d'audio en entrée : la transcription devait de toute façon
+se faire ailleurs. Autant que ce soit à Genève.
+
+### 11.3 Les prix, au million de jetons
+
+| Modèle | API directe | Bedrock | À quoi vous vous en servez |
+|---|---|---|---|
+| Claude Haiku 4.5 | 1.00 $ / 5.00 $ | 1.00 $ / 5.00 $ | qualification des demandes, contrôles, mise en forme des rapports |
+| Claude Sonnet 5 | 2.00 $ / 10.00 $ | **3.00 $ / 15.00 $** | — |
+| Claude Opus 5 | 5.00 $ / 25.00 $ | 5.00 $ / 25.00 $ | devis, synthèses à la direction, relances rédigées |
+
+Opus et Haiku coûtent la même chose par les deux routes ; seul Sonnet 5 est 50 % plus
+cher chez Bedrock. Pas d'abonnement, pas de minimum : on paie à l'usage.
+
+### 11.4 Ce que ça donne à votre volume
+
+Hypothèse, par jour ouvré : 20 demandes qualifiées, 12 interventions suivies,
+8 devis rédigés, 12 contrôles automatiques, 2 synthèses à la direction. Soit 22 jours.
+
+| Modèle | Entrée / mois | Sortie / mois | Coût |
+|---|---|---|---|
+| Haiku 4.5 — le volume mécanique | 1.50 M | 0.29 M | 2.95 $ |
+| Opus 5 — le jugement | 1.98 M | 0.26 M | 16.28 $ |
+| **Sous-total sans optimisation** | | | **19.23 $** |
+| Avec cache de contexte sur le préfixe stable | | | **≈ 14 $** |
+
+Le préfixe stable, c'est votre catalogue de prestations, vos consignes et votre
+historique tarifaire : identiques à chaque appel, donc relus depuis le cache à
+un dixième du prix.
+
+**Comptez CHF 12–20 par mois. Budgétez CHF 25 pour avoir de la marge.**
+Même en triplant votre activité, vous restez sous CHF 60.
+
+### 11.5 Le piège à éviter
+
+**L'API et l'abonnement Claude sont deux choses distinctes.** Un siège Claude Team
+coûte 25 $ par mois avec un minimum de 5 sièges — soit environ CHF 100 par mois pour
+une interface de discussion dont votre automatisation n'a aucun besoin, puisqu'elle
+passe par l'API. Ne prenez des sièges que si le back office veut *en plus* discuter
+avec Claude à la main.
+
+### 11.6 Par quelle route commencer
+
+**Commencez par l'API Anthropic directe.** Elle est plus simple (une clé, pas de compte
+AWS), et elle donne accès à deux choses que Bedrock n'a pas et qui font baisser la
+facture : le cache automatique de contexte, et l'API Batch à moitié prix pour tout ce
+qui n'est pas urgent — typiquement la synthèse du soir.
+
+**Passez à Bedrock, profil européen, le jour où un client l'exige par contrat** — une
+régie, une gérance, un mandat public. Le basculement coûte une ligne : on remplace le
+client `Anthropic()` par `AnthropicBedrockMantle(aws_region=...)`, et on préfixe les
+identifiants de modèle par `anthropic.`. Le reste du code ne bouge pas. Ne montez pas
+un compte AWS aujourd'hui pour une exigence que personne ne vous a encore posée.
+
+---
+
+## 12. Le budget complet
+
+| Poste | CHF / mois | Remarque |
+|---|---|---|
+| Serveur — Infomaniak Public Cloud ou Exoscale, Genève | 15 | données applicatives en Suisse |
+| Stockage photos + sauvegardes | 8 | |
+| Transcription Whisper — Infomaniak | 5 | l'audio ne quitte pas la Suisse |
+| **Claude — Haiku 4.5 + Opus 5** | **25** | consommation réelle 12–20 |
+| Nom de domaine | 1 | |
+| bexio Advanced, 2 utilisateurs | 52 | TVA, QR-factures, rappels automatiques |
+| **Total** | **106** | **≈ CHF 1 270 par an** |
+
+Inchangés : Ringover et Google Workspace, que vous payez déjà.
+
+**Variantes :**
+
+- **sans bexio** (facturation maison, `swissqrbill` + camt.054) : **CHF 54/mois**, environ
+  CHF 650 par an ;
+- **activité triplée** (60 demandes par jour) : seul le poste Claude bouge, vers CHF 60 —
+  total **CHF 141/mois** ;
+- **avec des sièges Claude Team** pour le back office : + CHF 100/mois environ. À ne
+  prendre que si quelqu'un veut vraiment l'interface de discussion.
+
+Aucun frais de mise en service : le compte AWS est gratuit, l'API Anthropic est
+à l'usage sans minimum, et les CHF 300 de crédits d'essai d'Infomaniak couvrent
+les premiers mois de serveur.
+
+**Le poste qui domine reste bexio, pas l'IA.** Sur CHF 106, l'intelligence artificielle
+en représente 25 — moins qu'un quart, et moins que ce que vous coûte une heure de
+technicien à ne pas facturer.
