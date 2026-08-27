@@ -624,3 +624,79 @@ cron du matin plantait.
 Corrigé en répétant la condition de l'index dans l'inférence. Le genre de panne
 qu'aucune relecture ne trouve et qu'un scénario rejoué trouve en trente secondes
 — raison pour laquelle les deux scénarios sont versés au dépôt.
+
+---
+
+## 17. Pointage : rappel du lendemain 9h00, et cas Alen
+
+Migration `20260826180000_notification_lendemain_9h.sql`. Première fois que je
+touche au pointage — sur demande explicite.
+
+### 17.1 Ce qui change
+
+| | Avant | Après |
+|---|---|---|
+| Heure d'envoi | 18h00 UTC (20h00 à Genève l'été, 19h00 l'hiver) | **9h00 à Genève, toute l'année** |
+| Période visée | la journée en cours | **les journées terminées, jusqu'à la veille** |
+| Destinataires | tous les techniciens actifs | tous, sauf ceux dont `notifications` est coupé |
+
+### 17.2 Trois détails qui n'étaient pas évidents
+
+**Le texte devait changer avec l'horaire.** L'ancien message disait « un appui
+sur *Enregistrer ma journée d'aujourd'hui* suffit ». Reçu le lendemain matin, ce
+conseil ferait enregistrer le mauvais jour — le technicien croirait avoir
+rattrapé son retard en créant une saisie fausse pour la journée qui commence. Le
+message **nomme désormais les jours concernés** et renvoie vers eux.
+
+**9h00 à Genève, pas 9h00 UTC.** pg_cron raisonne en UTC et Genève change
+d'heure deux fois par an. Deux réveils sont posés, à 7h00 et 8h00 UTC, et la
+fonction ne fait rien si l'heure locale n'est pas 9. Exactement un envoi par
+jour ouvré, à la même heure en janvier comme en juillet.
+
+**Le vendredi est rattrapé le lundi, pas le samedi.** Le lendemain d'un vendredi
+est un samedi ; relancer quelqu'un sur sa feuille d'heures un samedi matin est
+intrusif et ne fait rien gagner. La tâche reste du lundi au vendredi, et comme
+la fenêtre couvre tous les jours ouvrés du mois jusqu'à la veille, un vendredi
+manquant ressort le lundi.
+
+### 17.3 Le cas Alen
+
+`employes.notifications` passe à faux pour lui, et ses rappels automatiques sont
+effacés de son fil. Deux précautions :
+
+- **seuls les messages `automatique` sont supprimés.** Un mot écrit à la main
+  par la direction reste, quoi qu'il arrive ;
+- **si le prénom ne désigne pas exactement une personne, la migration s'arrête**
+  au lieu de deviner. Mieux vaut la rejouer avec le bon prénom que de vider le
+  fil de quelqu'un d'autre.
+
+Alen **reste visible dans le contrôle de la direction** : on coupe la
+notification, pas la surveillance. Remettre `notifications` à vrai le réintègre
+immédiatement, sans autre manipulation.
+
+### 17.4 Vérifié sur une base réelle, pas relu
+
+Base jetable, dix-neuf migrations rejouées, données d'exemple : trois
+techniciens, deux rappels automatiques et un message humain dans le fil d'Alen.
+
+- fenêtre de relance jusqu'au 26.08, fenêtre de rapport jusqu'au 27.08 — la
+  distinction voulue ;
+- Alen : 0 rappel automatique restant, son message humain intact ;
+- le rappel de Marc, lui, n'a pas bougé ;
+- hors 9h locale, l'ordonnanceur renvoie −1 et n'écrit rien ;
+- deuxième passage le même jour : aucun rappel reposé ;
+- plus aucune occurrence du mot « aujourd'hui » dans les messages automatiques.
+
+### 17.5 À contrôler après application
+
+La reprogrammation retire **toute** tâche appelant `relancer_saisies`, sans se
+fier à son nom — un nom deviné et faux aurait laissé l'envoi du soir en place, et
+les techniciens auraient reçu deux rappels par jour. Vérifiez quand même une
+fois :
+
+```sql
+select jobname, schedule, command from cron.job order by jobname;
+```
+
+Vous devez voir exactement `relance-saisies-matin-a` (0 7 * * 1-5) et
+`relance-saisies-matin-b` (0 8 * * 1-5), et plus rien du soir.
