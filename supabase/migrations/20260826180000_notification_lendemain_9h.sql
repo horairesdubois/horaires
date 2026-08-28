@@ -5,11 +5,17 @@
 -- journée en cours. Il part désormais le lendemain à 9h00, et porte sur les
 -- jours déjà terminés.
 --
--- Conséquence qu'il ne faut pas manquer : l'ancien texte invitait à toucher
--- « Enregistrer ma journée d'aujourd'hui ». Reçu le lendemain matin, ce conseil
--- ferait enregistrer le mauvais jour — le technicien croirait avoir rattrapé
--- son retard en créant une saisie fausse pour la journée qui commence. Le texte
--- nomme donc les jours concernés et renvoie vers eux, pas vers le bouton du jour.
+-- Conséquence qu'il ne faut pas manquer : l'ancien texte renvoyait au bouton
+-- vert en haut de l'écran. Ce bouton agit TOUJOURS sur la journée du jour —
+-- « Enregistrer ma journée d'aujourd'hui », ou « Confirmer ma journée » quand
+-- elle est déjà posée. Reçu le lendemain matin à propos de la veille, ce conseil
+-- ferait donc enregistrer le mauvais jour : le technicien croirait avoir
+-- rattrapé son retard en créant une saisie fausse pour la journée qui commence.
+--
+-- Le rappel ne portant plus que sur des jours passés, le bouton vert n'est
+-- jamais la bonne action. Le texte nomme les jours concernés et renvoie vers la
+-- liste — « touche ce jour dans la liste », le geste que l'application propose
+-- déjà elle-même pour corriger un jour antérieur.
 --
 -- 9H00 À GENÈVE TOUTE L'ANNÉE
 -- pg_cron raisonne en UTC, et Genève change d'heure deux fois par an. Une seule
@@ -122,7 +128,9 @@ begin
              'Bonjour ' || c.prenom || ', il reste ' || c.n || ' jour' ||
              case when c.n > 1 then 's' else '' end || ' à confirmer dans ta feuille d''heures : ' ||
              c.jours || case when c.n_jours > 8 then ', …' else '' end || '. ' ||
-             'Ouvre l''application et touche le jour concerné pour le compléter. Merci !',
+             'Ouvre l''application et touche ' ||
+             case when c.n > 1 then 'ces jours dans la liste pour les confirmer'
+                  else 'ce jour dans la liste pour le confirmer' end || '. Merci !',
              c.id, false, false, false, true
       from cible c
       returning employe_id

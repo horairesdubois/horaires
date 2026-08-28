@@ -687,7 +687,44 @@ techniciens, deux rappels automatiques et un message humain dans le fil d'Alen.
 - deuxième passage le même jour : aucun rappel reposé ;
 - plus aucune occurrence du mot « aujourd'hui » dans les messages automatiques.
 
-### 17.5 À contrôler après application
+### 17.5 Deuxième dérive entre la base et le dépôt
+
+Le rappel reçu par Steve le 27.08 à 20h00 disait : « touche le bouton vert en
+haut : si l'horaire affiché est le bon, un appui suffit. Sinon, touche le jour
+dans la liste pour le corriger. »
+
+**Ce texte n'existe nulle part dans le dépôt.** Seul un commentaire de la
+migration du 25.08 y fait allusion — « le texte du rappel reste donc neutre et
+renvoie simplement au bouton vert ». La formulation elle-même a été posée
+directement en production.
+
+C'est la deuxième dérive après `employes.cle_acces`, et cette fois elle avait un
+coût : ma migration remplace `controle_saisies`, donc elle aurait effacé cette
+formulation-là sans que personne ne s'en aperçoive.
+
+**Avant d'appliquer, capturez ce qui tourne :**
+
+```sql
+select prosrc from pg_proc
+ where proname in ('controle_saisies', 'relancer_saisies', 'controle_rapport');
+select jobname, schedule, command from cron.job order by jobname;
+```
+
+### 17.6 Pourquoi le bouton vert disparaît du message
+
+Le bouton vert en haut de l'écran agit **toujours sur la journée du jour** —
+« Enregistrer ma journée d'aujourd'hui », ou « Confirmer ma journée » quand elle
+est déjà pré-remplie. Le rappel ne portant plus que sur des jours passés, ce
+bouton n'est jamais la bonne action : un technicien qui le presse à 9h00 pour
+rattraper la veille crée une saisie fausse pour la journée qui commence.
+
+Le message reprend donc le geste que l'application propose déjà elle-même pour
+un jour antérieur — « touche ce jour dans la liste » — et nomme les dates :
+
+> Bonjour Steve, il reste 1 jour à confirmer dans ta feuille d'heures : 27.08.
+> Ouvre l'application et touche ce jour dans la liste pour le confirmer. Merci !
+
+### 17.7 À contrôler après application
 
 La reprogrammation retire **toute** tâche appelant `relancer_saisies`, sans se
 fier à son nom — un nom deviné et faux aurait laissé l'envoi du soir en place, et
