@@ -737,3 +737,78 @@ select jobname, schedule, command from cron.job order by jobname;
 
 Vous devez voir exactement `relance-saisies-matin-a` (0 7 * * 1-5) et
 `relance-saisies-matin-b` (0 8 * * 1-5), et plus rien du soir.
+
+---
+
+## 18. Pré-remplissage de la veille
+
+Migration `20260828090000_preremplissage_veille.sql`, plus cinq retouches dans
+`app/index.html`. Écrit après un audit du dépôt sur cinq dimensions de risque,
+chaque constat soumis à un réfuteur : 23 constats tenaient, 15 ont été écartés.
+
+### 18.1 Ce que l'audit a établi d'abord
+
+**Votre application fait déjà ça, en un geste.** Le bouton « ✓ Compléter les N
+jours manquants avec l'horaire normal » (`app/index.html`, `remplirManquants()`)
+remplit tout le mois d'un coup — et il écrit `saisi_par = employe_id`, donc des
+journées **confirmées**. C'est l'appui du technicien qui vaut attestation.
+
+Automatiser ce geste ne lui épargne donc pas une saisie : il n'y en avait déjà
+qu'une. Cela retire sa signature du dossier. D'où le choix retenu : la ligne est
+posée, mais elle porte un marqueur `prerempli` et reste non confirmée. Le
+technicien voit ses heures déjà écrites et correctes ; il lui reste le même
+appui unique, qui atteste.
+
+### 18.2 Les trois pannes qu'il a fallu fermer
+
+**Le contrôle serait devenu aveugle.** `controle_saisies` distingue « vide »
+(`p.id is null`, sans borne de date) et « non confirmé » (borné par
+`tracabilite_depuis`). Créer la ligne fait sortir le jour de la première
+catégorie sans le faire entrer dans la seconde dès qu'il est antérieur à cette
+borne : le jour disparaissait du rappel, du rapport à la direction **et** de la
+grille, sans qu'aucun canal ne le signale. Le marqueur rend le signal
+indépendant de la date.
+
+**L'application aurait menti.** `joursManquants()` mesurait le retard à
+l'absence de ligne. Une fois la veille pré-remplie, le compteur tombait à zéro,
+le bandeau basculait sur « ✓ Vos heures sont à jour » et le bouton de rattrapage
+disparaissait — pendant que le message de 9h00 réclamait N confirmations, sans
+que le technicien dispose du moindre moyen de les voir.
+
+**Une absence serait devenue une journée travaillée.** Vacances, maladie,
+accident, armée : un jour non saisi aurait été rempli en « travail », et
+`feuilleEmploye()` ne lit jamais `confirme` — ces heures partaient à la
+fiduciaire, sous une ligne « Signature employé ».
+
+### 18.3 Ce que la génération ne fait jamais
+
+- toucher une ligne existante : `on conflict do nothing`, sans exception ;
+- écrire un week-end, un férié genevois, ou le jour en cours ;
+- remonter avant `generation_depuis` (posé à la mise en service) ni avant
+  `tracabilite_depuis` ;
+- marquer la ligne comme confirmée : `saisi_par` reste nul.
+
+Elle vit dans sa propre fonction, jamais accordée à `anon`, appelée par
+`relancer_saisies()` **avant** la pose des rappels — pour que le message compte
+les jours pré-remplis comme à confirmer, et non comme vides.
+
+### 18.4 Vérifié sur base réelle
+
+37 lignes posées pour 19 jours ouvrés écoulés × 2 techniciens moins la journée
+déjà saisie ; 0 sur un week-end, 0 sur le jour en cours, 0 faussement attestée ;
+la saisie humaine de Sofia intacte, heures et remarque comprises ; deuxième
+passage : 0 ligne reposée ; le contrôle voit toujours 19 et 18 jours à
+confirmer ; confirmer un jour fait tomber le marqueur ; un jour antérieur à la
+borne reste vide. Scénario dans `supabase/tests/preremplissage.sql`.
+
+### 18.5 Ce que je n'ai pas fait
+
+**Les heures pré-remplies comptent toujours dans les totaux de l'export.** J'ai
+ajouté un avertissement en rouge au-dessus du bloc de signature, qui nomme le
+nombre de journées non attestées. Les sortir des totaux ou d'une colonne séparée
+est une décision de fond sur votre relevé — elle vous revient.
+
+**Le dernier jour ouvré de chaque mois n'entre dans aucune fenêtre de relance.**
+La fenêtre part du 1er du mois courant : le 1er, elle est vide, et le dernier
+jour ouvré du mois précédent n'est jamais réclamé. Défaut antérieur à ce
+changement, non corrigé ici.

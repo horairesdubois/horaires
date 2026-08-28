@@ -458,9 +458,21 @@ function heuresDues(jours, map, baseMin) {
   }
   return due;
 }
-function joursManquants(jours, map) {
+function joursATraiter(jours, map) {
   const auj = aujourdhui();
-  return jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso] && !ferieGE(j.iso)).length;
+  return jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !ferieGE(j.iso)
+    && aTraiter(map[j.iso]));
+}
+// Un jour compte encore s'il n'a aucune ligne, OU si la ligne a été posée par la
+// génération automatique et que personne ne l'a reprise à son compte. Sans cette
+// seconde branche, pré-remplir la veille éteindrait le bandeau et le bouton de
+// rattrapage, et le technicien lirait « à jour » pendant que le rappel de 9h00
+// lui réclame des confirmations.
+function aTraiter(p) {
+  return !p || (p.prerempli && !p.confirme && !p.approuve);
+}
+function joursManquants(jours, map) {
+  return joursATraiter(jours, map).length;
 }
 /* Jours fériés officiels du canton de Genève, calculés pour n'importe quelle
    année (source : ge.ch — 9 jours) : 1er janvier, Vendredi saint, lundi de
@@ -854,7 +866,7 @@ function renderEmp() {
   const pAuj = map[auj] || null;
   const aConfirmerAuj = !!(pAuj && !pAuj.confirme && !pAuj.approuve);
   $('emp-etat').innerHTML = manq > 0
-    ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</div>'
+    ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à confirmer</div>'
     : aConfirmerAuj
       ? '<div class="etat-mois attention">⚠ Journée d’aujourd’hui à confirmer</div>'
       : (moisCommence ? '<div class="etat-mois ok">✓ Vos heures sont à jour</div>' : '');
@@ -866,8 +878,8 @@ function renderEmp() {
   }
   $('emp-chips').innerHTML = chips;
   $('emp-remplir').innerHTML = manq > 0
-    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter les ' + manq +
-      ' jour' + (manq > 1 ? 's' : '') + ' manquant' + (manq > 1 ? 's' : '') + ' avec l’horaire normal</button>'
+    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Confirmer les ' + manq +
+      ' jour' + (manq > 1 ? 's' : '') + ' en attente avec l’horaire normal</button>'
     : '';
   if (manq > 0) $('btn-remplir').addEventListener('click', remplirManquants);
   $('carte-mois').hidden = !$('emp-etat').innerHTML && !chips && manq === 0;
@@ -986,7 +998,7 @@ async function remplirManquants() {
   const jours = joursDuMois(S.annee, S.mois);
   const map = ptgMap()[S.moi.id] || {};
   const auj = aujourdhui();
-  const cibles = jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso] && !ferieGE(j.iso));
+  const cibles = joursATraiter(jours, map);
   if (!cibles.length) return;
   const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
     ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
@@ -1368,7 +1380,7 @@ function nonConfirme(e, p, iso) {
     && !p.confirme
     && !p.approuve                     // la validation direction absorbe la confirmation
     && e.role === 'employe' && e.actif
-    && iso >= S.depuis                 // avant la traçabilité, l'auteur est inconnu
+    && (p.prerempli || iso >= S.depuis) // pré-remplie : l'origine est certaine, la date n'a plus à trancher
     && iso < (S.auj || aujourdhui())   // le jour même n'est jamais en défaut
     && (p.matin_type === 'travail' || p.apm_type === 'travail');
 }
@@ -1813,6 +1825,14 @@ const dueDuJour = iso =>
 
 function feuilleEmploye(emp, map, jours, titreMois) {
   const auj = aujourdhui();
+  // Journées posées par la génération automatique que l'intéressé n'a jamais
+  // reprises à son compte. Leurs heures figurent dans les totaux comme les
+  // autres : la fiduciaire doit savoir qu'elles ne sont attestées par personne
+  // avant qu'une signature ne les couvre.
+  const nonAttestes = jours.filter(j => {
+    const p = map[j.iso];
+    return p && p.prerempli && !p.confirme && !p.approuve;
+  }).length;
   const aoa = [];
   let present = 0, nApp = 0, dateVal = '', jt = 0;
   let totTrav = 0, totCred = 0, totDues = 0, totPlus = 0, totMoins = 0;
@@ -1946,6 +1966,14 @@ function feuilleEmploye(emp, map, jours, titreMois) {
                        : 'En attente de validation par la direction',
     valide ? { font: { bold: true, sz: 11, color: { rgb: '065F46' } } }
            : { font: { italic: true, sz: 11, color: { rgb: '92400E' } } })]);
+  if (nonAttestes) {
+    aoa.push([cel('⚠ ' + nonAttestes + ' journée' + (nonAttestes > 1 ? 's' : '') +
+      ' pré-remplie' + (nonAttestes > 1 ? 's' : '') + ' automatiquement avec l’horaire type et ' +
+      (nonAttestes > 1 ? 'jamais confirmées' : 'jamais confirmée') +
+      ' par l’employé. Ces heures sont comprises dans les totaux ci-dessus mais ' +
+      'ne sont attestées par personne — à vérifier avant signature.',
+      { font: { bold: true, sz: 11, color: { rgb: 'B3261E' } } })]);
+  }
   aoa.push([]);
   aoa.push([cel('Signature employé : ______________________', STY.sous), null, null, null, null, null, null,
     cel('Signature direction : ______________________', STY.sous)]);
