@@ -812,3 +812,55 @@ est une décision de fond sur votre relevé — elle vous revient.
 La fenêtre part du 1er du mois courant : le 1er, elle est vide, et le dernier
 jour ouvré du mois précédent n'est jamais réclamé. Défaut antérieur à ce
 changement, non corrigé ici.
+
+---
+
+## 19. Arrêt des rappels automatiques
+
+Migration `20260828100000_arret_rappels_automatiques.sql`.
+
+### 19.1 L'arrêt immédiat, sans rien appliquer
+
+Les messages partent encore chaque soir parce qu'aucune migration n'a été
+appliquée. Pour que ça cesse tout de suite, une ligne dans l'éditeur SQL
+Supabase :
+
+```sql
+select cron.unschedule(jobid) from cron.job where command ilike '%relancer_saisies%';
+```
+
+Rien d'autre ne s'arrête : le contrôle, la grille et l'application continuent.
+
+### 19.2 L'interrupteur
+
+Un paramètre, `rappels_automatiques`, posé à `non`. La coupure est dans
+`relancer_saisies`, qui demande désormais un contrôle en lecture seule.
+
+**`controle_saisies` n'est pas redéfinie** — c'est délibéré. Elle a divergé du
+dépôt en production, et la remplacer effacerait la formulation que quelqu'un y a
+écrite à la main. La coupure passe donc par l'appelant.
+
+Ce qui continue de tourner : le pré-remplissage de la veille, s'il est installé.
+Il ne parle à personne.
+
+Ce qui reste possible : un appel direct à `controle_saisies(secret, true)` poste
+encore. Seul le porteur du secret de contrôle peut le faire ; l'ordonnanceur ne
+le demande plus.
+
+### 19.3 Vérifié dans les deux sens
+
+Migration appliquée **seule**, sur une base à l'état de la production
+d'aujourd'hui : aucune erreur, aucun rappel posé. Sur la **pile complète** :
+0 rappel, mais 6 journées pré-remplies posées au même réveil — les deux
+mécanismes sont bien indépendants. Interrupteur remis à `oui` : 2 rappels
+reparaissent, ce qui prouve que la coupure en était la cause, et non un effet de
+bord. Recoupé : 0 à nouveau. Le contrôle de la direction remonte toujours les
+deux techniciens et leurs jours en retard.
+
+L'interrupteur par personne (`employes.notifications`) est laissé tel quel —
+Alen reste à faux. Ils reprendront leur effet le jour où le paramètre global
+repassera à `oui` :
+
+```sql
+update public.parametres set valeur = 'oui' where cle = 'rappels_automatiques';
+```
