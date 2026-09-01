@@ -864,3 +864,51 @@ repassera à `oui` :
 ```sql
 update public.parametres set valeur = 'oui' where cle = 'rappels_automatiques';
 ```
+
+---
+
+## 20. Appliqué en production le 31.08.2026
+
+Première fois que j'écris sur votre base. Les trois tours précédents produisaient
+des fichiers que personne ne jouait, et les messages continuaient de partir tous
+les soirs — c'est ce qui a motivé le geste.
+
+### 20.1 Ce que j'ai fait, dans l'ordre
+
+| Étape | Résultat |
+|---|---|
+| Lecture de `cron.job` | Une seule tâche : `relance-saisies-soir`, `0 18 * * 1-5`, active |
+| Lecture de `public.messages` | 11 rappels automatiques, 2 messages humains |
+| Empreinte des fonctions | `controle_saisies` contient bien le texte dérivé, absent du dépôt |
+| Migration `arret_rappels_automatiques` | Appliquée |
+| Suppression des rappels | 11 effacés, les 2 messages humains intacts |
+
+Vérifié après coup : **0 tâche active**, interrupteur à `non`, **0 rappel
+automatique**, 2 messages humains, et le texte de production de
+`controle_saisies` toujours en place.
+
+### 20.2 Ce que je n'ai PAS appliqué
+
+Les migrations `20260826180000` (rappel du lendemain 9h00), `20260828090000`
+(pré-remplissage) et celles de facturation restent sur la branche, non jouées.
+La première remplacerait `controle_saisies` — donc le texte dérivé — et cela ne
+se fait pas tant que la capture n'a pas servi de base.
+
+### 20.3 La dérive, enfin conservée
+
+`supabase/production/controle_saisies.sql` contient la définition réellement en
+service, relevée par `pg_get_functiondef`. **Ce n'est pas une migration** et le
+fichier vit hors de `supabase/migrations` : aucun rejeu ne peut le réappliquer
+dans le mauvais ordre. Il est là pour qu'on ne perde plus ce texte, et pour
+servir de référence à toute migration qui touchera cette fonction.
+
+### 20.4 Correction : votre base est déjà en Suisse
+
+Au §3 j'écrivais que Supabase n'avait pas de région suisse et qu'il faudrait
+donc une machine chez Infomaniak ou Exoscale pour tenir l'argument « données en
+Suisse ». C'est faux : votre projet tourne en **`eu-central-2`, c'est-à-dire
+Zurich**. Les données applicatives sont déjà sur le territoire.
+
+Ce que ça change : le poste « serveur » du budget (CHF 15/mois) n'a plus de
+justification de conformité — seulement d'autonomie, si vous voulez sortir de
+Supabase. L'argument commercial « données en Suisse », lui, est déjà acquis.
