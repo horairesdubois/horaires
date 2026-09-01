@@ -979,3 +979,37 @@ comme celle de l'écran : **✓** valide un jour · un second appui le déverrou
 **Les heures en plus sans un mot** portent désormais une mention discrète dans
 la liste de la direction. C'est exactement ce qu'on cherche à comprendre trois
 semaines plus tard, et qu'on ne retrouve plus.
+
+---
+
+## 22. Publication : la branche par défaut n'est pas celle-ci
+
+Point qui a coûté un aller-retour : GitHub Pages sert
+**`claude/employee-schedule-system-jekf2k`**, qui est la branche par défaut du
+dépôt. Tout ce qui est écrit ici, sur
+`claude/tech-stack-ai-automation-xumqe5`, n'est **pas publié**. C'est pour ça
+que l'onglet Journal restait invisible alors que la base le servait déjà.
+
+Diagnostic : la page en ligne pesait 163 762 octets, exactement le
+`docs/index.html` de la branche par défaut, quand celui d'ici en pesait 169 854.
+
+### 22.1 Ce qui a été poussé sur la branche publiée
+
+Sur demande, **l'onglet Journal seul** — commit `405cf9d`. Deux fichiers,
+158 lignes ajoutées, une supprimée (le garde-fou fiduciaire, remplacé par sa
+version étendue). Vérifié qu'aucune autre retouche n'a fui : ni le bandeau
+simplifié, ni la mention « heures en plus sans explication », ni rien de ce qui
+dépend du pré-remplissage.
+
+Publié et vérifié en ligne vingt secondes après le push.
+
+### 22.2 Ce qui reste ici, non publié
+
+Le bandeau simplifié du panneau, la mention des heures en plus sans explication,
+le rattrapage des jours pré-remplis, et tout le module de facturation.
+
+### 22.3 À retenir pour la suite
+
+Une modification d'interface n'existe pour les utilisateurs qu'une fois sur
+`claude/employee-schedule-system-jekf2k`. Les migrations, elles, ne dépendent
+d'aucune branche : elles s'appliquent directement sur la base.
