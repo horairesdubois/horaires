@@ -1013,3 +1013,39 @@ le rattrapage des jours pré-remplis, et tout le module de facturation.
 Une modification d'interface n'existe pour les utilisateurs qu'une fois sur
 `claude/employee-schedule-system-jekf2k`. Les migrations, elles, ne dépendent
 d'aucune branche : elles s'appliquent directement sur la base.
+
+---
+
+## 23. Journal : par personne, et la fiduciaire par sa fonction
+
+Appliqué en production le 03.09.2026, et publié sur la branche par défaut.
+
+### 23.1 Lire le journal d'une seule personne
+
+Mélangé, le journal ne raconte qu'une suite d'événements ; c'est en le lisant
+personne par personne qu'une habitude apparaît. `journal_lire` renvoie donc,
+en plus des lignes, la liste des acteurs de la période avec leur nombre
+d'actions, et accepte `p_acteur` pour n'en garder qu'un.
+
+**La liste des acteurs ignore volontairement `p_acteur`.** Sans ça, choisir
+quelqu'un ferait disparaître tous les autres boutons, et on ne pourrait plus
+revenir en arrière qu'en rechargeant la page.
+
+Elle ne contient que des gens qui ont *effectivement* agi sur la période :
+proposer un filtre qui ne rendra rien est pire que ne pas le proposer.
+
+### 23.2 « La fiduciaire », pas son prénom
+
+Le journal affiche `La fiduciaire` pour tout acteur de rôle `compta`. Deux
+raisons : c'est sa fonction qui intéresse la direction, pas son identité ; et
+le compte peut changer de titulaire sans que l'historique devienne faux.
+
+La substitution se fait **à la lecture**, dans `journal_lire`. La table, elle,
+continue d'enregistrer le nom réel — une trace qui ment n'est plus une trace.
+
+### 23.3 Une erreur de ma part, à noter
+
+Dans un message précédent, j'ai illustré le rendu du journal avec un exemple
+inventé mentionnant une « Nadia » à l'espace fiduciaire, tirée de mes données de
+test. Présenté sous « ce que vous y verrez », cela laissait croire à un
+enregistrement réel. Aucune Nadia n'existe dans ce système.

@@ -165,6 +165,11 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-filtres button{padding:6px 13px;border-radius:99px;font-size:13px;font-weight:600;
   background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .jr-filtres button.actif{background:var(--bleu);color:#fff}
+.jr-qui{margin-top:-4px}
+.jr-qui button{display:inline-flex;align-items:center;gap:6px}
+.jr-nb{font-size:11px;font-weight:700;background:var(--fond);color:var(--gris);
+  border-radius:99px;padding:1px 6px;min-width:18px;text-align:center}
+.jr-qui button.actif .jr-nb{background:rgba(255,255,255,.25);color:#fff}
 .jr-jour{font-weight:700;font-size:13px;color:var(--gris);margin:16px 0 6px;text-transform:capitalize}
 .jr-jour:first-child{margin-top:0}
 .jr-l{display:flex;align-items:baseline;gap:10px;background:var(--carte);border-radius:10px;
@@ -662,7 +667,7 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
-  jrJours: 14, journal: [],
+  jrJours: 14, jrQui: null, journal: [], jrActeurs: [],
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
   lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
@@ -1038,8 +1043,12 @@ function jrHeures(e) {
   return jrQui(e) + (h ? ' — ' + h : '');
 }
 async function chargerJournal() {
-  const r = await rpc('journal_lire', { p_token: S.token, p_jours: S.jrJours || 14, p_limite: 400 });
+  const r = await rpc('journal_lire', {
+    p_token: S.token, p_jours: S.jrJours || 14, p_limite: 400, p_acteur: S.jrQui });
   S.journal = (r && r.ok) ? r.lignes : [];
+  // La liste des personnes vient du serveur et ignore le filtre en cours :
+  // sinon, choisir quelqu'un ferait disparaître tous les autres boutons.
+  if (r && r.ok) S.jrActeurs = r.acteurs || [];
   renderJournal();
 }
 function renderJournal() {
@@ -1048,9 +1057,21 @@ function renderJournal() {
   let html = '<div class="jr-filtres">' + choix.map(([v, lib]) =>
     '<button data-jr="' + v + '"' + ((S.jrJours || 14) === v ? ' class="actif"' : '') + '>' + lib + '</button>').join('') + '</div>';
 
+  // Le journal d'une seule personne : c'est là qu'une habitude se lit. Mélangé,
+  // il ne raconte qu'une suite d'événements.
+  if ((S.jrActeurs || []).length > 1) {
+    html += '<div class="jr-filtres jr-qui">' +
+      '<button data-jrq=""' + (S.jrQui ? '' : ' class="actif"') + '>Tout le monde</button>' +
+      S.jrActeurs.map(a => '<button data-jrq="' + a.id + '"' +
+        (S.jrQui === a.id ? ' class="actif"' : '') + '>' + esc(a.nom) +
+        '<span class="jr-nb">' + a.nb + '</span></button>').join('') + '</div>';
+  }
+
   const lignes = S.journal || [];
   if (!lignes.length) {
-    html += '<div class="muet">Aucune action enregistrée sur cette période.</div>';
+    html += '<div class="muet">' + (S.jrQui
+      ? 'Aucune action de cette personne sur la période.'
+      : 'Aucune action enregistrée sur cette période.') + '</div>';
   } else {
     let jourCourant = '';
     for (const e of lignes) {
@@ -1065,6 +1086,9 @@ function renderJournal() {
   c.innerHTML = html;
   c.querySelectorAll('[data-jr]').forEach(b => b.addEventListener('click', () => {
     S.jrJours = Number(b.dataset.jr); chargerJournal();
+  }));
+  c.querySelectorAll('[data-jrq]').forEach(b => b.addEventListener('click', () => {
+    S.jrQui = b.dataset.jrq || null; chargerJournal();
   }));
 }
 

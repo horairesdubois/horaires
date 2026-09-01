@@ -234,19 +234,45 @@ begin
   v_j := least(greatest(coalesce(p_jours, 30), 1), 400);
   v_l := least(greatest(coalesce(p_limite, 300), 1), 2000);
 
-  return jsonb_build_object('ok', true, 'jours', v_j, 'lignes', coalesce((
-    select jsonb_agg(jsonb_build_object(
-             'id', j.id,
-             'quand', to_char(j.quand at time zone 'Europe/Zurich', 'DD.MM.YYYY HH24:MI'),
-             'jour', to_char(j.quand at time zone 'Europe/Zurich', 'DD.MM.YYYY'),
-             'heure', to_char(j.quand at time zone 'Europe/Zurich', 'HH24:MI'),
-             'qui', j.acteur_nom, 'role', j.acteur_role,
-             'action', j.action, 'cible', j.cible, 'detail', j.detail)
-           order by j.quand desc)
-      from (select * from public.journal
-             where quand >= now() - make_interval(days => v_j)
-               and (p_acteur is null or acteur_id = p_acteur)
-             order by quand desc limit v_l) j), '[]'::jsonb));
+  return jsonb_build_object(
+    'ok', true,
+    'jours', v_j,
+
+    -- Les personnes qui ont laissé une trace sur la période, pour lire le
+    -- journal de l'une d'elles seulement. La liste sort d'ici plutôt que de
+    -- l'écran : elle ne doit contenir que des gens qui ont effectivement agi,
+    -- sinon on propose des filtres toujours vides. Elle ignore p_acteur, sans
+    -- quoi choisir quelqu'un ferait disparaître tous les autres boutons.
+    'acteurs', coalesce((
+      select jsonb_agg(a order by a->>'nom')
+        from (
+          select distinct on (j.acteur_id) jsonb_build_object(
+                   'id', j.acteur_id,
+                   'nom', case when j.acteur_role = 'compta' then 'La fiduciaire' else j.acteur_nom end,
+                   'role', j.acteur_role,
+                   'nb', count(*) over (partition by j.acteur_id)) as a
+            from public.journal j
+           where j.quand >= now() - make_interval(days => v_j)
+             and j.acteur_id is not null
+        ) t), '[]'::jsonb),
+
+    'lignes', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', j.id,
+               'acteur_id', j.acteur_id,
+               'jour', to_char(j.quand at time zone 'Europe/Zurich', 'DD.MM.YYYY'),
+               'heure', to_char(j.quand at time zone 'Europe/Zurich', 'HH24:MI'),
+               -- La fiduciaire est une fonction, pas une personne : c'est son
+               -- rôle qui intéresse la direction, jamais son prénom. Et le
+               -- compte peut changer de titulaire sans que le journal mente.
+               'qui', case when j.acteur_role = 'compta' then 'La fiduciaire' else j.acteur_nom end,
+               'role', j.acteur_role,
+               'action', j.action, 'cible', j.cible, 'detail', j.detail)
+             order by j.quand desc)
+        from (select * from public.journal
+               where quand >= now() - make_interval(days => v_j)
+                 and (p_acteur is null or acteur_id = p_acteur)
+               order by quand desc limit v_l) j), '[]'::jsonb));
 end $$;
 revoke execute on function public.journal_lire(uuid, int, int, uuid) from public, authenticated;
 grant execute on function public.journal_lire(uuid, int, int, uuid) to anon;
