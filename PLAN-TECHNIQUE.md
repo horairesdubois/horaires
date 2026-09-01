@@ -912,3 +912,70 @@ Zurich**. Les données applicatives sont déjà sur le territoire.
 Ce que ça change : le poste « serveur » du budget (CHF 15/mois) n'a plus de
 justification de conformité — seulement d'autonomie, si vous voulez sortir de
 Supabase. L'argument commercial « données en Suisse », lui, est déjà acquis.
+
+---
+
+## 21. Journal des actions, et deux retouches d'interface
+
+Migration `20260903080000_journal_actions.sql`, **appliquée en production le
+03.09.2026**, plus trois changements dans `app/index.html`.
+
+### 21.1 Il n'existait aucun journal
+
+Vérifié sur la base : les tables étaient `bulletins`, `employes`, `marque`,
+`messages`, `parametres`, `pointages`, `sessions`, `tentatives`. Rien d'autre.
+La seule trace était `employes.derniere_connexion`, `pointages.saisi_par` et
+`modifie_le` — de quoi savoir *qui a écrit quoi*, jamais *qui est passé quand*.
+Et la fiduciaire, elle, n'était tracée nulle part.
+
+### 21.2 Des déclencheurs, pas des appels dans chaque fonction
+
+Instrumenter les fonctions existantes voudrait dire les réécrire une à une — or
+plusieurs ont dérivé du dépôt et la version qui tourne n'est pas celle qu'on
+lit ici. Un déclencheur s'attache à la table sans toucher au code qui l'écrit.
+
+Et la table sait déjà qui a agi : `saisi_par`, `approuve_par`, `auteur_id`.
+
+| Ce qui est inscrit | D'où |
+|---|---|
+| Connexion | déclencheur sur `sessions` |
+| Ouverture de l'application | déclencheur sur `employes.derniere_connexion`, au plus une par demi-heure |
+| Saisie, modification, suppression d'une journée | déclencheur sur `pointages` |
+| Validation, déverrouillage | idem |
+| Message écrit, rappel automatique | déclencheur sur `messages` |
+| **Consultation de la fiduciaire** | seule fonction réécrite : `compta_donnees` |
+
+`compta_donnees` a été relevée sur la base avant d'être reprise à la ligne près,
+augmentée d'un seul appel. Une consultation est une lecture : aucun déclencheur
+ne pouvait la voir.
+
+### 21.3 Réservé à la direction
+
+`journal_lire` exige `role = 'admin'`. Vérifié : direction `ok: true`,
+technicien `ok: false`, fiduciaire `ok: false` — y compris sur leurs propres
+lignes. L'onglet est masqué pour la fiduciaire, et bascule sur « Feuilles de
+temps » si elle tente d'y rester.
+
+### 21.4 Deux défauts trouvés à l'exécution
+
+**Le déclencheur exigeait `pointages.prerempli`**, colonne créée par une
+migration non appliquée. Il aurait fait échouer *toute* saisie en production. Il
+lit désormais la clé par le JSON de la ligne : absente, l'action reste
+« saisie ».
+
+**Le déverrouillage s'inscrivait « inconnu »** : la fonction remet
+`approuve_par` à nul en déverrouillant, la ligne ne dit plus qui agit. Seule la
+direction peut déverrouiller — c'est donc « Direction » qui est inscrit, et
+celui qui avait validé reste dans le détail, où il est une information et non
+une accusation.
+
+### 21.5 Les deux retouches d'interface
+
+**Le bandeau du panneau** ne répète plus le métier, le mois ni la CCT : le back
+office vient de les choisir lui-même. Ne reste que ce qu'il ignore — « vu
+aujourd'hui à 14:33 ». L'aide passe de deux lignes à une, avec la coche dessinée
+comme celle de l'écran : **✓** valide un jour · un second appui le déverrouille.
+
+**Les heures en plus sans un mot** portent désormais une mention discrète dans
+la liste de la direction. C'est exactement ce qu'on cherche à comprendre trois
+semaines plus tard, et qu'on ne retrouve plus.

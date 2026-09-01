@@ -161,6 +161,26 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .lbl{font-size:12px;font-weight:600;color:var(--gris);margin:6px 0 4px;display:block}
 
 /* ---- Admin ---- */
+.jr-filtres{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.jr-filtres button{padding:6px 13px;border-radius:99px;font-size:13px;font-weight:600;
+  background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
+.jr-filtres button.actif{background:var(--bleu);color:#fff}
+.jr-jour{font-weight:700;font-size:13px;color:var(--gris);margin:16px 0 6px;text-transform:capitalize}
+.jr-jour:first-child{margin-top:0}
+.jr-l{display:flex;align-items:baseline;gap:10px;background:var(--carte);border-radius:10px;
+  padding:9px 12px;margin-bottom:5px;box-shadow:0 1px 2px rgba(15,23,42,.05);font-size:14px}
+.jr-h{font-variant-numeric:tabular-nums;color:var(--gris);font-size:13px;flex:none;width:42px}
+.jr-i{flex:none}
+.jr-t{flex:1;min-width:0}
+.jr-t b{font-weight:600}
+.jr-r{flex:none;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+  color:var(--gris);background:var(--fond);border-radius:5px;padding:2px 6px}
+.jr-r.compta{color:#8a6116;background:#fef7e6}
+.jr-r.admin{color:#047857;background:#e7f6ef}
+.rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:2px 7px;display:inline-block}
+.aide-det{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-size:13px}
+.aide-det b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:6px;background:var(--vert);color:#fff;font-size:12px;flex:none}
 .onglets{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
 .onglets button{flex:none;padding:9px 16px;border-radius:99px;font-weight:600;background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .onglets button.actif{background:var(--bleu);color:#fff}
@@ -301,12 +321,14 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <button data-ong="export">📤 Export comptable</button>
     <button data-ong="bulletins">📄 Bulletins de salaire</button>
     <button data-ong="messages" id="ong-btn-messages">💬 Questions</button>
+    <button data-ong="journal" id="ong-btn-journal">🧾 Journal</button>
   </div>
   <div id="ong-equipe"></div>
   <div id="ong-employes" hidden></div>
   <div id="ong-export" hidden></div>
   <div id="ong-bulletins" hidden></div>
   <div id="ong-messages" hidden></div>
+  <div id="ong-journal" hidden></div>
 </div>
 
 <!-- ============ MODALE JOUR ============ -->
@@ -350,7 +372,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="modale">
     <h2 id="det-titre"></h2>
     <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
-    <div class="muet" style="margin:0 0 10px" id="det-aide">Touchez la coche ✓ à droite d’un jour pour le valider — ou le déverrouiller. Chaque journée se valide séparément.</div>
+    <div class="muet aide-det" id="det-aide"><b>✓</b> valide un jour · un second appui le déverrouille</div>
     <div class="carte" style="padding:12px">
       <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
       <div class="chips" id="det-chips"></div>
@@ -640,6 +662,7 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
+  jrJours: 14, journal: [],
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
   lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
@@ -994,6 +1017,57 @@ function renderEmp() {
   if (pp) pp.addEventListener('click', () => { S.deplieApres = !S.deplieApres; renderEmp(); });
 }
 
+/* ---------- Journal des actions (direction seulement) ---------- */
+const JR = {
+  connexion:      ['🔑', e => 's’est connecté'],
+  ouverture:      ['📱', e => 'a ouvert l’application'],
+  consultation:   ['👁', e => 'a consulté l’espace fiduciaire — ' + e.cible],
+  saisie:         ['✏️', e => 'a saisi le ' + e.cible + jrHeures(e)],
+  modification:   ['✏️', e => 'a modifié le ' + e.cible + jrHeures(e)],
+  preremplissage: ['🤖', e => 'journée du ' + e.cible + ' pré-remplie' + jrQui(e)],
+  validation:     ['✓',  e => 'a validé le ' + e.cible + jrQui(e)],
+  deverrouillage: ['🔓', e => 'a déverrouillé le ' + e.cible + jrQui(e)],
+  suppression:    ['🗑', e => 'a supprimé le ' + e.cible + jrQui(e)],
+  message:        ['💬', e => 'a écrit à ' + e.cible],
+  message_auto:   ['🤖', e => 'rappel automatique à ' + e.cible]
+};
+function jrQui(e) { return e.detail && e.detail.employe ? ' de ' + e.detail.employe : ''; }
+function jrHeures(e) {
+  const d = e.detail || {};
+  const h = [d.matin, d.apres_midi].filter(x => x && x.indexOf('-') > 0).join(' · ');
+  return jrQui(e) + (h ? ' — ' + h : '');
+}
+async function chargerJournal() {
+  const r = await rpc('journal_lire', { p_token: S.token, p_jours: S.jrJours || 14, p_limite: 400 });
+  S.journal = (r && r.ok) ? r.lignes : [];
+  renderJournal();
+}
+function renderJournal() {
+  const c = $('ong-journal');
+  const choix = [[7, '7 jours'], [14, '14 jours'], [30, '30 jours'], [90, '3 mois']];
+  let html = '<div class="jr-filtres">' + choix.map(([v, lib]) =>
+    '<button data-jr="' + v + '"' + ((S.jrJours || 14) === v ? ' class="actif"' : '') + '>' + lib + '</button>').join('') + '</div>';
+
+  const lignes = S.journal || [];
+  if (!lignes.length) {
+    html += '<div class="muet">Aucune action enregistrée sur cette période.</div>';
+  } else {
+    let jourCourant = '';
+    for (const e of lignes) {
+      if (e.jour !== jourCourant) { jourCourant = e.jour; html += '<div class="jr-jour">' + e.jour + '</div>'; }
+      const d = JR[e.action] || ['•', x => x.action + (x.cible ? ' ' + x.cible : '')];
+      html += '<div class="jr-l"><span class="jr-h">' + e.heure + '</span>' +
+        '<span class="jr-i">' + d[0] + '</span>' +
+        '<span class="jr-t"><b>' + esc(e.qui) + '</b> ' + esc(d[1](e)) + '</span>' +
+        '<span class="jr-r ' + esc(e.role) + '">' + esc(e.role || '—') + '</span></div>';
+    }
+  }
+  c.innerHTML = html;
+  c.querySelectorAll('[data-jr]').forEach(b => b.addEventListener('click', () => {
+    S.jrJours = Number(b.dataset.jr); chargerJournal();
+  }));
+}
+
 async function remplirManquants() {
   const jours = joursDuMois(S.annee, S.mois);
   const map = ptgMap()[S.moi.id] || {};
@@ -1273,7 +1347,7 @@ function renderAdmin() {
   $('adm-entreprise-lib').textContent = S.entreprise || (compta ? '' : 'Nom d’entreprise à définir (onglet Export)');
   // La fiduciaire ne gère pas les comptes ; elle consulte, exporte et pose ses questions.
   document.querySelector('.onglets button[data-ong="employes"]').hidden = compta;
-  if (compta && S.ongletAdmin === 'employes') S.ongletAdmin = 'equipe';
+  if (compta && (S.ongletAdmin === 'employes' || S.ongletAdmin === 'journal')) S.ongletAdmin = 'equipe';
   $('ong-btn-messages').innerHTML = '💬 Questions' +
     (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
   document.querySelectorAll('.onglets button').forEach(b => b.classList.toggle('actif', b.dataset.ong === S.ongletAdmin));
@@ -1282,11 +1356,16 @@ function renderAdmin() {
   $('ong-export').hidden = S.ongletAdmin !== 'export';
   $('ong-bulletins').hidden = S.ongletAdmin !== 'bulletins';
   $('ong-messages').hidden = S.ongletAdmin !== 'messages';
+  $('ong-journal').hidden = S.ongletAdmin !== 'journal';
+  // Le journal ne s'ouvre que depuis la direction : la fiduciaire n'a pas à
+  // savoir qu'on relève ses passages, et le technicien pas davantage.
+  $('ong-btn-journal').hidden = compta;
   if (S.ongletAdmin === 'equipe') renderEquipe();
   if (S.ongletAdmin === 'employes') renderEmployes();
   if (S.ongletAdmin === 'export') renderExport();
   if (S.ongletAdmin === 'bulletins') { renderBulletinsAdmin(); if (!S.bullCharges) chargerBulletins(); }
   if (S.ongletAdmin === 'messages') renderMessages();
+  if (S.ongletAdmin === 'journal') { renderJournal(); chargerJournal(); }
 }
 
 /* ---------- Questions : un fil général et un fil par collaborateur ---------- */
@@ -1548,8 +1627,9 @@ function ouvrirDetails(empId) {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = S.auj || aujourdhui();   // date de Genève renvoyée par le serveur
   $('det-titre').textContent = nomComplet(e);
-  $('det-sous').textContent = (e.metier ? e.metier + ' — ' : '') + MOIS[S.mois - 1] + ' ' + S.annee +
-    ' · CCT ' + cctDe(e).nom + txtVu(e);
+  // Le back office sait qui est la personne et quel mois il regarde : il l'a
+  // choisi lui-même deux clics plus tôt. Ne reste que ce qu'il ignore.
+  $('det-sous').textContent = txtVu(e).replace(/^\s*·\s*/, '');
   $('det-aide').hidden = S.lecture;
   let total = 0;
   for (const p of lignes) total += jourMin(p);
@@ -1593,7 +1673,10 @@ function ouvrirDetails(empId) {
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
-      (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') + '</div>' +
+      (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') +
+      // Des heures en plus sans un mot : c'est exactement ce qu'on cherche à
+      // comprendre plus tard, et qu'on ne retrouvera plus dans trois semaines.
+      (sup && !(p && p.remarque) ? '<div class="rem sansmotif">Heures en plus, sans explication</div>' : '') + '</div>' +
       '<div class="tot">' + (min ? fmtMin(min) : '') +
       (sup ? ' <span class="delta-sup">+' + fmtMin(sup) + '</span>' : '') + '</div>' + coche + '</button>';
     if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
