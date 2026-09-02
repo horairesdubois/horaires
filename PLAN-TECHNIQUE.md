@@ -1049,3 +1049,56 @@ Dans un message précédent, j'ai illustré le rendu du journal avec un exemple
 inventé mentionnant une « Nadia » à l'espace fiduciaire, tirée de mes données de
 test. Présenté sous « ce que vous y verrez », cela laissait croire à un
 enregistrement réel. Aucune Nadia n'existe dans ce système.
+
+---
+
+## 24. Soumis par qui, et quel horaire
+
+Appliqué en production et publié le 03.09.2026.
+
+### 24.1 La question à laquelle le journal ne répondait pas
+
+Voir le passage d'un technicien ne dit pas s'il a soumis quelque chose. Et une
+journée de 07:30–12:00 · 13:00–17:00 ne dit pas si elle a été *tapée* ou
+simplement *acquittée* d'un appui sur le bouton.
+
+Chaque écriture porte désormais deux mentions, calculées au moment où la ligne
+est écrite :
+
+| `detail.par` | quand |
+|---|---|
+| `technicien` | `saisi_par = employe_id` — l'intéressé lui-même |
+| `back office` | un autre compte a posé la journée à sa place |
+| `systeme` | aucun auteur : la génération automatique |
+
+| `detail.horaire` | quand |
+|---|---|
+| `type` | les quatre heures égalent les valeurs par défaut de sa fiche |
+| `modifie` | au moins une heure s'en écarte |
+| *(absent)* | la journée n'est pas du travail — vacances, maladie, etc. |
+
+**Le calcul se fait à l'écriture, jamais après.** L'horaire type d'un employé
+peut changer ; relire la journée d'hier à l'aune du contrat d'aujourd'hui
+produirait une réponse fausse et invérifiable.
+
+### 24.2 Ce que ça donne à l'écran
+
+- ✅ **Steve Carvalho a saisi le 02.09** · `horaire type`
+- ✏️ **Steve Carvalho a saisi le 02.09** — 07:30-12:00 · 13:00-19:30 · `horaire modifié`
+- ✏️ **Back Office a saisi le 02.09 de Steve** · `horaire type` `posée par le back office`
+- 🤖 **Le système** journée du 02.09 posée automatiquement · `sans intervention du technicien`
+
+Les heures ne sont plus répétées quand il s'agit de l'horaire type : la pastille
+le dit, et la ligne reste lisible. Une journée sans auteur s'affiche « Le
+système » et non « inconnu » — elle n'est pas inconnue, elle n'a simplement pas
+d'auteur humain.
+
+### 24.3 Deux limites à connaître
+
+**Les lignes antérieures au 03.09 n'ont pas ces mentions.** Elles ont été
+écrites avant que le déclencheur ne les calcule. Impossible de les reconstituer
+sans risquer de mentir.
+
+**Aucune ligne `systeme` n'existera tant que le pré-remplissage n'est pas
+appliqué.** La migration `20260828090000` reste sur la branche : aujourd'hui,
+toute journée de votre base a été posée par un humain.
