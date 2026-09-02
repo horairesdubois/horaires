@@ -182,6 +182,12 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
   color:var(--gris);background:var(--fond);border-radius:5px;padding:2px 6px}
 .jr-r.compta{color:#8a6116;background:#fef7e6}
 .jr-r.admin{color:#047857;background:#e7f6ef}
+.jr-src{display:inline-block;margin-left:7px;font-size:11px;font-weight:600;
+  border-radius:5px;padding:1px 7px;white-space:nowrap}
+.jr-src.type{color:#047857;background:#e7f6ef}
+.jr-src.modif{color:#8a6116;background:#fef7e6}
+.jr-src.bo{color:#334155;background:#eef2f5}
+.jr-src.auto{color:#b3261e;background:#fbeceb}
 .onglets{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
 .onglets button{flex:none;padding:9px 16px;border-radius:99px;font-weight:600;background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .onglets button.actif{background:var(--bleu);color:#fff}
@@ -1015,8 +1021,8 @@ const JR = {
   connexion:      ['🔑', e => 's’est connecté'],
   ouverture:      ['📱', e => 'a ouvert l’application'],
   consultation:   ['👁', e => 'a consulté l’espace fiduciaire — ' + e.cible],
-  saisie:         ['✏️', e => 'a saisi le ' + e.cible + jrHeures(e)],
-  modification:   ['✏️', e => 'a modifié le ' + e.cible + jrHeures(e)],
+  saisie:         [e => jrIcone(e), e => jrPose(e, 'a saisi')],
+  modification:   ['✏️',             e => jrPose(e, 'a modifié')],
   preremplissage: ['🤖', e => 'journée du ' + e.cible + ' pré-remplie' + jrQui(e)],
   validation:     ['✓',  e => 'a validé le ' + e.cible + jrQui(e)],
   deverrouillage: ['🔓', e => 'a déverrouillé le ' + e.cible + jrQui(e)],
@@ -1025,10 +1031,37 @@ const JR = {
   message_auto:   ['🤖', e => 'rappel automatique à ' + e.cible]
 };
 function jrQui(e) { return e.detail && e.detail.employe ? ' de ' + e.detail.employe : ''; }
+// Un appui sur le bouton pose l'horaire type sans rien taper ; des heures
+// réellement saisies s'en écartent. La distinction ne se lit nulle part
+// ailleurs, et c'est elle qui dit si le technicien a regardé sa journée ou
+// seulement acquitté.
+function jrIcone(e) {
+  const d = e.detail || {};
+  if (d.par === 'systeme') return '🤖';
+  if (d.horaire === 'type') return '✅';
+  return '✏️';
+}
+function jrPose(e, verbe) {
+  const d = e.detail || {};
+  if (d.par === 'systeme') return 'journée du ' + e.cible + ' posée automatiquement' + jrQui(e);
+  return verbe + ' le ' + e.cible + jrQui(e) + jrHeures(e);
+}
+function jrChips(e) {
+  const d = e.detail || {};
+  let h = '';
+  if (d.horaire === 'type')    h += '<span class="jr-src type">horaire type</span>';
+  if (d.horaire === 'modifie') h += '<span class="jr-src modif">horaire modifié</span>';
+  if (d.par === 'back office') h += '<span class="jr-src bo">posée par le back office</span>';
+  if (d.par === 'systeme')     h += '<span class="jr-src auto">sans intervention du technicien</span>';
+  return h;
+}
 function jrHeures(e) {
   const d = e.detail || {};
-  const h = [d.matin, d.apres_midi].filter(x => x && x.indexOf('-') > 0).join(' · ');
-  return jrQui(e) + (h ? ' — ' + h : '');
+  // Quand c'est l'horaire type, la pastille le dit : répéter les heures
+  // allongerait chaque ligne sans rien apprendre.
+  if (d.horaire === 'type') return '';
+  const h = [d.matin, d.apres_midi].filter(Boolean).join(' · ');
+  return h ? ' — ' + h : '';
 }
 async function chargerJournal() {
   const r = await rpc('journal_lire', {
@@ -1065,9 +1098,12 @@ function renderJournal() {
     for (const e of lignes) {
       if (e.jour !== jourCourant) { jourCourant = e.jour; html += '<div class="jr-jour">' + esc(e.jour) + '</div>'; }
       const d = JR[e.action] || ['•', x => x.action + (x.cible ? ' ' + x.cible : '')];
+      const icone = typeof d[0] === 'function' ? d[0](e) : d[0];
+      const auto = (e.detail || {}).par === 'systeme';
       html += '<div class="jr-l"><span class="jr-h">' + esc(e.heure) + '</span>' +
-        '<span class="jr-i">' + d[0] + '</span>' +
-        '<span class="jr-t"><b>' + esc(e.qui) + '</b> ' + esc(d[1](e)) + '</span>' +
+        '<span class="jr-i">' + icone + '</span>' +
+        '<span class="jr-t"><b>' + esc(auto ? 'Le système' : e.qui) + '</b> ' +
+        esc(d[1](e)) + jrChips(e) + '</span>' +
         '<span class="jr-r ' + esc(e.role) + '">' + esc(e.role || '—') + '</span></div>';
     }
   }
