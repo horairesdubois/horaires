@@ -61,7 +61,7 @@ create or replace function public._trg_journal_pointages()
 returns trigger
 language plpgsql security definer set search_path = public, extensions
 as $$
-declare v_qui uuid; v_action text; v_detail jsonb;
+declare v_qui uuid; v_action text; v_detail jsonb; v_par text; v_horaire text;
 begin
   if tg_op = 'DELETE' then
     perform public._journal(old.saisi_par, 'suppression',
@@ -90,8 +90,33 @@ begin
     v_action := 'modification';
   end if;
 
+  -- Deux questions que la direction se pose devant une journée, et auxquelles
+  -- ni l'heure ni le nom de l'acteur ne répondent :
+  --   « qui l'a posée » — l'intéressé, le back office, ou la machine ;
+  --   « est-ce son horaire habituel » — un appui sur le bouton, ou des heures
+  --     réellement tapées.
+  -- Les deux se déduisent de la ligne au moment où elle est écrite ; les
+  -- recalculer plus tard serait impossible, l'horaire type ayant pu changer.
+  select case
+           when new.saisi_par is null then 'systeme'
+           when new.saisi_par = new.employe_id then 'technicien'
+           else 'back office'
+         end,
+         case
+           when new.matin_type <> 'travail' or new.apm_type <> 'travail' then null
+           when new.matin_debut is not distinct from e.matin_debut_def
+            and new.matin_fin   is not distinct from e.matin_fin_def
+            and new.apm_debut   is not distinct from e.apm_debut_def
+            and new.apm_fin     is not distinct from e.apm_fin_def then 'type'
+           else 'modifie'
+         end
+    into v_par, v_horaire
+    from public.employes e where e.id = new.employe_id;
+
   v_detail := jsonb_build_object(
     'employe', (select prenom from public.employes where id = new.employe_id),
+    'par', v_par,
+    'horaire', v_horaire,
     'matin', case when new.matin_type = 'travail'
                   then to_char(new.matin_debut,'HH24:MI') || '–' || to_char(new.matin_fin,'HH24:MI')
                   else new.matin_type end,
