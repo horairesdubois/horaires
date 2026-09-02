@@ -1174,3 +1174,13 @@ arguments — continue de fonctionner pendant la mise à jour de l'écran.
 
 Une date hors du mois du fil est refusée : le lien renverrait vers un écran que
 le destinataire n'a pas sous les yeux.
+
+### 26.1 Publié le 03.09.2026
+
+Les deux changements sont en ligne sur la branche par défaut, commit `9625ad9`.
+Contrôlé sur la page servie : plus aucune trace de l'ancien calcul (`baseMin`),
+`dueDuJour` en place, le sélecteur de date et le bouton présents.
+
+Le code réellement publié a été exécuté sur les données d'août 2026 : les trois
+soldes tombent à la minute sur ceux du relevé — Alen −13h00, Sami +41h53,
+Steve +44h15.
