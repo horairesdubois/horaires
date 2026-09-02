@@ -1102,3 +1102,75 @@ sans risquer de mentir.
 **Aucune ligne `systeme` n'existera tant que le pré-remplissage n'est pas
 appliqué.** La migration `20260828090000` reste sur la branche : aujourd'hui,
 toute journée de votre base a été posée par un humain.
+
+---
+
+## 25. Le total mensuel était faux de dix heures
+
+Votre intuition était juste, et l'écart est important.
+
+### 25.1 Deux règles pour une même question
+
+L'application calculait les heures dues de **deux façons différentes** :
+
+| | Règle appliquée | Août 2026 |
+|---|---|---|
+| Grille d'équipe et panneau détail | 8h00 par jour ouvré — **40 h/semaine** | 168h00 dues |
+| Relevé Excel envoyé à la fiduciaire | 8h00 + 2h00 le premier jour ouvré de la semaine — **42 h/semaine** | 178h00 dues |
+
+Le contrat est de 42 heures : **c'est l'écran qui avait tort**, et il affichait
+dix heures de trop au crédit de chacun.
+
+Mesuré sur vos données réelles d'août 2026 :
+
+| | Total travaillé | Solde affiché | Solde réel | Écart |
+|---|---|---|---|---|
+| Alen | 165h00 | −3h00 | **−13h00** | 10h00 |
+| Sami | 219h53 | +51h53 | **+41h53** | 10h00 |
+| Steve | 222h15 | +54h15 | **+44h15** | 10h00 |
+
+Dix heures par personne et par mois — sur trois techniciens, trente heures qui
+n'existaient pas.
+
+### 25.2 La correction
+
+`heuresDues` partage désormais `dueDuJour` et `ABS_PAYEE` avec l'export : une
+seule règle, un seul endroit où la corriger. Elle rend le **net** — ce qui est
+dû moins ce qui est crédité — de sorte qu'une absence payée s'annule et qu'un
+congé non payé reste dû, exactement comme dans le relevé.
+
+Vérifié en exécutant le vrai code de l'application sur les données réelles :
+les trois soldes tombent à la minute sur ceux du relevé.
+
+### 25.3 Ce qui n'est pas corrigé
+
+`heuresSupJour`, qui alimente la pastille « Heures sup » et le `+X:XX` de
+chaque ligne, compte toujours 8h00 par jour sans le complément hebdomadaire.
+C'est une autre notion — les heures au-delà d'une journée normale, utilisée
+pour les majorations CCT — et non le solde du mois. Elle ne fausse pas le
+total, mais les deux chiffres ne se déduisent pas l'un de l'autre. À trancher
+si vous voulez qu'ils s'accordent.
+
+---
+
+## 26. Une question porte sur un jour
+
+Migration `messages_jour_reference`, appliquée en production.
+
+Votre dernière question à Sami disait « Lundi 31 août 2026 pourrais-tu me
+donner plus de détails sur tes heures supplémentaires ». Écrite dans le texte,
+la date oblige le technicien à la retrouver — Steve avait déjà répondu
+« Le quel jour tu parle ? » à un rappel automatique.
+
+La date devient une donnée : `messages.jour`. Le back office la choisit dans un
+sélecteur borné au mois affiché, et la bulle affiche un bouton
+**📅 lundi 31 août 2026** qui ouvre directement la journée concernée, des deux
+côtés.
+
+**Le paramètre a été ajouté sans interruption de service** : la fonction est
+recréée avec `p_jour date default null` dans la même transaction que sa
+suppression, si bien que l'application déjà publiée — qui n'envoie que cinq
+arguments — continue de fonctionner pendant la mise à jour de l'écran.
+
+Une date hors du mois du fil est refusée : le lien renverrait vers un écran que
+le destinataire n'a pas sous les yeux.
