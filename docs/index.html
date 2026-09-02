@@ -240,6 +240,16 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .bulle .qui-msg{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;opacity:.75}
 .bulle .txt{font-size:14.5px;white-space:pre-wrap;word-break:break-word}
 .bulle .quand{font-size:11px;color:var(--gris);margin-top:4px}
+.lien-jour{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:12.5px;
+  font-weight:600;color:var(--bleu-f);background:var(--carte);border:1px solid var(--ligne);
+  border-radius:99px;padding:4px 11px;cursor:pointer}
+.lien-jour:active{background:#eef2f5}
+.bulle.moi .lien-jour{background:rgba(255,255,255,.9)}
+.msg-jour{display:flex;align-items:center;gap:8px;margin:10px 0 4px;flex-wrap:wrap}
+.msg-jour label{font-size:12.5px;color:var(--gris);font-weight:600}
+.msg-jour input{border:1px solid var(--ligne);border-radius:9px;padding:7px 10px;font-size:14px}
+.msg-jour button{border:1px solid var(--ligne);border-radius:9px;padding:7px 11px;color:var(--gris);
+  background:var(--carte);font-weight:700}
 .bulle.moi{align-self:flex-end;background:#dcf5e9}
 .bulle.eux{align-self:flex-start;background:var(--carte)}
 .fil-vide{text-align:center;color:var(--gris);font-size:14px;padding:22px 10px}
@@ -471,21 +481,33 @@ function jourMin(p) {
    les jours futurs ne sont pas encore dus. Solde = heures pointées − dues. */
 const BASE_JOUR_MIN = 8 * 60;
 const fmtSolde = m => (m < 0 ? '−' : '+') + fmtMin(Math.abs(m));
-function heuresDues(jours, map, baseMin) {
-  const base = baseMin || BASE_JOUR_MIN;
+/* Heures dues nettes du mois : ce qui est dû, moins ce qui est crédité.
+   Le contrat est de 42 h par semaine — 8h00 par jour ouvré plus un complément
+   de 2h00 sur le premier jour ouvré de la semaine. L'ancienne version comptait
+   8h00 par jour et rien d'autre, soit 40 h : elle affichait dix heures de trop
+   au crédit du collaborateur sur un mois de cinq semaines, quand le relevé
+   envoyé à la fiduciaire, lui, appliquait bien les 42 h. Les deux écrans
+   partagent désormais dueDuJour et ABS_PAYEE, définis plus bas avec l'export :
+   une seule règle, un seul endroit où la corriger. */
+function heuresDues(jours, map) {
   const auj = aujourdhui();
-  let due = 0;
+  let net = 0;
   for (const j of jours) {
-    if (j.js === 0 || j.js === 6 || j.iso > auj || ferieGE(j.iso)) continue;
+    if (j.iso > auj || j.js === 0 || j.js === 6) continue;
     const p = map[j.iso];
-    let d = base;
+    const ferManuel = p && p.matin_type === 'ferie' && p.apm_type === 'ferie';
+    if (ferieGE(j.iso) || ferManuel) continue;   // crédité autant que dû : net nul
+    const du = dueDuJour(j.iso);
+    let d = du;
     if (p) {
-      if (p.matin_type !== 'travail') d -= base / 2;
-      if (p.apm_type !== 'travail') d -= base / 2;
+      // Une absence payée crédite sa demi-journée ; un congé non payé ne
+      // crédite rien et reste donc dû, comme dans le relevé.
+      if (p.matin_type !== 'travail' && ABS_PAYEE[p.matin_type]) d -= du / 2;
+      if (p.apm_type   !== 'travail' && ABS_PAYEE[p.apm_type])   d -= du / 2;
     }
-    due += d;
+    net += d;
   }
-  return due;
+  return net;
 }
 function joursManquants(jours, map) {
   const auj = aujourdhui();
@@ -657,6 +679,7 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
+  msgJour: null,
   jrJours: 14, jrQui: null, journal: [], jrActeurs: [],
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
@@ -1346,6 +1369,35 @@ function renderBulletinsEmp() {
     b.addEventListener('click', () => telechargerBulletin(b.dataset.bull, b)));
 }
 
+/* Une question porte presque toujours sur un jour. Écrite en toutes lettres
+   dans le texte, la date oblige le destinataire à la retrouver lui-même — ce
+   qu'un technicien a déjà signalé en répondant « Le quel jour tu parle ? ».
+   La date est donc une donnée, et l'écran en fait un bouton qui ouvre
+   directement la journée concernée. */
+function isoDebutMois() {
+  return S.annee + '-' + String(S.mois).padStart(2, '0') + '-01';
+}
+function isoFinMois() {
+  const n = new Date(S.annee, S.mois, 0).getDate();
+  return S.annee + '-' + String(S.mois).padStart(2, '0') + '-' + String(n).padStart(2, '0');
+}
+function libJour(iso) {
+  const [a, m, d] = iso.split('-').map(Number);
+  const dt = new Date(a, m - 1, d);
+  return JS_LONG[dt.getDay()].toLowerCase() + ' ' + d + ' ' + MOIS[m - 1] + ' ' + a;
+}
+function pastilleJour(m) {
+  if (!m.jour) return '';
+  return '<button class="lien-jour" data-vers="' + esc(m.jour) + '">📅 ' +
+    esc(libJour(m.jour)) + '</button>';
+}
+function brancherLiensJour(racine, empId) {
+  racine.querySelectorAll('.lien-jour').forEach(b =>
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      ouvrirJour(empId, b.dataset.vers);
+    }));
+}
 /* ---------- Questions (employé) ---------- */
 function bulleMsg(m) {
   // Pour le collaborateur, l'entreprise parle d'une seule voix : le back office.
@@ -1353,7 +1405,7 @@ function bulleMsg(m) {
   const moi = m.role === S.moi.role && (m.role !== 'employe' || m.employe_id === S.moi.id);
   return '<div class="bulle ' + (moi ? 'moi' : '') + '">' +
     '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + ' · ' + esc(m.quand) + '</div>' +
-    '<div class="txt">' + esc(m.texte) + '</div></div>';
+    '<div class="txt">' + esc(m.texte) + '</div>' + pastilleJour(m) + '</div>';
 }
 async function chargerMsgEmp() {
   try {
@@ -1371,6 +1423,7 @@ function renderMsgEmp() {
     ? 'Vos échanges avec le back office au sujet de ' + MOIS[S.mois - 1] + ' ' + S.annee + '.'
     : 'Posez votre question sur ' + MOIS[S.mois - 1] + ' ' + S.annee + ' — le back office vous répondra ici.';
   $('emp-msg-fil').innerHTML = S.messages.map(bulleMsg).join('');
+  brancherLiensJour($('emp-msg-fil'), S.moi.id);
 }
 async function envoyerMsgEmp() {
   const texte = $('emp-msg-texte').value.trim();
@@ -1451,7 +1504,7 @@ function renderMessages() {
               : { admin: 'Back Office', compta: 'Fiduciaire', employe: m.auteur };
             return '<div class="bulle ' + (m.role === moiRole ? 'moi' : 'eux') + '">' +
               '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + '</div>' +
-              '<div class="txt">' + esc(m.texte) + '</div>' +
+              '<div class="txt">' + esc(m.texte) + '</div>' + pastilleJour(m) +
               '<div class="quand">' + esc(m.quand) + '</div></div>';
           }).join('')
         : '<div class="fil-vide">Aucun échange avec ' + esc(libFil) + ' pour ' +
@@ -1467,9 +1520,20 @@ function renderMessages() {
       (empFil ? 'Votre réponse à ' + esc(empFil.prenom) + '…'
               : (estCompta() ? 'Votre question au back office sur ce mois…' : 'Votre réponse à la fiduciaire…')) +
       '"></textarea>' +
+    (empFil ? '<div class="msg-jour"><label for="msg-jour">Question sur un jour précis</label>' +
+      '<input type="date" id="msg-jour" min="' + isoDebutMois() + '" max="' + isoFinMois() + '">' +
+      '<button type="button" id="msg-jour-vider" title="Retirer la date">✕</button></div>' : '') +
     '<button class="btn large" id="msg-envoyer">Envoyer</button></div>';
   $('msg-texte').value = brouillon;
+  if ($('msg-jour')) {
+    $('msg-jour').value = S.msgJour || '';
+    $('msg-jour').addEventListener('change', () => { S.msgJour = $('msg-jour').value || null; });
+    $('msg-jour-vider').addEventListener('click', () => {
+      S.msgJour = null; $('msg-jour').value = '';
+    });
+  }
   $('msg-envoyer').addEventListener('click', envoyerMessage);
+  brancherLiensJour($('ong-messages'), S.filMsg);
   $('ong-messages').querySelectorAll('.fils button').forEach(b =>
     b.addEventListener('click', () => {
       S.filMsg = b.dataset.fil || null;
@@ -1485,9 +1549,11 @@ async function envoyerMessage() {
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
     const res = await rpc('message_ecrire', {
-      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte, p_employe: S.filMsg });
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte,
+      p_employe: S.filMsg, p_jour: S.msgJour || null });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
     $('msg-texte').value = '';
+    S.msgJour = null;
     await chargerMessages();
   } catch (e) { toast(e.message); }
   finally { btn.disabled = false; btn.textContent = 'Envoyer'; }
