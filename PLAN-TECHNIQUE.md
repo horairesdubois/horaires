@@ -1184,3 +1184,64 @@ Contrôlé sur la page servie : plus aucune trace de l'ancien calcul (`baseMin`)
 Le code réellement publié a été exécuté sur les données d'août 2026 : les trois
 soldes tombent à la minute sur ceux du relevé — Alen −13h00, Sami +41h53,
 Steve +44h15.
+
+---
+
+## 27. Le champ de saisie qui se dérobait
+
+### 27.1 Ce qui se passait
+
+Toutes les soixante secondes, la page se rafraîchit pour refléter ce que les
+techniciens ont saisi entre-temps (`setInterval`, fin de fichier). Ce
+rafraîchissement appelle `charger()` → `renderAdmin()` → `renderMessages()`,
+qui reconstruit `ong-messages.innerHTML` **en entier, champ de saisie compris**.
+
+Le brouillon survivait — il était relu et réinjecté — mais l'élément était
+détruit et recréé : le curseur disparaissait au milieu d'une phrase, et il
+fallait recliquer. Une fois par minute, exactement.
+
+### 27.2 Deux corrections, l'une dans l'autre
+
+**La cause** : tant que quelqu'un a le curseur dans un champ, le
+rafraîchissement passe son tour. `enTrainDEcrire()` regarde simplement
+`document.activeElement`.
+
+**Le filet** : si un autre chemin reconstruit malgré tout l'onglet, la position
+du curseur — début et fin de sélection — est notée avant et rétablie après.
+Corriger la seule cause connue aurait laissé le défaut réapparaître au premier
+appel qu'on ajouterait ailleurs.
+
+---
+
+## 28. Corriger un message
+
+Migration `20260903120000_messages_modifiables.sql`, appliquée en production.
+
+Un message se corrige depuis sa bulle : il revient dans le champ de saisie, au
+même endroit qu'on l'a écrit la première fois, avec sa date liée. Le bouton
+devient « Enregistrer la correction », et « Annuler » à côté.
+
+### 28.1 Une trace plutôt qu'une interdiction
+
+Un message déjà lu qu'on récrit en silence réécrit l'histoire : le destinataire
+a répondu à une question qui n'existe plus. Interdire la correction n'aide pas
+non plus — elle pousse à envoyer un second message qui contredit le premier.
+
+La correction est donc permise, mais elle laisse une marque **« modifié »**
+visible des deux côtés, et une ligne au journal portant l'avant et l'après.
+
+### 28.2 Ce qui est refusé
+
+- modifier le message d'un autre — seul l'auteur le peut ;
+- modifier un rappel automatique — il n'a pas d'auteur au sens où on l'entend ;
+- attacher une date hors du mois du fil.
+
+Vérifié sur base jetable : les trois refus tombent, la marque se pose, et le
+journal enregistre la correction avec les deux versions.
+
+### 28.3 Côté technicien
+
+Il voit la marque « modifié », mais ne peut pas encore corriger ses propres
+messages depuis son écran — son champ de saisie est un élément fixe de la page,
+pas reconstruit comme celui du back office. La fonction en base l'accepterait
+déjà : c'est un raccordement d'écran, à faire si vous le voulez.
