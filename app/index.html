@@ -244,6 +244,8 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   font-weight:600;color:var(--bleu-f);background:var(--carte);border:1px solid var(--ligne);
   border-radius:99px;padding:4px 11px;cursor:pointer}
 .lien-jour:active{background:#eef2f5}
+.lien-mod{font-size:11px;font-weight:700;color:var(--bleu-f);background:none;
+  text-decoration:underline;margin-left:8px;padding:0}
 .bulle.moi .lien-jour{background:rgba(255,255,255,.9)}
 .msg-jour{display:flex;align-items:center;gap:8px;margin:10px 0 4px;flex-wrap:wrap}
 .msg-jour label{font-size:12.5px;color:var(--gris);font-weight:600}
@@ -679,7 +681,7 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
-  msgJour: null,
+  msgJour: null, msgEdit: null,
   jrJours: 14, jrQui: null, journal: [], jrActeurs: [],
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
@@ -1398,6 +1400,14 @@ function brancherLiensJour(racine, empId) {
       ouvrirJour(empId, b.dataset.vers);
     }));
 }
+// Vrai si le curseur est dans un champ de saisie : rien ne doit alors
+// reconstruire la page sous les doigts de celui qui tape.
+function enTrainDEcrire() {
+  const a = document.activeElement;
+  if (!a) return false;
+  const t = (a.tagName || '').toLowerCase();
+  return t === 'textarea' || (t === 'input' && a.type !== 'button');
+}
 /* ---------- Questions (employé) ---------- */
 function bulleMsg(m) {
   // Pour le collaborateur, l'entreprise parle d'une seule voix : le back office.
@@ -1405,7 +1415,8 @@ function bulleMsg(m) {
   const moi = m.role === S.moi.role && (m.role !== 'employe' || m.employe_id === S.moi.id);
   return '<div class="bulle ' + (moi ? 'moi' : '') + '">' +
     '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + ' · ' + esc(m.quand) + '</div>' +
-    '<div class="txt">' + esc(m.texte) + '</div>' + pastilleJour(m) + '</div>';
+    '<div class="txt">' + esc(m.texte) + '</div>' + pastilleJour(m) +
+    (m.modifie ? '<div class="quand">modifié</div>' : '') + '</div>';
 }
 async function chargerMsgEmp() {
   try {
@@ -1494,6 +1505,11 @@ function ongletsFils() {
 function renderMessages() {
   const moiRole = S.moi.role;
   const brouillon = $('msg-texte') ? $('msg-texte').value : ''; // un rafraîchissement n'efface pas ce qu'on écrit
+  // Le brouillon survivait déjà ; le curseur, non. On note où il se trouvait
+  // pour le remettre exactement au même endroit après reconstruction.
+  const actif = document.activeElement;
+  const curseur = (actif && actif.id === 'msg-texte')
+    ? { debut: actif.selectionStart, fin: actif.selectionEnd } : null;
   const empFil = S.filMsg ? S.employes.find(e => e.id === S.filMsg) : null;
   const libFil = empFil ? nomComplet(empFil) : 'la fiduciaire et le back office';
   const fil = S.msgCharges
@@ -1502,10 +1518,13 @@ function renderMessages() {
             const roles = empFil
               ? { admin: 'Back Office', compta: 'Back Office', employe: m.auteur }
               : { admin: 'Back Office', compta: 'Fiduciaire', employe: m.auteur };
+            const mien = !m.automatique && m.auteur_id === S.moi.id;
             return '<div class="bulle ' + (m.role === moiRole ? 'moi' : 'eux') + '">' +
               '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + '</div>' +
               '<div class="txt">' + esc(m.texte) + '</div>' + pastilleJour(m) +
-              '<div class="quand">' + esc(m.quand) + '</div></div>';
+              '<div class="quand">' + esc(m.quand) + (m.modifie ? ' · modifié' : '') +
+              (mien ? ' <button class="lien-mod" data-mod="' + esc(m.id) + '">Modifier</button>' : '') +
+              '</div></div>';
           }).join('')
         : '<div class="fil-vide">Aucun échange avec ' + esc(libFil) + ' pour ' +
           MOIS[S.mois - 1] + ' ' + S.annee + '.</div>')
@@ -1523,8 +1542,14 @@ function renderMessages() {
     (empFil ? '<div class="msg-jour"><label for="msg-jour">Question sur un jour précis</label>' +
       '<input type="date" id="msg-jour" min="' + isoDebutMois() + '" max="' + isoFinMois() + '">' +
       '<button type="button" id="msg-jour-vider" title="Retirer la date">✕</button></div>' : '') +
-    '<button class="btn large" id="msg-envoyer">Envoyer</button></div>';
+    '<button class="btn large" id="msg-envoyer">' + (S.msgEdit ? 'Enregistrer la correction' : 'Envoyer') + '</button>' +
+    (S.msgEdit ? '<button class="btn sec large" id="msg-annuler" style="margin-top:8px">Annuler la correction</button>' : '') +
+    '</div>';
   $('msg-texte').value = brouillon;
+  if (curseur) {
+    $('msg-texte').focus();
+    $('msg-texte').setSelectionRange(curseur.debut, curseur.fin);
+  }
   if ($('msg-jour')) {
     $('msg-jour').value = S.msgJour || '';
     $('msg-jour').addEventListener('change', () => { S.msgJour = $('msg-jour').value || null; });
@@ -1533,30 +1558,59 @@ function renderMessages() {
     });
   }
   $('msg-envoyer').addEventListener('click', envoyerMessage);
+  if ($('msg-annuler')) $('msg-annuler').addEventListener('click', quitterCorrection);
+  // Corriger un message le recharge dans le champ de saisie : on écrit au même
+  // endroit qu'on a écrit la première fois, plutôt que dans une fenêtre à part.
+  $('ong-messages').querySelectorAll('[data-mod]').forEach(b =>
+    b.addEventListener('click', () => {
+      const m = S.messages.find(x => x.id === b.dataset.mod);
+      if (!m) return;
+      S.msgEdit = m.id; S.msgJour = m.jour || null;
+      renderMessages();
+      const t = $('msg-texte');
+      t.value = m.texte; t.focus();
+      t.setSelectionRange(t.value.length, t.value.length);
+    }));
   brancherLiensJour($('ong-messages'), S.filMsg);
   $('ong-messages').querySelectorAll('.fils button').forEach(b =>
     b.addEventListener('click', () => {
       S.filMsg = b.dataset.fil || null;
+      S.msgEdit = null; S.msgJour = null;   // une correction ne suit pas d'un fil à l'autre
       S.msgCharges = false; S.messages = [];
       renderMessages(); chargerMessages();
     }));
   if (!S.msgCharges) chargerMessages();
 }
+function quitterCorrection() {
+  S.msgEdit = null; S.msgJour = null;
+  const t = $('msg-texte');
+  if (t) t.value = '';
+  renderMessages();
+}
 async function envoyerMessage() {
   const texte = $('msg-texte').value.trim();
   if (!texte) { toast('Écrivez votre message'); return; }
   const btn = $('msg-envoyer');
+  const correction = S.msgEdit;
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
-    const res = await rpc('message_ecrire', {
-      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte,
-      p_employe: S.filMsg, p_jour: S.msgJour || null });
+    const res = correction
+      ? await rpc('message_modifier', {
+          p_token: S.token, p_id: correction, p_texte: texte, p_jour: S.msgJour || null })
+      : await rpc('message_ecrire', {
+          p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_texte: texte,
+          p_employe: S.filMsg, p_jour: S.msgJour || null });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
     $('msg-texte').value = '';
-    S.msgJour = null;
+    S.msgEdit = null; S.msgJour = null;
     await chargerMessages();
   } catch (e) { toast(e.message); }
-  finally { btn.disabled = false; btn.textContent = 'Envoyer'; }
+  finally {
+    // En cas d'échec, aucun rendu ne suit : le bouton doit retrouver son
+    // libellé ici, sinon il reste bloqué sur son animation d'attente.
+    btn.disabled = false;
+    btn.textContent = correction ? 'Enregistrer la correction' : 'Envoyer';
+  }
 }
 /* ---------- Confirmation des journées par le technicien ---------- */
 // « Vu aujourd'hui » n'a aucun sens quand on consulte un mois passé.
@@ -2286,6 +2340,10 @@ function init() {
   // les saisies et confirmations faites entre-temps par les techniciens.
   setInterval(() => {
     if (!S.token || !S.moi || document.hidden) return;
+    // Le rafraîchissement reconstruit l'onglet, champ de saisie compris : au
+    // milieu d'une phrase, le curseur disparaissait et il fallait recliquer.
+    // Tant que quelqu'un écrit, on attend le tour suivant.
+    if (enTrainDEcrire()) return;
     if (S.moi.role !== 'admin' && S.moi.role !== 'compta') return;
     if ($('voile-jour').classList.contains('ouvert')) return;
     if ($('voile-emp').classList.contains('ouvert')) return;
