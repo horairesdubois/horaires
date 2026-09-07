@@ -116,11 +116,6 @@ h1{font-size:22px;font-weight:700}
   background:#eef3f1;border-radius:9px;padding:7px 12px;margin:2px 0 10px}
 .delta-sup{font-size:11px;font-weight:800;color:#047857;margin-left:4px;white-space:nowrap}
 .titre-carte{font-weight:700;font-size:15px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.bull-ligne{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--ligne)}
-.bull-ligne:last-child{border-bottom:none}
-.bull-mois{font-weight:600;text-transform:capitalize}
-.bull-info{font-size:12px;color:var(--gris)}
-.bull-vide{color:var(--gris);font-size:14px;padding:6px 0}
 .fils{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .fils button{font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px;background:#eef2f5;color:var(--gris)}
 .fils button.actif{background:var(--bleu);color:#fff}
@@ -318,10 +313,6 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <div id="emp-remplir"></div>
   </div>
   <div id="emp-liste"></div>
-  <div class="carte" id="carte-bulletins" hidden>
-    <div class="titre-carte">📄 Mes bulletins de salaire</div>
-    <div id="emp-bulletins"></div>
-  </div>
   <div id="emp-autres-mois" hidden></div>
   <div class="carte" id="carte-questions">
     <div class="titre-carte">💬 Une question sur ce mois ?<span class="pastille" id="emp-msg-pastille" hidden></span></div>
@@ -338,7 +329,6 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="entete">
     <div>
       <div class="qui" id="adm-titre">Back Office</div>
-      <div class="sous-qui" id="adm-entreprise-lib"></div>
     </div>
     <button class="ico" id="btn-sortir-adm" title="Se déconnecter">🚪</button>
   </div>
@@ -350,15 +340,13 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="onglets">
     <button data-ong="equipe" class="actif">🗓️ Feuilles de temps</button>
     <button data-ong="employes">👥 Employés</button>
-    <button data-ong="export">📤 Export comptable</button>
-    <button data-ong="bulletins">📄 Bulletins de salaire</button>
+    <button data-ong="export">📤 Exporter</button>
     <button data-ong="messages" id="ong-btn-messages">💬 Questions</button>
-    <button data-ong="journal" id="ong-btn-journal">🧾 Journal</button>
+    <button data-ong="journal" id="ong-btn-journal">🧾 Logs</button>
   </div>
   <div id="ong-equipe"></div>
   <div id="ong-employes" hidden></div>
   <div id="ong-export" hidden></div>
-  <div id="ong-bulletins" hidden></div>
   <div id="ong-messages" hidden></div>
   <div id="ong-journal" hidden></div>
 </div>
@@ -699,7 +687,7 @@ const S = {
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
   lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
-  bulletins: [], bullCharges: false, filMsg: null, fils: [],
+  filMsg: null, fils: [],
   // Repli volontaire sur une date impossible : si le paramètre manque,
   // l'interface se tait plutôt que de signaler à tort des mois d'historique.
   depuis: '9999-12-31', auj: aujourdhui(),
@@ -874,8 +862,6 @@ async function charger() {
       S.pointages = res.pointages.map(p => ({ ...p, employe_id: S.moi.id }));
       montrer('emp'); renderEmp(); chargerMarque();
       chargerMsgEmp();                       // le fil du mois affiché
-      if (!S.bullCharges) chargerBulletins(); // les bulletins, tous mois confondus
-      else renderBulletinsEmp();
     }
   } catch (e) { toast(e.message); }
 }
@@ -1381,47 +1367,6 @@ function journeeType() {
   majStatuts();
 }
 
-/* ---------- Bulletins de salaire ---------- */
-const koLisible = o => o < 1024 ? o + ' o' : (o / 1024).toFixed(o < 102400 ? 1 : 0).replace('.', ',') + ' Ko';
-async function chargerBulletins() {
-  try {
-    const res = await rpc('bulletins_lister', { p_token: S.token });
-    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); return; }
-    S.bulletins = res.bulletins; S.bullCharges = true;
-    if (!$('v-emp').hidden) renderBulletinsEmp();
-    else if (S.ongletAdmin === 'bulletins') renderBulletinsAdmin();
-  } catch (e) { toast(e.message); }
-}
-// Le PDF arrive en base64 : on le reconstitue puis on déclenche le téléchargement.
-async function telechargerBulletin(id, bouton) {
-  const libelle = bouton ? bouton.textContent : '';
-  if (bouton) { bouton.disabled = true; bouton.innerHTML = '<span class="spin"></span>'; }
-  try {
-    const res = await rpc('bulletin_telecharger', { p_token: S.token, p_bulletin: id });
-    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
-    const bin = atob(res.contenu);
-    const octets = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
-    const url = URL.createObjectURL(new Blob([octets], { type: 'application/pdf' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = res.nom;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch (e) { toast(e.message); }
-  finally { if (bouton) { bouton.disabled = false; bouton.textContent = libelle; } }
-}
-function renderBulletinsEmp() {
-  const liste = S.bulletins;
-  $('carte-bulletins').hidden = !liste.length;
-  if (!liste.length) return;
-  $('emp-bulletins').innerHTML = liste.map(b =>
-    '<div class="bull-ligne"><div><div class="bull-mois">' + MOIS[b.mois - 1] + ' ' + b.annee + '</div>' +
-    '<div class="bull-info">déposé le ' + esc(b.depose_le) + ' · ' + koLisible(b.taille) + '</div></div>' +
-    '<button class="btn sec btn-val" data-bull="' + b.id + '">Télécharger</button></div>').join('');
-  $('emp-bulletins').querySelectorAll('button[data-bull]').forEach(b =>
-    b.addEventListener('click', () => telechargerBulletin(b.dataset.bull, b)));
-}
-
 /* Une question porte presque toujours sur un jour. Écrite en toutes lettres
    dans le texte, la date oblige le destinataire à la retrouver lui-même — ce
    qu'un technicien a déjà signalé en répondant « Le quel jour tu parle ? ».
@@ -1558,9 +1503,11 @@ function renderAdmin() {
   const compta = estCompta();
   $('adm-titre').textContent = compta ? 'Espace fiduciaire' : 'Back Office';
   $('adm-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
-  $('adm-entreprise-lib').textContent = S.entreprise || (compta ? '' : 'Nom d’entreprise à définir (onglet Export)');
   // La fiduciaire ne gère pas les comptes ; elle consulte, exporte et pose ses questions.
   document.querySelector('.onglets button[data-ong="employes"]').hidden = compta;
+  // Un onglet disparu — ou interdit à la fiduciaire — renvoie aux feuilles de
+  // temps plutôt que sur un écran vide.
+  if (!['equipe', 'employes', 'export', 'messages', 'journal'].includes(S.ongletAdmin)) S.ongletAdmin = 'equipe';
   if (compta && (S.ongletAdmin === 'employes' || S.ongletAdmin === 'journal')) S.ongletAdmin = 'equipe';
   $('ong-btn-messages').innerHTML = '💬 Questions' +
     (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
@@ -1568,7 +1515,6 @@ function renderAdmin() {
   $('ong-equipe').hidden = S.ongletAdmin !== 'equipe';
   $('ong-employes').hidden = S.ongletAdmin !== 'employes';
   $('ong-export').hidden = S.ongletAdmin !== 'export';
-  $('ong-bulletins').hidden = S.ongletAdmin !== 'bulletins';
   $('ong-messages').hidden = S.ongletAdmin !== 'messages';
   $('ong-journal').hidden = S.ongletAdmin !== 'journal';
   // La fiduciaire n'a pas à savoir qu'on relève ses passages.
@@ -1576,7 +1522,6 @@ function renderAdmin() {
   if (S.ongletAdmin === 'equipe') renderEquipe();
   if (S.ongletAdmin === 'employes') renderEmployes();
   if (S.ongletAdmin === 'export') renderExport();
-  if (S.ongletAdmin === 'bulletins') { renderBulletinsAdmin(); if (!S.bullCharges) chargerBulletins(); }
   if (S.ongletAdmin === 'messages') renderMessages();
   if (S.ongletAdmin === 'journal') { renderJournal(); chargerJournal(); }
 }
@@ -1913,70 +1858,6 @@ function renderEquipe() {
     b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
 }
 
-/* ---------- Bulletins de salaire (fiduciaire / back office) ---------- */
-function renderBulletinsAdmin() {
-  const emps = S.employes.filter(e => e.role === 'employe' && e.actif);
-  const duMois = {};
-  for (const b of S.bulletins) if (b.annee === S.annee && b.mois === S.mois) duMois[b.employe_id] = b;
-  $('ong-bulletins').innerHTML =
-    '<div class="carte"><div class="titre-carte">📄 Bulletins de ' + MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
-    '<div class="muet" style="margin-bottom:10px">Déposez le bulletin PDF de chaque collaborateur : il le retrouve aussitôt dans son espace. Utilisez les flèches en haut pour changer de mois.</div>' +
-    emps.map(e => {
-      const b = duMois[e.id];
-      return '<div class="bull-ligne"><div><div class="bull-mois">' + esc(nomComplet(e)) + '</div>' +
-        '<div class="bull-info">' + (b
-            ? '✓ ' + esc(b.nom) + ' · ' + koLisible(b.taille) + ' · déposé le ' + esc(b.depose_le)
-            : 'aucun bulletin pour ce mois') + '</div></div>' +
-        '<div style="display:flex;gap:6px;flex:none">' +
-        (b ? '<button class="btn sec btn-val" data-bull="' + b.id + '">Voir</button>' +
-             '<button class="btn rouge btn-val" data-suppr="' + b.id + '">Retirer</button>' : '') +
-        '<button class="btn btn-val" data-depot="' + e.id + '">' + (b ? 'Remplacer' : 'Déposer') + '</button>' +
-        '</div></div>';
-    }).join('') +
-    (emps.length ? '' : '<div class="bull-vide">Aucun collaborateur actif.</div>') +
-    '</div><input type="file" id="bull-fichier" accept="application/pdf,.pdf" hidden>';
-
-  $('ong-bulletins').querySelectorAll('button[data-bull]').forEach(b =>
-    b.addEventListener('click', () => telechargerBulletin(b.dataset.bull, b)));
-  $('ong-bulletins').querySelectorAll('button[data-suppr]').forEach(b =>
-    b.addEventListener('click', () => supprimerBulletin(b.dataset.suppr)));
-  $('ong-bulletins').querySelectorAll('button[data-depot]').forEach(b =>
-    b.addEventListener('click', () => { BULL.employe = b.dataset.depot; $('bull-fichier').click(); }));
-  $('bull-fichier').addEventListener('change', deposerBulletin);
-}
-const BULL = { employe: null };
-async function deposerBulletin(ev) {
-  const fichier = ev.target.files && ev.target.files[0];
-  ev.target.value = '';                       // permet de redéposer le même fichier
-  if (!fichier || !BULL.employe) return;
-  if (fichier.size > 3 * 1024 * 1024) { toast('Fichier trop lourd (3 Mo maximum)', 4000); return; }
-  toast('Envoi du bulletin…', 4000);
-  try {
-    const base64 = await new Promise((ok, ko) => {
-      const l = new FileReader();
-      l.onload = () => ok(String(l.result).split(',')[1]);
-      l.onerror = () => ko(new Error('Lecture du fichier impossible'));
-      l.readAsDataURL(fichier);
-    });
-    const res = await rpc('bulletin_deposer', {
-      p_token: S.token, p_employe: BULL.employe, p_annee: S.annee, p_mois: S.mois,
-      p_nom: fichier.name, p_base64: base64
-    });
-    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 4000); return; }
-    toast('✓ Bulletin déposé');
-    await chargerBulletins();
-  } catch (e) { toast(e.message, 4000); }
-}
-async function supprimerBulletin(id) {
-  if (!confirm('Retirer ce bulletin ? Le collaborateur ne pourra plus le télécharger.')) return;
-  try {
-    const res = await rpc('bulletin_supprimer', { p_token: S.token, p_bulletin: id });
-    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
-    toast('Bulletin retiré');
-    await chargerBulletins();
-  } catch (e) { toast(e.message); }
-}
-
 /* ---------- Revue détaillée d'un employé (back office) ---------- */
 const DET = { empId: null };
 function ouvrirDetails(empId) {
@@ -2130,7 +2011,6 @@ function renderExport() {
       const res = await rpc('admin_parametre', { p_token: S.token, p_cle: 'entreprise', p_valeur: $('exp-entreprise').value.trim() });
       if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
       S.entreprise = $('exp-entreprise').value.trim();
-      $('adm-entreprise-lib').textContent = S.entreprise;
       toast('✓ Nom enregistré');
     } catch (e) { toast(e.message); }
   });
@@ -2483,7 +2363,7 @@ async function exporterExcel() {
       p_cible: String(S.mois).padStart(2, '0') + '.' + S.annee,
       p_detail: { n: ids.length } }).catch(() => {});
   } catch (e) { toast(e.message, 4000); }
-  finally { btn.disabled = false; btn.textContent = '📥 Télécharger l’Excel pour la comptable'; }
+  finally { btn.disabled = false; btn.textContent = '📥 Télécharger le fichier Excel du mois'; }
 }
 
 /* ---------- Initialisation ---------- */
