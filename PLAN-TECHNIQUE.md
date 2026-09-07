@@ -2110,3 +2110,56 @@ relevées une à une dans le navigateur : vert `rgb(22,163,74)` pour les journé
 confirmées, gris `rgb(148,163,184)` pour celle qui manque.
 
 Les quatre suites d'essais passent.
+
+---
+
+## 44. Ce que le technicien a envoyé, et ce qui reste à approuver
+
+Le mot manquait. L'écran disait « Confirmée » pour une journée que le technicien
+venait d'envoyer et « Validée » pour une journée que le back office avait
+approuvée — deux mots proches, **la même couleur verte**, et donc aucun moyen de
+savoir ce qui restait en attente.
+
+### 44.1 Quatre états, dans l'ordre où il les vit
+
+| Ce qu'il voit | Le point | Ce que ça veut dire |
+|---|---|---|
+| **À saisir** | gris plein | rien n'est enregistré |
+| **À confirmer** | ambre plein | le back office a posé la journée : à vérifier, puis confirmer |
+| **À approuver** | **cerclé de vert** | il l'a envoyée ; le back office ne l'a pas encore approuvée |
+| **Approuvée** | vert plein | c'est fini, la journée ne bouge plus |
+
+Le cercle vert est le signe qui manquait : parti, mais pas encore arrivé. Un
+plein et un cerclé se distinguent à huit pixels, deux verts non.
+
+### 44.2 Et la couleur ne suffit pas
+
+Sous le chiffre, une phrase dit l'état en toutes lettres — un point de couleur
+se devine, une phrase se lit :
+
+- *« Envoyée. Le back office ne l'a pas encore approuvée. »*
+- *« Approuvée par le back office — elle ne bouge plus. »*
+- *« Posée par le back office : vérifiez l'horaire, puis confirmez-le. »*
+
+Le résumé du mois compte lui aussi : **« 2 journées envoyées, en attente
+d'approbation »**, et « ✓ Tout est approuvé » quand il n'en reste plus. La
+modale de saisie parle la même langue : « Approuvé par le back office —
+modification impossible ».
+
+Un seul mot par chose, partout : *à saisir* remplace « à compléter »,
+*approuvé* remplace « validé ».
+
+### 44.3 Retiré
+
+« Posez votre question sur septembre 2026 — le back office vous répondra ici. »
+Le champ de saisie porte déjà son invite ; la phrase ne disait rien de plus.
+
+### 44.4 Vérifications
+
+La phrase d'état coûtait 78 px : trois lignes de relevé au lieu de quatre, un peu
+d'air retiré là où il ne manque à personne, et la marge basse de la vue ramenée
+de 60 à 26 px — **hauteur 844 pour une fenêtre de 844, toujours aucun
+défilement**, y compris avec la phrase affichée.
+
+Les quatre états rendus et relevés un à un (`tests/etats-journee.mjs`), et les
+six suites d'essais passent.
