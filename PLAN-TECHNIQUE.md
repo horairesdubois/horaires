@@ -2040,3 +2040,73 @@ Dans un vrai navigateur, au format d'un téléphone (390 × 844), serveur simul�
 
 Un message non lu ouvre la carte des questions ; la page défile alors de 237 px,
 ce qui est le prix d'un message à lire.
+
+
+---
+
+## 43. La couleur qui dit juste, et une hiérarchie qui se voit
+
+Deux reproches, tous deux fondés.
+
+### 43.1 « Confirmé, tu mets vert — pourquoi je vois une autre couleur ? »
+
+Parce que le point portait `--bleu`, le vert de marque **#01a76b**, qui tire sur
+le bleu-vert : sur huit pixels, il ne se lit pas comme du vert. Pire, la
+pastille du jour **choisi** repeignait son point en blanc — un jour confirmé
+perdait sa couleur au moment même où on le regardait.
+
+Trois couleurs, désormais, qu'on ne confond pas :
+
+| État | Couleur | Sur la pastille sombre |
+|---|---|---|
+| confirmé | vert franc `#16a34a` | vert clair `#4ade80` |
+| à confirmer | ambre `#f59e0b` | ambre clair `#fbbf24` |
+| à compléter | gris `#94a3b8` | gris clair |
+
+Le gris est celui demandé : un jour vide n'est pas une alarme, c'est un vide.
+L'urgence est dite en toutes lettres dans le résumé du mois.
+
+### 43.2 « Je ne vois pas tes améliorations en UI/UX »
+
+Reproche mérité. Le premier passage était **structurel** — une bande de jours à
+la place d'une liste — mais visuellement, l'écran restait trois cartes de même
+poids, tout en gras, sur le même fond. Trois choses qui se disputent l'attention,
+c'est aucune chose qu'on regarde.
+
+Ce que les références montraient et que je n'avais pas pris :
+[The Outsiders](https://mobbin.com/screens/7a8b4054-0cfa-4a24-8b38-fe6c351105ba)
+et [Starling](https://mobbin.com/screens/e4ec49d3-8ef9-4463-be4a-f2e542a8df82)
+posent **un** chiffre énorme et font taire le reste ;
+[Wispr Flow](https://mobbin.com/screens/3e1fc6f0-7d95-4408-af57-210e0a400d55)
+teinte la seule carte qui compte et laisse les autres blanches.
+
+Quatre changements, dans cet ordre d'importance :
+
+**Un héros, un seul.** La carte du jour porte les heures en 40 px, l'excédent en
+vert à côté, et se teinte de son état — vert quand c'est fait, ambre quand il
+reste un geste. C'est la seule couleur de fond de l'écran.
+
+**Le reste se tait.** Les autres cartes perdent leur ombre pour un filet gris.
+Le résumé du mois n'est plus une boîte jaune qui rivalise avec le héros, mais une
+ligne : `⚠ 1 jour à compléter · +2h30 sup · [Tout compléter]`.
+
+**Le bas devient un relevé** — le motif exact de la capture d'écran transmise :
+un point d'état, la date, l'amplitude de la journée, le total, un chevron. Il
+remplit l'espace vide par de l'information plutôt que par du blanc, et répond à
+la question qu'on se pose en ouvrant l'application : *qu'ai-je fait cette
+semaine ?*
+
+**Deux lignes au lieu de deux boutons.** « Détail du mois » et « Questions »
+deviennent deux lignes d'une même carte, avec chevron. Le pointillé du premier
+faisait brouillon.
+
+### 43.3 Vérifications
+
+Au format téléphone, serveur simulé : **hauteur de page 844 pour une fenêtre de
+844 — toujours aucun défilement**, malgré la liste ajoutée. Journée confirmée →
+carte verte, chiffre `10h00 +2h00 sup`, pastille CONFIRMÉE. Journée du jour non
+saisie → carte ambre, bouton d'enregistrement. Et les couleurs des points
+relevées une à une dans le navigateur : vert `rgb(22,163,74)` pour les journées
+confirmées, gris `rgb(148,163,184)` pour celle qui manque.
+
+Les quatre suites d'essais passent.
