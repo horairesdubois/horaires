@@ -211,7 +211,8 @@ h1{font-size:22px;font-weight:700}
 .jour-ligne.auj{outline:2px solid var(--bleu)}
 .jour-ligne .contenu{flex:1;min-width:0}
 .jour-ligne .heures-txt{font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.jour-ligne .rem{font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jour-ligne .rem{font-size:12px;color:var(--gris);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:100%}
 .jour-ligne .tot{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
 .jour-ligne .vide{color:#cbd5e1}
 .jour-ligne.manque{border-left:4px solid var(--ambre)}
@@ -298,9 +299,12 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-src.modif{color:#8a6116;background:#fef7e6}
 .jr-src.bo{color:#334155;background:#eef2f5}
 .jr-src.auto{color:#b3261e;background:#fbeceb}
-.rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:2px 7px;display:inline-block}
-.rem.sansmotif .demander{margin-left:6px;font-weight:700;text-decoration:underline;white-space:nowrap}
-.rem.demandee{color:#334155;background:#eef2f5;border-radius:6px;padding:2px 7px;display:inline-block}
+.rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:3px 8px;
+  display:block;max-width:100%;white-space:normal;margin-top:3px}
+.rem.sansmotif .demander{display:inline-block;margin-left:6px;padding:2px 0;font-weight:700;
+  text-decoration:underline;white-space:nowrap}
+.rem.demandee{color:#334155;background:#eef2f5;border-radius:6px;padding:3px 8px;
+  display:block;max-width:100%;white-space:normal;margin-top:3px}
 .mj-demande{background:#fef7e6;border:1px solid #f0dcb0;border-radius:10px;padding:10px 12px;
   margin:0 0 8px;font-size:13.5px;color:#5b4412;line-height:1.45}
 .mj-demande b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.3px;
@@ -1246,10 +1250,10 @@ function renderJourSel(map, auj) {
   } else if (e === 'attente') {
     btn.innerHTML = '<span>Confirmer cette journée</span>' +
       '<span class="btn-sous">' + heuresTexte(p).replace(/<[^>]+>/g, '') + (min ? ' · ' + fmtMin(min) : '') + '</span>';
-    btn.onclick = () => journeeType(iso);
+    btn.onclick = () => enregistrerJourneeType(iso);
   } else if (e === 'manquant' || e === 'aujourdhui') {
     btn.innerHTML = '<span>Enregistrer l’horaire normal</span><span class="btn-sous">' + type + '</span>';
-    btn.onclick = () => journeeType(iso);
+    btn.onclick = () => enregistrerJourneeType(iso);
   } else {
     btn.hidden = true;                            // férié, week-end, jour à venir
   }
@@ -1557,7 +1561,7 @@ async function remplirManquants() {
 /* Le geste d'un appui, sur la journée qu'on regarde — et non plus seulement sur
    celle du jour : un technicien qui rattrape trois journées le vendredi soir ne
    devait pas avoir à ouvrir trois fois la fenêtre de saisie. */
-async function journeeType(iso) {
+async function enregistrerJourneeType(iso) {
   const jour = iso || aujourdhui();
   const p = (ptgMap()[S.moi.id] || {})[jour] || null;
   if (p && p.approuve) return;            // verrouillée par le back office

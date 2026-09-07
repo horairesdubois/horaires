@@ -2168,3 +2168,60 @@ Et un seul mot par chose, partout : *à saisir* remplace « à compléter »,
 Les trois états rendus et relevés un à un (`tests/etats-journee.mjs`) ; hauteur
 844 pour une fenêtre de 844, **toujours aucun défilement** ; les six suites
 d'essais passent.
+
+---
+
+## 45. Deux boutons morts, et le contrôle qui les aurait trouvés
+
+Signalé : « je n'arrive pas à appuyer sur le bouton *Enregistrer l'horaire
+normal* ». C'était vrai, et ce n'était pas un problème de tactile.
+
+### 45.1 Une collision de noms
+
+En renommant `journeeTypeAujourdhui` en `journeeType` pour qu'elle serve
+n'importe quelle journée, j'ai pris un nom **déjà utilisé** : celui du bouton
+« Journée type » de la fenêtre de saisie, qui remplit les quatre champs
+d'heures. Deux `function journeeType` dans le même fichier : la seconde
+déclaration écrase la première.
+
+Le bouton principal de l'écran technicien appelait donc, en silence, le
+remplisseur de champs d'une fenêtre fermée. Aucune erreur, aucun appel réseau,
+rien à l'écran. Renommée en `enregistrerJourneeType`.
+
+**Le contrôle qui manquait** : chercher les déclarations en double. Il n'y en a
+plus aucune dans le fichier.
+
+### 45.2 Un lien recouvert par un badge
+
+Sur la revue d'un collaborateur, le lien **« · Demander › »** de la mention
+« Heures en plus, sans explication » portait `display:inline-block` : sur un
+écran de 390 px la mention débordait de sa colonne et passait **sous** le badge
+des heures supplémentaires. Le doigt tapait le badge, la journée s'ouvrait, la
+question ne partait jamais.
+
+Invisible sur un écran large — c'est pourquoi les essais précédents, faits à la
+souris sur 1280 px, ne l'avaient pas vu. La mention reste maintenant dans sa
+colonne et va à la ligne.
+
+### 45.3 Le contrôle systématique, désormais dans le dépôt
+
+Trois essais tactiles, à 390 × 844 avec un vrai écran tactile :
+
+| Essai | Ce qu'il fait |
+|---|---|
+| `tests/boutons-technicien.mjs` | tape les **19** boutons de l'écran technicien et de la fenêtre de saisie, et vérifie qu'il se passe quelque chose |
+| `tests/boutons-back-office.mjs` | idem pour les **23** boutons du back office |
+| `tests/elements-atteignables.mjs` | pour **chaque** élément touchable des dix écrans, vérifie que `elementFromPoint` en son centre renvoie bien cet élément — c'est le contrôle qui attrape un bouton recouvert |
+
+Le troisième est le plus utile : il n'exige pas de savoir ce qu'un bouton doit
+faire, seulement que le doigt puisse l'atteindre.
+
+### 45.4 Résultat
+
+Dix écrans, **aucun élément recouvert**. Les 19 boutons du technicien et les 23
+du back office répondent tous au doigt.
+
+Trois cas rapportés « morts » par le balayage automatique étaient des faux
+négatifs, vérifiés un à un : *Copier le lien* écrit dans le presse-papiers sans
+rien changer à l'écran ; *Envoyer un message* refuse à juste titre un message
+vide ; *Filtre par personne* n'apparaît qu'à partir de deux personnes.
