@@ -213,6 +213,14 @@ end $$;
 do $$
 declare v_id uuid; v_n int; v_efface int;
 begin
+  -- Base neuve : personne à viser, rien à couper. Cette migration doit pouvoir
+  -- se rejouer sur une base vide, sinon le dépôt ne sait plus reconstruire la
+  -- base qu'il décrit.
+  if not exists (select 1 from public.employes) then
+    raise notice 'Aucun collaborateur : rien à faire pour Alen.';
+    return;
+  end if;
+
   select count(*) into v_n from public.employes where lower(trim(prenom)) = 'alen';
   if v_n <> 1 then
     raise exception

@@ -12,6 +12,9 @@
 -- par personne : il n'a pas d'auteur au sens où on l'entend ici.
 
 alter table public.messages add column if not exists modifie_le timestamptz;
+-- Le jour sur lequel porte la question. Posée elle aussi en production sans
+-- migration : _msg_json la lit dès la ligne suivante, et le rejeu échouait là.
+alter table public.messages add column if not exists jour date;
 
 create or replace function public._msg_json(m public.messages)
 returns jsonb language sql stable set search_path = public, extensions

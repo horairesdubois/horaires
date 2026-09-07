@@ -1443,3 +1443,93 @@ L'écran repart de ce qui est en ligne, augmenté des deux seules améliorations
 demandées qui restaient en attente : la modale de revue ne répète plus le
 métier, le mois et la CCT, et une journée qui dépasse l'horaire normal **sans
 une ligne d'explication** le signale.
+
+---
+
+## 33. Supprimer un message envoyé par erreur
+
+Migration `20260907140000_message_supprimable.sql`, appliquée en production.
+
+> « Si je fais une erreur, je dois pouvoir être en mesure de supprimer un
+> message », et sans que l'autre partie le voie.
+
+Le bouton **Supprimer** apparaît dans la bulle, à côté de *Modifier*.
+
+### 33.1 Une suppression franche, pas un masquage
+
+Pas de pierre tombale, pas de « message supprimé » dans le fil : la ligne s'en
+va pour de bon. Un message seulement masqué resterait une ligne — il
+continuerait de compter dans les non-lus et ressortirait au premier oubli de
+filtre. La demande était de le faire disparaître ; il disparaît.
+
+### 33.2 Qui peut supprimer quoi
+
+Le back office, et **seulement ses propres messages**. Effacer les mots d'un
+technicien ne serait plus corriger une erreur, ce serait récrire ce qu'il a
+dit — et sur des heures de travail, c'est précisément ce qu'un registre est
+censé empêcher. La fiduciaire et les techniciens sont refusés par la base, pas
+seulement par l'écran.
+
+### 33.3 Ce qui reste, et où
+
+Une ligne au journal : le texte supprimé, le mois, l'heure d'écriture, et si le
+destinataire l'avait déjà lu. Le journal ne s'ouvre que depuis le back office —
+le technicien ne voit rien, ni le message, ni sa disparition.
+
+Sans cette ligne, un accès administrateur pourrait effacer une conversation
+sans laisser de trace nulle part, et le journal ne vaudrait plus rien.
+
+### 33.4 Vérifications
+
+Sur base jetable, neuf étapes : refus du technicien, refus de la fiduciaire,
+refus sur le message d'autrui, suppression du sien, fil réduit de trois à deux
+messages **sans pierre tombale**, ligne au journal complète, journal refusé aux
+trois autres rôles, identifiant inconnu sans effet.
+
+Puis sur la base réelle, en transaction annulée : mêmes refus, même
+suppression, même ligne au journal — et rien qui subsiste après le retour
+arrière.
+
+---
+
+## 34. Le dépôt sait de nouveau reconstruire la base
+
+Le scénario ci-dessus a révélé autre chose : **`supabase/migrations/` ne
+reconstruisait plus rien**. Rejouées sur une base vide, les migrations
+s'arrêtaient trois fois.
+
+| Ce qui manquait | Depuis | Conséquence au rejeu |
+|---|---|---|
+| `employes.cle_acces` | créée à la main en production | arrêt à `20260825070000` |
+| `messages.jour` | créée à la main en production | arrêt à `20260903120000` |
+| garde-fou « Alen » | écrit pour une base peuplée | arrêt à `20260826180000` |
+
+Les deux colonnes sont rattachées, en `add column if not exists`, à la
+migration qui les lit la première — sans effet en production, où elles
+existent. Le garde-fou ne s'applique plus qu'à une base qui contient déjà des
+collaborateurs : sur une base vide il n'y a personne à viser, et refuser
+d'avancer n'y protégeait rien.
+
+**Vérifié** : les 25 migrations passent d'affilée sur une base vide, sans une
+seule retouche à la main, et les quatre scénarios de test (`journal`,
+`relances`, `relances_devis`, `suppression_message`) passent sur la base ainsi
+reconstruite.
+
+### 34.1 Ce que le rejeu produit en plus, et pourquoi
+
+Comparaison colonne par colonne avec la production : **rien de ce qu'elle
+contient ne manque au rejeu**. L'inverse n'est pas vrai — le rejeu crée en plus
+`clients`, `devis`, `factures`, `paiements`, `prestations`, `relances` et
+`employes.notifications`, qui viennent de trois migrations écrites mais jamais
+appliquées : la facturation (§ 13–16) et la notification de 9h00, abandonnée
+avec les rappels.
+
+Ce n'est pas une dérive à corriger : c'est du travail en attente de décision.
+Rien de dangereux à les appliquer non plus — les rappels resteraient muets, le
+paramètre `rappels_automatiques` valant `non`.
+
+### 34.2 La base n'est pas qu'à nous
+
+Le projet Supabase héberge aussi un schéma `bastion` (13 tables), qui appartient
+à une autre application. Rien de ce dépôt n'y touche : tout ce qui précède vit
+dans le schéma `public`.
