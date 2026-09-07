@@ -1059,7 +1059,9 @@ function renderEmp() {
 const JR = {
   connexion:      ['🔑', e => 's’est connecté'],
   ouverture:      ['📱', e => 'a ouvert l’application'],
-  consultation:   ['👁', e => 'a consulté l’espace fiduciaire — ' + e.cible],
+  consultation:   ['👁', e => 'a ouvert ' + jrEcran(e) + ' sur ' + jrMois(e.cible)],
+  export:         ['📥', e => 'a exporté ' + jrMois(e.cible) +
+    ((e.detail || {}).n ? ' — ' + e.detail.n + ' collaborateur' + (e.detail.n > 1 ? 's' : '') : '')],
   saisie:         [e => jrIcone(e), e => jrPose(e, 'a saisi')],
   modification:   ['✏️',             e => jrPose(e, 'a modifié')],
   preremplissage: ['🤖', e => 'journée du ' + e.cible + ' pré-remplie' + jrQui(e)],
@@ -1079,6 +1081,15 @@ const JR = {
   message_auto:   ['🤖', e => 'rappel automatique à ' + e.cible]
 };
 function jrQui(e) { return e.detail && e.detail.employe ? ' de ' + e.detail.employe : ''; }
+function jrEcran(e) {
+  const x = (e.detail || {}).ecran;
+  return x === 'espace fiduciaire' ? 'l’espace fiduciaire' : x === 'back office' ? 'le back office' : 'l’application';
+}
+// « 09.2026 » se lit mal dans une phrase ; « septembre 2026 » se lit tout seul.
+function jrMois(c) {
+  const m = /^(\d{2})\.(\d{4})$/.exec(c || '');
+  return m ? MOIS[Number(m[1]) - 1] + ' ' + m[2] : (c || '');
+}
 function jrPeriode(e) { return (e.detail && e.detail.periode) ? e.detail.periode : ''; }
 // Ce qui a bougé dans une fiche : on nomme les champs, jamais les secrets —
 // la base a déjà remplacé leur valeur par « — modifié — ».
@@ -2466,6 +2477,11 @@ async function exporterExcel() {
       (S.entreprise ? '_' + S.entreprise.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') : '') + '.xlsx';
     XLSX.writeFile(wb, nomFichier);
     toast('✓ Fichier Excel téléchargé');
+    // La base ne voit pas passer un fichier fabriqué ici. Or c'est le geste
+    // central de la fiduciaire : ce qu'elle emporte, et quand. On le déclare.
+    rpc('journal_noter', { p_token: S.token, p_action: 'export',
+      p_cible: String(S.mois).padStart(2, '0') + '.' + S.annee,
+      p_detail: { n: ids.length } }).catch(() => {});
   } catch (e) { toast(e.message, 4000); }
   finally { btn.disabled = false; btn.textContent = '📥 Télécharger l’Excel pour la comptable'; }
 }
