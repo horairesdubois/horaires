@@ -37,31 +37,24 @@ const lire = () => pg.evaluate(() => ({
 
 console.log('1. journée type proposée :', JSON.stringify(await lire()));
 
-await pg.locator('[data-fin="60"]').click();
-console.log('2. après « +1 h »        :', JSON.stringify(await lire()));
+await pg.locator('#mj-plus1').click();
+console.log('2. après « + 1 heure »   :', JSON.stringify(await lire()));
 
-await pg.locator('[data-fin="30"]').click();
-console.log('3. puis « +30 min »      :', JSON.stringify(await lire()));
+await pg.locator('#mj-plus1').click();
+console.log('3. une seconde fois      :', JSON.stringify(await lire()));
 
-await pg.locator('[data-debut="-60"]').click();
-console.log('4. puis « −1 h » au début:', JSON.stringify(await lire()));
-
-await pg.locator('[data-fin="-15"]').click();
-console.log('5. puis « −15 min »      :', JSON.stringify(await lire()));
-
-// L'après-midi devient une absence : les raccourcis doivent viser le matin.
+// L'après-midi devient une absence : le raccourci doit viser le matin.
 await pg.selectOption('#mj-statut-a', 'vacances');
 await pg.waitForTimeout(200);
-await pg.locator('[data-fin="60"]').click();
+await pg.locator('#mj-plus1').click();
 const apres = await lire();
-console.log('6. après-midi en vacances, « +1 h » vise le matin :', apres.mf, '(après-midi :', apres.af + ')');
+console.log('4. après-midi en vacances, « + 1 heure » vise le matin :', apres.mf, '(après-midi :', apres.af + ')');
 
-// Les deux demi-journées absentes : plus de raccourcis à montrer.
+// Les deux demi-journées absentes : plus de raccourci à montrer.
 await pg.selectOption('#mj-statut-m', 'vacances');
 await pg.waitForTimeout(200);
-console.log('7. journée entièrement absente, raccourcis :',
-  await pg.evaluate(() => [document.getElementById('mj-rallonge').style.display,
-                           document.getElementById('mj-avance').style.display].join(' / ')) || '(vides)');
+console.log('5. journée entièrement absente, « + 1 heure » caché :',
+  await pg.evaluate(() => document.getElementById('mj-plus1').hidden));
 
 // Retour au travail, et on enregistre sans motif pour voir le texte exact.
 await pg.selectOption('#mj-statut-m', 'travail');
@@ -69,9 +62,9 @@ await pg.selectOption('#mj-statut-a', 'travail');
 await pg.waitForTimeout(200);
 await pg.evaluate(() => { document.getElementById('mj-af').value = '19:00'; majTotalApercu(); });
 await pg.waitForTimeout(200);
-console.log('8. avertissement :', JSON.stringify((await lire()).alerte));
+console.log('6. avertissement :', JSON.stringify((await lire()).alerte));
 dialogues.length = 0;
 await pg.locator('#mj-save').click();
 await pg.waitForTimeout(500);
-console.log('9. question à l’enregistrement :', JSON.stringify(dialogues[0] || 'AUCUNE'));
+console.log('7. question à l’enregistrement :', JSON.stringify(dialogues[0] || 'AUCUNE'));
 await nav.close();

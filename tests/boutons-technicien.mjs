@@ -101,8 +101,7 @@ console.log('  (le 4 est saisi 07:00–18:00, donc différent de l’horaire typ
 await dansModale('Journée type', '#mj-defaut');
 console.log('     champs après appui :', await pg.evaluate(()=>['mj-md','mj-mf','mj-ad','mj-af']
    .map(i=>document.getElementById(i).value).join(' · ')));
-await dansModale('Fini plus tard +1 h', '[data-fin="60"]');
-await dansModale('Commencé plus tôt −30 min', '[data-debut="-30"]');
+await dansModale('+ 1 heure', '#mj-plus1');
 await dansModale('⏱ maintenant (matin début)', '.now[data-cible="mj-md"]');
 await dansModale('Enregistrer', '#mj-save');
 await poser();

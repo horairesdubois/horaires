@@ -268,7 +268,7 @@ h1{font-size:22px;font-weight:700}
 .mj-barre{flex:none;display:flex;gap:8px;padding:12px 0 calc(12px + env(safe-area-inset-bottom));
   border-top:1px solid var(--ligne);background:var(--fond)}
 .mj-barre .btn{flex:1;padding:14px}
-.mj-liens{display:flex;justify-content:space-between;gap:10px;margin:2px 2px 10px}
+.mj-liens{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 10px}
 .lien-mj{font-size:13px;font-weight:600;color:var(--gris);padding:4px 0}
 .lien-mj.rouge{color:var(--rouge)}
 .lien-mj:active{opacity:.6}
@@ -340,12 +340,13 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
   color:#8a6116;margin-bottom:3px}
 .mj-alerte{font-size:12.5px;color:#8a6116;background:#fef7e6;border-radius:8px;
   padding:7px 10px;margin-top:6px;display:none;line-height:1.35}
-.rallonge{display:flex;align-items:center;gap:6px;margin:0 0 8px}
-.rallonge .lib{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
-  color:var(--gris);flex:none;width:44px}
-.rallonge button{flex:1;font-size:13px;font-weight:600;padding:7px 0;border-radius:99px;
-  background:var(--carte);color:var(--bleu-f);border:1px solid var(--ligne);font-variant-numeric:tabular-nums}
-.rallonge button:active{background:var(--ligne)}
+/* Un seul geste : allonger la journée d'une heure. Il agit sur la fin de la
+   demi-journée travaillée, et le total juste au-dessus le confirme aussitôt —
+   c'est ce qui rend le libellé suffisant, sans avoir à nommer « début » ou
+   « fin ». */
+.chip-plus{flex:none;font-size:13px;font-weight:700;padding:7px 14px;border-radius:99px;
+  background:#f2fbf6;color:var(--bleu-f);border:1px solid #bfe3d1}
+.chip-plus:active{background:#e3f5eb}
 .aide-det{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-size:13px}
 .aide-det b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
   border-radius:6px;background:var(--vert);color:#fff;font-size:12px;flex:none}
@@ -587,24 +588,10 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
         </div>
       </div>
 
-      <div class="rallonge" id="mj-avance">
-        <span class="lib">Début</span>
-        <button type="button" data-debut="-60">−1 h</button>
-        <button type="button" data-debut="-30">−30</button>
-        <button type="button" data-debut="-15">−15</button>
-        <button type="button" data-debut="15">+15</button>
-      </div>
-      <div class="rallonge" id="mj-rallonge">
-        <span class="lib">Fin</span>
-        <button type="button" data-fin="-15">−15</button>
-        <button type="button" data-fin="15">+15</button>
-        <button type="button" data-fin="30">+30</button>
-        <button type="button" data-fin="60">+1 h</button>
-      </div>
-
       <div class="mj-liens">
+        <button class="chip-plus" id="mj-plus1">+ 1 heure</button>
         <button class="lien-mj" id="mj-defaut">Journée type</button>
-        <button class="lien-mj rouge" id="mj-suppr" hidden>Supprimer la journée</button>
+        <button class="lien-mj rouge" id="mj-suppr" hidden>Supprimer</button>
       </div>
 
       <div class="mj-demande" id="mj-demande" hidden></div>
@@ -1655,18 +1642,12 @@ function majStatuts() {
   majTotalApercu();
 }
 /* Rallonger une journée à la main, sur un téléphone, c'est ouvrir un sélecteur
-   d'heure et faire défiler deux molettes. Deux appuis sur « +1 h » disent la
-   même chose. Les raccourcis agissent sur la demi-journée qui compte : la fin
-   de l'après-midi si l'on y travaille, sinon celle du matin — et
-   symétriquement pour le début. */
+   d'heure et faire défiler deux molettes. Un appui sur « + 1 heure » dit la
+   même chose. Le raccourci agit sur la fin de la demi-journée qui compte :
+   celle de l'après-midi si l'on y travaille, sinon celle du matin. */
 function champFin() {
   if (MJ.apm === 'travail') return 'mj-af';
   if (MJ.matin === 'travail') return 'mj-mf';
-  return null;
-}
-function champDebut() {
-  if (MJ.matin === 'travail') return 'mj-md';
-  if (MJ.apm === 'travail') return 'mj-ad';
   return null;
 }
 function decaler(champ, minutes) {
@@ -1681,9 +1662,7 @@ function decaler(champ, minutes) {
   majTotalApercu();
 }
 function majRallonges() {
-  const f = !!champFin(), d = !!champDebut();
-  $('mj-rallonge').style.display = (f && !MJ.verrou) ? '' : 'none';
-  $('mj-avance').style.display   = (d && !MJ.verrou) ? '' : 'none';
+  $('mj-plus1').hidden = !champFin() || MJ.verrou;
 }
 function majTotalApercu() {
   const min = demiMin(MJ.matin, $('mj-md').value, $('mj-mf').value) + demiMin(MJ.apm, $('mj-ad').value, $('mj-af').value);
@@ -2958,10 +2937,7 @@ function init() {
   initLogin();
   initStatuts();
   $('mj-rem').addEventListener('input', majAlerteSup);   // écrire fait taire l'avertissement
-  $('mj-rallonge').querySelectorAll('[data-fin]').forEach(b =>
-    b.addEventListener('click', () => decaler(champFin(), Number(b.dataset.fin))));
-  $('mj-avance').querySelectorAll('[data-debut]').forEach(b =>
-    b.addEventListener('click', () => decaler(champDebut(), Number(b.dataset.debut))));
+  $('mj-plus1').addEventListener('click', () => decaler(champFin(), 60));
   ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => {
     $(id).addEventListener('input', majTotalApercu);
     // Champ vide touché → on propose directement l'heure de la journée type.
