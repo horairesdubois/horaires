@@ -693,10 +693,51 @@ async function rpc(fn, args) {
   return j;
 }
 
+/* ---------- Où la session est gardée ----------
+   Le compte de démonstration ne doit jamais chasser la session du back office.
+   Il s'installe donc dans sessionStorage, qui ne vit que le temps de l'onglet,
+   là où les vrais comptes s'installent dans localStorage et survivent à la
+   fermeture. L'aperçu s'ouvre ainsi dans un onglet à côté, sans rien déloger,
+   et se referme sans laisser de session derrière lui.
+   Tout est enveloppé : un navigateur qui refuse le stockage (fenêtre privée
+   verrouillée, site bloqué) ne doit pas empêcher l'application de s'ouvrir. */
+const COFFRE = {
+  lire(cle) {
+    try { return sessionStorage.getItem(cle) || localStorage.getItem(cle); } catch (e) { return null; }
+  },
+  // Vrai si la session en cours est celle d'un onglet, pas celle du navigateur.
+  ephemere() {
+    try { return !!sessionStorage.getItem('hor_token'); } catch (e) { return false; }
+  },
+  poser(token, moi, ephemere) {
+    try {
+      const ou = ephemere ? sessionStorage : localStorage;
+      ou.setItem('hor_token', token);
+      ou.setItem('hor_moi', JSON.stringify(moi));
+    } catch (e) { /* sans mémoire, la session dure le temps de la page */ }
+  },
+  majMoi(moi) {
+    try {
+      (this.ephemere() ? sessionStorage : localStorage).setItem('hor_moi', JSON.stringify(moi));
+    } catch (e) {}
+  },
+  // On ne vide que le tiroir dont on se sert : se déconnecter de l'aperçu ne
+  // doit pas déconnecter le back office de l'onglet d'à côté.
+  vider() {
+    try {
+      if (sessionStorage.getItem('hor_token')) {
+        sessionStorage.removeItem('hor_token'); sessionStorage.removeItem('hor_moi');
+        return;
+      }
+    } catch (e) {}
+    try { localStorage.removeItem('hor_token'); localStorage.removeItem('hor_moi'); } catch (e) {}
+  }
+};
+
 /* ---------- État ---------- */
 const S = {
-  token: localStorage.getItem('hor_token') || null,
-  moi: JSON.parse(localStorage.getItem('hor_moi') || 'null'),
+  token: COFFRE.lire('hor_token') || null,
+  moi: JSON.parse(COFFRE.lire('hor_moi') || 'null'),
   annee: new Date().getFullYear(),
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
@@ -719,7 +760,7 @@ function ptgMap() {
   return m;
 }
 function sessionPerdue() {
-  localStorage.removeItem('hor_token'); localStorage.removeItem('hor_moi');
+  COFFRE.vider();
   S.token = null; S.moi = null; S.lecture = false;
   $('voile-jour').classList.remove('ouvert');
   $('voile-emp').classList.remove('ouvert');
@@ -777,8 +818,7 @@ async function connexion() {
     const res = await rpc('connexion', { p_pin: pinBuf });
     if (!res.ok) { pinBuf = ''; renderPin(); $('login-err').textContent = res.erreur; return; }
     S.token = res.token; S.moi = res.employe;
-    localStorage.setItem('hor_token', S.token);
-    localStorage.setItem('hor_moi', JSON.stringify(S.moi));
+    COFFRE.poser(S.token, S.moi, false);   // le back office reste connecté d'une fois sur l'autre
     pinBuf = ''; renderPin();
     const d = new Date(); S.annee = d.getFullYear(); S.mois = d.getMonth() + 1;
     await charger();
@@ -797,8 +837,9 @@ async function connexionParCle(cle) {
     const res = await rpc('connexion_cle', { p_cle: cle });
     if (!res.ok) { $('login-err').textContent = res.erreur; return; }
     S.token = res.token; S.moi = res.employe;
-    localStorage.setItem('hor_token', S.token);
-    localStorage.setItem('hor_moi', JSON.stringify(S.moi));
+    // La démonstration ne s'installe que dans l'onglet : le back office ouvert
+    // à côté garde sa session.
+    COFFRE.poser(S.token, S.moi, !!res.employe.demo);
     const d = new Date(); S.annee = d.getFullYear(); S.mois = d.getMonth() + 1;
     await charger();
   } catch (e) { $('login-err').textContent = e.message; }
@@ -808,9 +849,12 @@ function cleDansUrl() {
   const m = (location.hash || '').match(/c=([0-9a-f]{32})/);
   return m ? m[1] : null;
 }
+// L'aperçu se signale dans l'adresse : il s'ouvre dans son propre onglet et n'a
+// donc rien à fermer ailleurs.
+function estApercu() { return /[#&]apercu=1/.test(location.hash || ''); }
 async function deconnexion() {
   try { await rpc('deconnexion', { p_token: S.token }); } catch (e) {}
-  localStorage.removeItem('hor_token'); localStorage.removeItem('hor_moi');
+  COFFRE.vider();
   S.token = null; S.moi = null; montrer('login');
 }
 
@@ -870,7 +914,7 @@ async function charger() {
       // dépendre du réglage de l'appareil qui consulte.
       S.auj = res.aujourdhui || aujourdhui();
       S.depuis = res.tracabilite_depuis || '9999-12-31';
-      if (compta && res.moi) { S.moi = res.moi; localStorage.setItem('hor_moi', JSON.stringify(S.moi)); }
+      if (compta && res.moi) { S.moi = res.moi; COFFRE.majMoi(S.moi); }
       montrer('admin'); renderAdmin(); chargerMarque();
       if (!compta) chargerRetards();
       if (S.ongletAdmin === 'messages') chargerMessages();
@@ -878,7 +922,7 @@ async function charger() {
       const res = await rpc('mes_pointages', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
       if (seq !== chargeSeq) return;
       if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
-      S.moi = res.employe; localStorage.setItem('hor_moi', JSON.stringify(S.moi));
+      S.moi = res.employe; COFFRE.majMoi(S.moi);
       S.pointages = res.pointages.map(p => ({ ...p, employe_id: S.moi.id }));
       montrer('emp'); renderEmp(); chargerMarque();
       chargerMsgEmp();                       // le fil du mois affiché
@@ -2134,12 +2178,21 @@ function renderEmployes() {
     '<div><div class="nom">' + esc(nomComplet(e)) + etiquette(e) + '</div>' +
     '<div class="muet">' + esc(sousTitre(e)) + (e.actif ? '' : ' · désactivé') + '</div></div>' +
     '<div style="display:flex;gap:6px;flex:none">' +
+    (e.demo && e.cle && e.actif
+      ? '<button class="btn" data-essai="' + e.id + '">👁 Ouvrir</button>' : '') +
     (e.cle && e.actif ? '<button class="btn sec" data-lien="' + e.id + '">🔗 Lien</button>' : '') +
     '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div></div>').join('') +
     '<button class="btn large" id="btn-ajout-emp">+ Ajouter un accès (employé ou fiduciaire)</button>' +
     '<div class="muet centre" style="margin-top:8px">« 🔗 Lien » copie le lien personnel de connexion sans code — à envoyer à l’employé ou à la fiduciaire.</div>';
   $('ong-employes').querySelectorAll('button[data-id]').forEach(b =>
     b.addEventListener('click', () => ouvrirEmp(b.dataset.id)));
+  // L'aperçu s'ouvre à côté : sa session ne vit que dans son onglet, celle du
+  // back office reste intacte dans celui-ci.
+  $('ong-employes').querySelectorAll('button[data-essai]').forEach(b =>
+    b.addEventListener('click', () => {
+      const e = S.employes.find(x => x.id === b.dataset.essai);
+      if (e && e.cle) window.open(lienPersonnel(e.cle) + '&apercu=1', '_blank', 'noopener');
+    }));
   $('ong-employes').querySelectorAll('button[data-lien]').forEach(b =>
     b.addEventListener('click', () => {
       const e = S.employes.find(x => x.id === b.dataset.lien);
@@ -2599,9 +2652,19 @@ function init() {
   }, 60000);
   [$('voile-jour'), $('voile-emp'), $('voile-det')].forEach(v =>
     v.addEventListener('click', e => { if (e.target === v) v.classList.remove('ouvert'); }));
+  // Un lien personnel dans l'adresse l'emporte sur la session déjà ouverte :
+  // l'ouvrir est un geste explicite, et l'ignorer laissait l'aperçu afficher le
+  // back office au lieu de l'écran demandé.
+  //
+  // Une exception, pour ne pas déloger quelqu'un par mégarde : quand une session
+  // back office est ouverte sur cet appareil et que le lien n'est pas l'aperçu
+  // — lequel s'annonce et ne touche à rien — on demande d'abord.
   const cle = cleDansUrl();
-  if (S.token && S.moi) { charger(); }
-  else if (cle) { connexionParCle(cle); }
+  if (cle && (estApercu() || !S.token || !S.moi || S.moi.role !== 'admin' ||
+              confirm('Ouvrir ce lien personnel ?\n\n' +
+                      'La session back office de cet appareil sera fermée.'))) {
+    connexionParCle(cle);
+  } else if (S.token && S.moi) { charger(); }
   else { montrer('login'); }
 }
 init();
