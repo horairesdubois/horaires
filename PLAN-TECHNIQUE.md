@@ -1533,3 +1533,85 @@ paramètre `rappels_automatiques` valant `non`.
 Le projet Supabase héberge aussi un schéma `bastion` (13 tables), qui appartient
 à une autre application. Rien de ce dépôt n'y touche : tout ce qui précède vit
 dans le schéma `public`.
+
+---
+
+## 35. La fiduciaire dans le journal
+
+Migration `20260907160000_journal_fiduciaire.sql`, appliquée en production.
+
+Le journal ne montrait aucune ligne pour la fiduciaire. La première explication
+est la bonne, et elle est banale : **elle n'a pas ouvert l'application depuis le
+27 août**, et le journal date du 1er septembre. Il n'y avait rien à montrer.
+
+Mais en vérifiant, trois défauts sont apparus.
+
+### 35.1 Une ligne par minute
+
+`compta_donnees` écrivait une ligne « consultation » **à chaque appel** — et
+l'écran se rafraîchit toutes les minutes. Une fiduciaire qui laisse son onglet
+ouvert une journée aurait posé près de cinq cents lignes identiques : le
+journal se serait noyé le jour même où il aurait enfin servi.
+
+La consultation est désormais limitée à **une ligne par demi-heure et par mois
+regardé**. Le mois fait partie de la clé, volontairement : rester deux heures
+sur septembre n'apprend rien de plus, mais passer de septembre à juin est
+précisément ce qu'on cherche à voir.
+
+### 35.2 Le back office n'était pas tracé du tout
+
+`admin_donnees` n'écrivait rien et ne touchait pas `derniere_connexion`. On
+voyait ce que la direction faisait, jamais quand elle arrivait. Comparer des
+habitudes suppose de regarder les deux côtés de la même façon : la direction
+pose maintenant les mêmes lignes que la fiduciaire, et apparaît comme les
+techniciens dans la colonne « dernière ouverture ».
+
+### 35.3 « Message lu » n'avait pas d'auteur
+
+Le déclencheur ne voit que la ligne, jamais l'appelant : il inscrivait
+« Direction » ou « La fiduciaire » **sans identifiant**, et ces lignes
+échappaient au classement par personne — celui-là même qui donne son sens au
+journal.
+
+Les fonctions qui marquent lu déposent donc leur identité dans un réglage de
+transaction (`set_config(..., true)`, qui meurt avec la transaction), que le
+déclencheur relit. Et la cible nomme l'auteur du message, pas le fil : sans
+cela, la fiduciaire se lisait elle-même.
+
+| Qui lit | Ce que le journal dit |
+|---|---|
+| Back office, fil partagé | a lu le message **de la fiduciaire** |
+| Fiduciaire, fil partagé | a lu le message **de la direction** |
+| Back office, fil d'un technicien | a lu le message **de Sami** |
+
+### 35.4 L'export, enfin visible
+
+C'est le geste central de la fiduciaire — ce qu'elle emporte, et quand — et la
+base ne le voyait pas passer : le fichier Excel est fabriqué dans le navigateur.
+L'écran le déclare désormais par `journal_noter`, dont **la liste des actions
+acceptées est fermée**. Une fonction ouverte laisserait n'importe quel porteur
+de la clé publique écrire ce qu'il veut dans le registre, et un registre qu'on
+peut remplir à volonté ne prouve plus rien.
+
+### 35.5 Ce que le back office verra d'elle
+
+    👁  a ouvert l'espace fiduciaire sur septembre 2026
+    📥  a exporté septembre 2026 — 3 collaborateurs
+    👀  a lu le message de la direction
+    💬  a écrit à tous
+    🚪  s'est déconnectée
+
+### 35.6 Vérifications
+
+Sur base reconstruite depuis zéro : quatre rafraîchissements d'affilée ne
+posent qu'une ligne, un changement de mois en pose une seconde, le back office
+apparaît à son tour, les trois formulations de « message lu » sont exactes,
+l'export est inscrit, une action hors liste est refusée, et le journal reste
+fermé à la fiduciaire comme au technicien.
+
+Puis sur la base réelle, en transaction annulée : mêmes résultats, et rien qui
+subsiste — `derniere_connexion` de la fiduciaire est restée au 27 août.
+
+Un déclencheur voisin méritait d'être vérifié : `_trg_journal_employe` ignore
+explicitement `derniere_connexion`. Sans cela, toucher la présence toutes les
+minutes aurait écrit « fiche modifiée » toutes les minutes.
