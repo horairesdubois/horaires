@@ -1245,3 +1245,93 @@ Il voit la marque « modifié », mais ne peut pas encore corriger ses propres
 messages depuis son écran — son champ de saisie est un élément fixe de la page,
 pas reconstruit comme celui du back office. La fonction en base l'accepterait
 déjà : c'est un raccordement d'écran, à faire si vous le voulez.
+
+---
+
+## 29. Le non-lu qu'on ne trouvait pas
+
+Migration `20260907090000_non_lus_visibles.sql`, appliquée en production.
+
+Un « 2 » en rouge dans Questions, et aucun message à l'écran. Deux causes
+distinctes se cachaient derrière le même symptôme.
+
+### 29.1 Ouvrir l'application n'est pas lire
+
+`messages_lire` marquait lu avant de compter. Or le chargement des données
+appelle cette lecture : côté technicien à chaque ouverture, côté back office
+toutes les minutes depuis n'importe quel onglet. Un message arrivé le matin
+était donc « lu » sans que personne ne l'ait eu sous les yeux, et la pastille
+du mois affiché ne s'allumait jamais.
+
+La lecture ne marque plus rien (`p_marquer` faux) ; le marquage devient un
+geste à part, `messages_marquer_lus` :
+
+- **côté technicien** — déclenché quand la carte des questions est réellement
+  à l'écran (`IntersectionObserver`, seuil 0,4). Pas quand elle existe plus bas
+  dans la page : quand on la regarde ;
+- **côté back office et fiduciaire** — déclenché quand l'onglet Questions est
+  affiché *et* que le fil concerné est celui qu'on lit. Choisir l'onglet est
+  déjà un geste ; le rafraîchissement d'arrière-plan n'en est pas un.
+
+### 29.2 Le compteur ignore le mois, la vue est filtrée dessus
+
+C'est l'autre moitié du « 2 » en rouge : Sami avait répondu le 4 septembre
+**dans le fil d'août**, et le back office regardait septembre. Le compteur
+additionne tous les mois, l'écran n'en montre qu'un — d'où un chiffre sans
+message.
+
+`messages_lire` renvoie donc `autres_mois` : où sont les non-lus qu'on ne peut
+pas atteindre depuis l'écran courant, les plus récents d'abord. Un bandeau les
+nomme et y emmène d'un appui, des deux côtés.
+
+Côté back office il faut un pas de plus : le bon mois ne suffit pas, il faut
+aussi le bon fil. Après le saut, l'écran se pose sur le fil qui porte les
+non-lus — sinon le bandeau mènerait exactement à l'écran vide qu'il répare.
+
+Vérifié sur la base de production, en transaction annulée : deux messages
+d'août rendus non lus, interrogés depuis septembre, renvoient bien
+`non_lus: 2` et `autres_mois: [août 2026, 2]`, avec un fil de septembre vide.
+
+---
+
+## 30. Le journal, complet et réservé
+
+Migration `20260907110000_journal_complet.sql`, appliquée en production.
+
+Le journal voyait les écritures sur les pointages et les messages, les
+connexions et les ouvertures. Il ignorait le reste.
+
+### 30.1 Ce qu'il voit désormais
+
+Déconnexions, bulletins déposés ou retirés, fiches modifiées, réglages
+modifiés, et messages lus — avec qui les a lus. Tout passe par des
+déclencheurs sur les tables : ils voient la ligne, donc l'action, et la table
+porte souvent l'auteur (`saisi_par`, `auteur_id`, `depose_par`). Pour les
+gestes que seule la direction peut accomplir, on inscrit « Direction » plutôt
+que de deviner lequel des administrateurs.
+
+**Aucun secret n'est recopié.** Le journal dit qu'un code PIN ou une clé
+d'accès a changé, jamais sa valeur : la base écrit `« — modifié — »` à la
+place. Une trace qui recopie les secrets devient la faille qu'elle surveille.
+
+### 30.2 Le jour même veut dire depuis minuit
+
+La fenêtre de lecture se comptait en tranches de vingt-quatre heures : à 16h,
+« 1 jour » remontait à hier 16h. Elle se compte maintenant en jours civils
+genevois, et un filtre **Aujourd'hui** s'ajoute à 7 jours, 30 jours et 3 mois.
+
+### 30.3 Trois verrous, pas un
+
+L'onglet ne doit s'ouvrir que depuis le back office — ni la fiduciaire, ni un
+technicien, par aucun lien. Vérifié en production, rôle par rôle :
+
+| Qui | `journal_accessible` |
+|---|---|
+| Back office (`admin`) | `true` |
+| Fiduciaire (`compta`) | `false` — accès refusé |
+| Technicien (`employe`) | `false` — accès refusé |
+
+Les trois verrous sont indépendants : RLS sur `public.journal` **sans aucune
+politique** (personne ne lit la table en direct), `journal_lire` qui exige
+`role = 'admin'`, et l'onglet masqué côté écran. Cacher le bouton seul
+n'aurait rien fermé.
