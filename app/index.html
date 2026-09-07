@@ -184,6 +184,14 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-src.bo{color:#334155;background:#eef2f5}
 .jr-src.auto{color:#b3261e;background:#fbeceb}
 .rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:2px 7px;display:inline-block}
+.rem.sansmotif .demander{margin-left:6px;font-weight:700;text-decoration:underline;white-space:nowrap}
+.rem.demandee{color:#334155;background:#eef2f5;border-radius:6px;padding:2px 7px;display:inline-block}
+.mj-demande{background:#fef7e6;border:1px solid #f0dcb0;border-radius:10px;padding:10px 12px;
+  margin:0 0 8px;font-size:13.5px;color:#5b4412;line-height:1.45}
+.mj-demande b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.3px;
+  color:#8a6116;margin-bottom:3px}
+.mj-alerte{font-size:13px;color:#8a6116;background:#fef7e6;border-radius:8px;
+  padding:7px 10px;margin-top:6px;display:none}
 .aide-det{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-size:13px}
 .aide-det b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
   border-radius:6px;background:var(--vert);color:#fff;font-size:12px;flex:none}
@@ -376,7 +384,9 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
         <div class="champ-h"><label>Fin</label><input type="time" id="mj-af"><button class="now" data-cible="mj-af" title="Maintenant">⏱</button></div>
       </div>
     </div>
+    <div class="mj-demande" id="mj-demande" hidden></div>
     <input type="text" id="mj-rem" placeholder="Remarque (chantier, client…)" maxlength="200">
+    <div class="mj-alerte" id="mj-sup-alerte"></div>
     <div class="total-apercu" id="mj-total"></div>
     <div class="note-verrou" id="mj-verrou" hidden>✓ Validé par le back office — modification impossible</div>
     <div class="actions" id="mj-actions-1">
@@ -693,7 +703,7 @@ const S = {
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
   lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
-  filMsg: null, fils: [], retards: [],
+  filMsg: null, fils: [], retards: [], detMsgs: [], detEmp: null, detCharge: null,
   // Repli volontaire sur une date impossible : si le paramètre manque,
   // l'interface se tait plutôt que de signaler à tort des mois d'historique.
   depuis: '9999-12-31', auj: aujourdhui(),
@@ -878,6 +888,7 @@ function moisNav(delta) {
   if (S.mois < 1) { S.mois = 12; S.annee--; }
   S.deplieAvant = false; S.deplieApres = false;
   S.messages = []; S.msgCharges = false; // chaque mois a son propre fil de questions
+  S.detMsgs = []; S.detCharge = null;    // le fil chargé ne vaut que pour son mois
   S.fils = [];                           // sinon les pastilles du mois précédent
   charger();                             // s'affichent sous le titre du nouveau
 }
@@ -1268,6 +1279,38 @@ function majStatuts() {
 function majTotalApercu() {
   const min = demiMin(MJ.matin, $('mj-md').value, $('mj-mf').value) + demiMin(MJ.apm, $('mj-ad').value, $('mj-af').value);
   $('mj-total').textContent = min ? 'Total : ' + fmtMin(min) : '';
+  majAlerteSup();
+}
+// Ce que la journée en cours de saisie dépasse la journée type. Calculé sur ce
+// qui est à l'écran, pas sur ce qui est en base : l'avertissement doit suivre
+// la frappe, pas l'enregistrement.
+function supEnCours() {
+  if (!MJ.jour) return 0;
+  const p = {
+    matin_type: MJ.matin, apm_type: MJ.apm,
+    matin_debut: $('mj-md').value || null, matin_fin: $('mj-mf').value || null,
+    apm_debut: $('mj-ad').value || null, apm_fin: $('mj-af').value || null
+  };
+  const [an, mo, jr] = MJ.jour.split('-').map(Number);
+  return heuresSupJour(p, MJ.jour, new Date(an, mo - 1, jr).getDay());
+}
+/* Des heures en plus sans un mot, c'est la question que le back office pose
+   trois semaines plus tard, quand plus personne ne s'en souvient — trois fois
+   en une semaine, dans le fil des questions. On la pose donc au moment où l'on
+   sait encore : à la saisie.
+   Réclamée, jamais imposée. Un technicien pressé à 19h doit pouvoir
+   enregistrer ; la journée part alors marquée « sans explication », et cela se
+   voit côté back office. */
+function majAlerteSup() {
+  const a = $('mj-sup-alerte');
+  if (!a) return;
+  const sup = supEnCours();
+  const vide = !$('mj-rem').value.trim();
+  a.style.display = (sup > 0 && vide && !MJ.verrou) ? 'block' : 'none';
+  if (sup > 0 && vide) {
+    a.textContent = '⚠ ' + fmtMin(sup) + ' de plus que la journée type — dites en un mot pourquoi ' +
+      '(déplacement, urgence, chantier prolongé…).';
+  }
 }
 function ouvrirJour(empId, jour) {
   const p = (ptgMap()[empId] || {})[jour] || null;
@@ -1291,6 +1334,12 @@ function ouvrirJour(empId, jour) {
   $('mj-ad').value = p ? (p.apm_debut || '') : '';
   $('mj-af').value = p ? (p.apm_fin || '') : '';
   $('mj-rem').value = p ? (p.remarque || '') : '';
+  // Une question du back office portant sur ce jour précis : on la met sous les
+  // yeux, juste au-dessus du champ où la réponse doit atterrir. Sans cela elle
+  // reste dans le fil des questions, loin de la journée qu'elle concerne.
+  const dem = demandePourJour(empId, jour);
+  $('mj-demande').hidden = !dem;
+  if (dem) $('mj-demande').innerHTML = '<b>Question du back office</b>' + esc(dem.texte);
   ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem', 'mj-statut-m', 'mj-statut-a'].forEach(id => { $(id).disabled = MJ.verrou; });
   // Jour ouvré vide : la présence normale est déjà proposée, il n'y a plus qu'à enregistrer.
   if (!p && !MJ.verrou && js >= 1 && js <= 5 && !ferJour) {
@@ -1314,8 +1363,26 @@ function ouvrirJour(empId, jour) {
   $('voile-jour').classList.add('ouvert');
 }
 function fermerJour() { $('voile-jour').classList.remove('ouvert'); }
+/* La demande d'explication n'est pas une donnée de plus : c'est un message du
+   back office rattaché à un jour. On la retrouve donc dans le fil déjà chargé —
+   celui du technicien pour lui, celui du collaborateur examiné pour le back
+   office — sans rien ajouter en base. */
+function demandePourJour(empId, jour) {
+  const fil = S.moi.role === 'admin'
+    ? (S.detEmp === empId ? S.detMsgs : [])
+    : S.messages;
+  const dubo = (fil || []).filter(m => m.jour === jour && m.role !== 'employe');
+  return dubo.length ? dubo[dubo.length - 1] : null;
+}
 async function sauverJour() {
   if (MJ.verrou) return;
+  const sup = supEnCours();
+  if (sup > 0 && !$('mj-rem').value.trim() &&
+      !confirm(fmtMin(sup) + ' de plus que la journée type, sans explication.\n\n' +
+               'Enregistrer quand même ? La journée sera signalée au back office.')) {
+    $('mj-rem').focus();
+    return;
+  }
   const admin = S.moi.role === 'admin';
   const args = {
     p_token: S.token, p_jour: MJ.jour,
@@ -1893,11 +1960,56 @@ function renderEquipe() {
 }
 
 /* ---------- Revue détaillée d'un employé (back office) ---------- */
+/* Trois fois en une semaine, la même phrase tapée à la main : « pourrais-tu me
+   donner plus de détails sur tes heures supplémentaires du 31 août ». Elle
+   devient un bouton — et la réponse ne part pas dans un fil, elle atterrit dans
+   la remarque de la journée, là où elle restera et d'où elle suivra dans
+   l'export. */
+async function chargerMsgDetail(empId, forcer) {
+  // Le rendu se refait après chargement, et le rendu redemande le chargement :
+  // sans ce verrou, les deux s'appellent sans fin.
+  if (!forcer && S.detCharge === empId) return;
+  S.detCharge = empId;
+  try {
+    const res = await rpc('messages_lire', {
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois,
+      p_employe: empId, p_marquer: false });     // consulter n'est pas lire
+    if (!res.ok || S.detEmp !== empId) return;
+    S.detMsgs = res.messages || [];
+    if ($('voile-det').classList.contains('ouvert')) ouvrirDetails(empId);
+  } catch (e) { S.detCharge = null; }             // on réessaiera à la prochaine ouverture
+}
+function ligneSansMotif(iso, sup) {
+  const dem = demandePourJour(DET.empId, iso);
+  if (dem) return '<div class="rem demandee">Explication demandée · ' + esc(dem.quand.slice(0, 10)) + '</div>';
+  if (S.lecture) return '<div class="rem sansmotif">Heures en plus, sans explication</div>';
+  return '<div class="rem sansmotif">Heures en plus, sans explication' +
+    '<span class="demander" data-demande="' + iso + '" data-sup="' + sup + '">· Demander ›</span></div>';
+}
+async function demanderExplication(iso, sup) {
+  const e = S.employes.find(x => x.id === DET.empId);
+  if (!e) return;
+  const texte = 'Bonjour ' + e.prenom + ', peux-tu préciser la raison des ' + fmtMin(sup) +
+    ' de plus que l’horaire normal ce ' + libJour(iso) + ' ? ' +
+    'Ouvre la journée depuis ce message et écris-le dans la remarque, merci.';
+  if (!confirm('Envoyer cette question à ' + e.prenom + ' ?\n\n' + texte)) return;
+  try {
+    const res = await rpc('message_ecrire', {
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois,
+      p_texte: texte, p_employe: DET.empId, p_jour: iso });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
+    toast('✓ Question envoyée à ' + e.prenom);
+    await chargerMsgDetail(DET.empId, true);
+    chargerMessages();                            // la pastille de l'onglet suit
+  } catch (err) { toast(err.message); }
+}
 const DET = { empId: null };
 function ouvrirDetails(empId) {
   DET.empId = empId;
   const e = S.employes.find(x => x.id === empId);
   if (!e) return;
+  if (S.detEmp !== empId) { S.detEmp = empId; S.detMsgs = []; S.detCharge = null; }
+  chargerMsgDetail(empId);   // pour savoir ce qui a déjà été demandé, et quand
   const map = ptgMap()[empId] || {};
   const lignes = Object.values(map);
   const jours = joursDuMois(S.annee, S.mois);
@@ -1952,7 +2064,7 @@ function ouvrirDetails(empId) {
       (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') +
       // Des heures en plus sans un mot : c'est exactement ce qu'on cherche à
       // comprendre plus tard, et qu'on ne retrouvera plus dans trois semaines.
-      (sup && !(p && p.remarque) ? '<div class="rem sansmotif">Heures en plus, sans explication</div>' : '') + '</div>' +
+      (sup && !(p && p.remarque) ? ligneSansMotif(j.iso, sup) : '') + '</div>' +
       '<div class="tot">' + (min ? fmtMin(min) : '') +
       (sup ? ' <span class="delta-sup">+' + fmtMin(sup) + '</span>' : '') + '</div>' + coche + '</button>';
     if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
@@ -1971,6 +2083,13 @@ function ouvrirDetails(empId) {
       s.addEventListener('click', ev => {
         ev.stopPropagation();
         approuverJourRevue(empId, s.dataset.jour, !s.classList.contains('on'));
+      }));
+    // La demande vit à l'intérieur de la ligne du jour : sans cette coupure,
+    // l'appui ouvrirait la journée au lieu de poser la question.
+    $('det-liste').querySelectorAll('[data-demande]').forEach(s =>
+      s.addEventListener('click', ev => {
+        ev.stopPropagation();
+        demanderExplication(s.dataset.demande, Number(s.dataset.sup));
       }));
   }
   $('voile-det').classList.add('ouvert');
@@ -2404,6 +2523,7 @@ async function exporterExcel() {
 function init() {
   initLogin();
   initStatuts();
+  $('mj-rem').addEventListener('input', majAlerteSup);   // écrire fait taire l'avertissement
   ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => {
     $(id).addEventListener('input', majTotalApercu);
     // Champ vide touché → on propose directement l'heure de la journée type.

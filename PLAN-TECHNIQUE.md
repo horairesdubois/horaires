@@ -1757,3 +1757,78 @@ Sur base reconstruite, avec trois techniciens fabriqués : celui qui a tout sais
 n'apparaît pas, celui qui s'est arrêté il y a trois jours ouvrés est compté à 3,
 celui qui n'a jamais rien saisi est compté à 15 — le nombre exact de jours
 ouvrés de la fenêtre. Technicien et fiduciaire reçoivent « Accès refusé ».
+
+---
+
+## 39. Les heures en plus s'expliquent au moment où l'on sait encore
+
+Deux bouts d'un même problème, raccordés. Aucune migration : tout tient dans
+l'écran et dans ce que la base sait déjà faire.
+
+### 39.1 Le problème, mesuré
+
+Sur août et septembre, **29 journées sur 33 dépassant l'horaire normal ne
+portent aucune explication**. Depuis mars, 8 remarques pour 184 journées.
+
+Et dans le fil des questions, la même phrase tapée à la main **trois fois en une
+semaine** : « pourrais-tu me donner plus de détails sur tes heures
+supplémentaires du 31 août ». La réponse de Sami — *« je me trompe de jour, je
+suis allé à Chavannes-de-Bogis avec Steve le 31 août en rentrant de Pully »* —
+dit à la fois d'où viennent les heures (les déplacements) et pourquoi elles ne
+sont pas expliquées : il répond quatre jours plus tard, de mémoire.
+
+### 39.2 Côté technicien : réclamé, jamais imposé
+
+Choix de la direction, mot pour mot : *« le motif est réclamé mais il peut
+l'écarter, c'est demandé uniquement lorsqu'il y a des heures supplémentaires
+rajoutées ».*
+
+- Pendant la saisie, dès que la journée dépasse la journée type et que la
+  remarque est vide, une ligne apparaît sous le champ : **« ⚠ 2h00 de plus que
+  la journée type — dites en un mot pourquoi »**. Elle suit la frappe et
+  disparaît dès qu'il écrit.
+- À l'enregistrement, une dernière question : *« 2h00 de plus, sans
+  explication. Enregistrer quand même ? La journée sera signalée au back
+  office. »* Il peut passer outre — un technicien pressé à 19h doit pouvoir
+  enregistrer. Mais la journée part alors marquée, et cela se voit.
+
+Pas de seuil : toute minute au-delà de la journée type déclenche la demande,
+comme demandé.
+
+### 39.3 Côté back office : la question en un bouton
+
+Sur une journée signalée, la ligne porte désormais **« · Demander › »**. Un
+appui montre le texte qui partira, puis l'envoie — rattaché au jour concerné.
+La ligne devient alors *« Explication demandée · 07.09.2026 »*, pour ne pas
+demander deux fois.
+
+L'appui sur « Demander » **n'ouvre pas la journée** : la demande vit à
+l'intérieur de la ligne, et sans cette coupure l'un déclencherait l'autre.
+
+### 39.4 La réponse atterrit dans la journée, pas dans un fil
+
+C'est le point qui fait la différence. Quand le technicien ouvre la journée
+concernée, **la question du back office s'affiche juste au-dessus du champ de
+remarque** — donc il répond là, et l'explication reste attachée au jour : elle
+suit dans la grille, dans la revue, dans l'export Excel. Une réponse dans un fil
+de discussion serait perdue trois semaines plus tard.
+
+**Rien n'a été ajouté en base pour cela.** Une demande d'explication n'est qu'un
+message rattaché à un jour — `messages.jour` existait déjà pour les questions
+datées. On lit le fil déjà chargé : celui du technicien pour lui, celui du
+collaborateur examiné pour le back office.
+
+### 39.5 Vérifications
+
+Logique pure, sur banc : six cas de calcul d'heures supplémentaires (journée
+type, +30 min, +5 min, 10 heures, journée plus courte, samedi entier), tous
+justes ; et la demande retrouvée dans le bon fil seulement — pas pour un autre
+collaborateur, pas pour un autre jour, et **jamais confondue avec la réponse du
+technicien**.
+
+Puis dans un vrai navigateur, serveur simulé, sans toucher à la production
+(`tests/motif-heures-sup.mjs`) — les neuf étapes passent : ligne signalée,
+message envoyé avec le bon jour et le bon destinataire, ligne qui devient
+« Explication demandée », journée qui **ne s'ouvre pas** par mégarde, question
+visible sur la journée côté technicien, avertissement affiché puis disparu dès
+qu'il écrit, question posée à l'enregistrement, et passage outre possible.
