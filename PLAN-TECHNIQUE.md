@@ -1706,3 +1706,54 @@ refus, car il n'y a rien à contourner.
 Un garde-fou accompagne le retrait : si l'application se souvient d'un onglet
 qui n'existe plus, elle revient aux feuilles de temps plutôt que d'afficher un
 écran vide.
+
+---
+
+## 38. Qui a décroché, sans écrire à personne
+
+Migration `20260907200000_retards_saisie.sql`, appliquée en production.
+
+Seule amélioration retenue parmi celles proposées.
+
+### 38.1 Pourquoi ce n'est pas un rappel
+
+Les rappels automatiques ont été coupés, et à raison : ils harcelaient les
+techniciens tous les jours pour un oubli d'une demi-journée. Le suivi quotidien
+reste pourtant nécessaire — savoir qui avance, et qui a décroché.
+
+La réponse n'est donc pas un message de plus. C'est un **indicateur muet, dans
+l'écran du back office et nulle part ailleurs** : le technicien ne le voit pas,
+ne reçoit rien, et n'apprend même pas qu'il existe. C'est au back office de
+décider s'il faut en parler, et comment.
+
+La fiduciaire ne le voit pas non plus : la fonction exige le rôle `admin`.
+
+### 38.2 Des jours ouvrés, jamais des jours civils
+
+Sans cette précaution, tout le monde serait « en retard de deux jours » chaque
+lundi matin. Sont écartés du décompte : samedis, dimanches, jours fériés
+genevois — et **le jour même**, puisqu'un technicien saisit sa journée le soir.
+La fenêtre est de trois semaines ; au-delà, ce n'est plus un oubli à rattraper
+mais une absence dont le back office est déjà au courant.
+
+Un technicien à jour n'apparaît pas du tout : pas de nouvelle, bonne nouvelle.
+
+### 38.3 Ce que cela a montré tout de suite
+
+Interrogé sur les données réelles le 7 septembre :
+
+| Qui | Dernière saisie | Jours ouvrés manquants |
+|---|---|---|
+| Alen | 28 août | **5** |
+| Steve | 3 septembre | 1 |
+| Sami | à jour | — |
+
+L'encart est cliquable : il ouvre le mois de l'intéressé, là où l'on peut
+regarder ce qui manque.
+
+### 38.4 Vérifications
+
+Sur base reconstruite, avec trois techniciens fabriqués : celui qui a tout saisi
+n'apparaît pas, celui qui s'est arrêté il y a trois jours ouvrés est compté à 3,
+celui qui n'a jamais rien saisi est compté à 15 — le nombre exact de jours
+ouvrés de la fenêtre. Technicien et fiduciaire reçoivent « Accès refusé ».

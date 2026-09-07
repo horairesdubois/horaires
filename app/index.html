@@ -187,6 +187,12 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .aide-det{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-size:13px}
 .aide-det b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
   border-radius:6px;background:var(--vert);color:#fff;font-size:12px;flex:none}
+.retards{background:#fef7e6;border:1px solid #f0dcb0;border-radius:12px;padding:11px 13px;margin-bottom:12px}
+.retards .t{font-size:12px;font-weight:700;color:#8a6116;text-transform:uppercase;letter-spacing:.3px;margin-bottom:7px}
+.retards button{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;padding:4px 0;font-size:14px;color:#5b4412}
+.retards button:active{opacity:.6}
+.retards .n{font-weight:700;flex:none}
+.retards .d{color:#8a6116;font-size:12.5px;margin-left:auto;flex:none}
 .onglets{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
 .onglets button{flex:none;padding:9px 16px;border-radius:99px;font-weight:600;background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .onglets button.actif{background:var(--bleu);color:#fff}
@@ -687,7 +693,7 @@ const S = {
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
   lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
-  filMsg: null, fils: [],
+  filMsg: null, fils: [], retards: [],
   // Repli volontaire sur une date impossible : si le paramètre manque,
   // l'interface se tait plutôt que de signaler à tort des mois d'historique.
   depuis: '9999-12-31', auj: aujourdhui(),
@@ -853,6 +859,7 @@ async function charger() {
       S.depuis = res.tracabilite_depuis || '9999-12-31';
       if (compta && res.moi) { S.moi = res.moi; localStorage.setItem('hor_moi', JSON.stringify(S.moi)); }
       montrer('admin'); renderAdmin(); chargerMarque();
+      if (!compta) chargerRetards();
       if (S.ongletAdmin === 'messages') chargerMessages();
     } else {
       const res = await rpc('mes_pointages', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
@@ -1788,6 +1795,30 @@ function txtVu(e) {
     : ' · vu le ' + v.slice(8, 10) + '.' + v.slice(5, 7) + ' à ' + v.slice(11);
 }
 
+/* ---------- Qui a décroché (direction seulement) ----------
+   Les rappels automatiques sont coupés, et c'est bien : ils harcelaient les
+   techniciens. Le suivi quotidien reste pourtant nécessaire. Il prend donc la
+   forme d'un indicateur muet, ici et nulle part ailleurs — le technicien ne le
+   voit pas, ne reçoit rien, et n'apprend même pas qu'il existe. C'est à la
+   direction de décider s'il faut en parler, et comment. */
+async function chargerRetards() {
+  try {
+    const res = await rpc('retards_saisie', { p_token: S.token });
+    if (!res.ok) return;                      // silencieux : ce n'est pas une donnée vitale
+    S.retards = res.retards || [];
+    if (S.ongletAdmin === 'equipe') renderEquipe();
+  } catch (e) { /* le signal réapparaîtra au prochain chargement */ }
+}
+function bandeauRetards() {
+  const r = S.retards || [];
+  if (!r.length || S.lecture) return '';      // pas de nouvelle, bonne nouvelle
+  return '<div class="retards"><div class="t">Saisies en attente</div>' +
+    r.map(x => '<button data-retard="' + esc(x.employe_id) + '">' +
+      '<span class="n">' + esc(x.prenom) + '</span><span>' +
+      (x.dernier ? 'rien depuis ' + libJour(x.dernier) : 'aucune saisie') +
+      '</span><span class="d">' + x.manquants + ' jour' + (x.manquants > 1 ? 's' : '') +
+      ' ouvré' + (x.manquants > 1 ? 's' : '') + '</span></button>').join('') + '</div>';
+}
 function renderEquipe() {
   const map = ptgMap();
   // Les employés désactivés qui ont des heures ce mois restent visibles :
@@ -1801,7 +1832,8 @@ function renderEquipe() {
   const auj = S.auj || aujourdhui();   // date de Genève renvoyée par le serveur
   const lecture = S.lecture;
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
-  let html = '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
+  let html = bandeauRetards();
+  html += '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
       JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
   for (const e of actifs) {
@@ -1856,6 +1888,8 @@ function renderEquipe() {
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
   $('ong-equipe').querySelectorAll('.emp-lien').forEach(b =>
     b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
+  $('ong-equipe').querySelectorAll('[data-retard]').forEach(b =>
+    b.addEventListener('click', () => ouvrirDetails(b.dataset.retard)));
 }
 
 /* ---------- Revue détaillée d'un employé (back office) ---------- */
