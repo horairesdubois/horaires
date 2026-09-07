@@ -1383,3 +1383,39 @@ Corriger un message ne réarme aucun drapeau de lecture : le destinataire a lu
 l'ancienne version, voit la marque « modifié » s'il rouvre le fil, mais rien ne
 le rappelle. On pourrait faire repasser le message en non lu quand le texte
 change réellement. C'est un choix, pas un défaut : à dire si vous le voulez.
+
+Second point, théorique aujourd'hui : les drapeaux de lecture sont posés par
+camp (`lu_direction`, `lu_compta`, `lu_employe`), pas par personne. Le jour où
+un second accès fiduciaire est créé, l'un soldera les non-lus de l'autre. Il
+n'y a qu'un compte `compta` : rien à faire tant que cela reste vrai.
+
+Chiffres de l'audit : 29 lecteurs et contradicteurs, 25 constats produits,
+8 retenus après réfutation — les six premiers corrigés ici, les deux derniers
+ci-dessus.
+
+---
+
+## 32. État réel de la base, au 7 septembre 2026
+
+Relevé après l'audit, pour qu'aucun écart entre ce dépôt et la production ne
+reste implicite.
+
+| Élément | En base | Remarque |
+|---|---|---|
+| Tâches planifiées (`cron.job`) | **aucune** | dernier passage le 31 août |
+| `rappels_automatiques` | `non` | conforme à la demande |
+| `relancer_saisies()` | installée | plus appelée par personne |
+| `generer_pointages_manquants()` | **absente** | le pré-remplissage n'a jamais été posé |
+| Messages non lus | 0 | tous fils, tous mois, tous rôles |
+| `journal`, `messages`, `parametres` | RLS active, 0 politique, 0 droit `anon` | lecture uniquement par fonction |
+
+**Le pré-remplissage de la veille n'est pas en service.** La migration
+`20260828090000_preremplissage_veille.sql` existe et est testée, mais elle n'a
+pas été appliquée, et plus aucune tâche ne serait là pour l'appeler.
+
+Elle ne doit pas être appliquée seule. Le correctif d'écran qui va avec — une
+journée pré-remplie reste « à confirmer » tant que le technicien ne l'a pas
+reprise à son compte (`aTraiter`, § 18) — n'est pas publié non plus. Poser
+l'une sans l'autre ferait exactement ce qu'il ne faut pas : éteindre le bandeau
+« jours à compléter » en attestant à la place du technicien. Les deux ensemble,
+ou ni l'une ni l'autre.
