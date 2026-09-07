@@ -1409,13 +1409,37 @@ reste implicite.
 | Messages non lus | 0 | tous fils, tous mois, tous rôles |
 | `journal`, `messages`, `parametres` | RLS active, 0 politique, 0 droit `anon` | lecture uniquement par fonction |
 
-**Le pré-remplissage de la veille n'est pas en service.** La migration
-`20260828090000_preremplissage_veille.sql` existe et est testée, mais elle n'a
-pas été appliquée, et plus aucune tâche ne serait là pour l'appeler.
+### 32.1 Le pré-remplissage est écarté
 
-Elle ne doit pas être appliquée seule. Le correctif d'écran qui va avec — une
-journée pré-remplie reste « à confirmer » tant que le technicien ne l'a pas
-reprise à son compte (`aTraiter`, § 18) — n'est pas publié non plus. Poser
-l'une sans l'autre ferait exactement ce qu'il ne faut pas : éteindre le bandeau
-« jours à compléter » en attestant à la place du technicien. Les deux ensemble,
-ou ni l'une ni l'autre.
+La question a été posée, la réponse est non :
+
+> « Non, ne pré-remplis pas les journées de 8h. Laisse le bouton où il suffit
+> qu'ils cliquent dessus pour pré-remplir 8h. »
+
+Ce que le bouton fait déjà, sur l'écran du technicien : **« ✓ Compléter les N
+jours manquants avec l'horaire normal »**, qui pose l'horaire type de la fiche
+(08:00–12:00 · 13:00–17:00 par défaut) sur tous les jours ouvrés non saisis du
+mois. Même horaire, même effet qu'une tâche de nuit — mais c'est lui qui
+appuie, et c'est là toute la différence : personne n'atteste à sa place.
+
+La migration et son test sont déplacés dans `supabase/non_retenu/`, qui n'est
+jamais rejoué, avec la note qui explique pourquoi. Les laisser dans
+`migrations/` aurait été un piège : `relancer_saisies()` est en base et appelle
+`generer_pointages_manquants()` **dès qu'elle la trouve**. Reposer la migration
+aurait donc rallumé le pré-remplissage en silence, à la première tâche
+planifiée.
+
+Le code d'écran qui l'accompagnait (`aTraiter`, la mention « pré-remplie » dans
+l'export, la tolérance dans `nonConfirme`) est retiré avec elle.
+
+### 32.2 Les deux branches avaient divergé
+
+`claude/employee-schedule-system-jekf2k` (publiée) portait le renommage
+« Back Office » que la branche de travail n'avait jamais reçu ; la branche de
+travail portait le pré-remplissage, jamais publié. Un aller-retour entre les
+deux produisait donc des conflits et risquait de republier d'anciens libellés.
+
+L'écran repart de ce qui est en ligne, augmenté des deux seules améliorations
+demandées qui restaient en attente : la modale de revue ne répète plus le
+métier, le mois et la CCT, et une journée qui dépasse l'horaire normal **sans
+une ligne d'explication** le signale.
