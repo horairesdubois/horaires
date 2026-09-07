@@ -445,7 +445,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="bande-cadre"><div class="bande" id="emp-bande"></div></div>
   <div class="legende">
     <span><i class="pt vide"></i>à saisir</span>
-    <span><i class="pt attente"></i>à approuver</span>
+    <span><i class="pt attente"></i>en attente d’approbation</span>
     <span><i class="pt ok"></i>approuvée</span>
   </div>
 
@@ -1168,8 +1168,8 @@ const MARQUE = { valide: 'ok', confirme: 'attente', attente: 'attente',
                  manquant: 'vide', aujourdhui: 'vide' };
 const ETAT_LIB = {
   valide:   ['Approuvée', 'ok'],
-  confirme: ['À approuver', 'attente'],
-  attente:  ['À approuver', 'attente'],
+  confirme: ['En attente', 'attente'],
+  attente:  ['En attente', 'attente'],
   manquant: ['À saisir', 'vide'],
   aujourdhui: ['À saisir', 'vide'],
   ferie:    ['Jour férié', ''],
@@ -1319,7 +1319,7 @@ function renderResumeMois(jours, map, auj, moisCourant) {
       ? '<span class="rappel att">⚠ ' + aConfirmer + ' journée' + (aConfirmer > 1 ? 's' : '') + ' à confirmer</span>'
       : aApprouver > 0
         ? '<span class="rappel att">' + aApprouver + ' journée' + (aApprouver > 1 ? 's' : '') +
-          ' à approuver</span>'
+          ' en attente d’approbation</span>'
         : (moisCommence ? '<span class="rappel ok">✓ Tout est approuvé</span>' : '');
 
   let chips = '';
