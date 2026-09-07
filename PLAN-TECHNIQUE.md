@@ -1335,3 +1335,51 @@ Les trois verrous sont indépendants : RLS sur `public.journal` **sans aucune
 politique** (personne ne lit la table en direct), `journal_lire` qui exige
 `role = 'admin'`, et l'onglet masqué côté écran. Cacher le bouton seul
 n'aurait rien fermé.
+
+---
+
+## 31. Ce que l'audit du compteur a retenu
+
+Le « 2 » en rouge sans message à l'écran ne venait pas d'un défaut mais de
+quatre, empilés. Un audit adverse — plusieurs lecteurs indépendants, puis des
+contradicteurs chargés de démolir chaque constat — en a écarté la moitié et
+confirmé le reste.
+
+### 31.1 Retenus et corrigés
+
+| Constat | Gravité | État |
+|---|---|---|
+| Le rafraîchissement de 60 s marquait lu un fil que personne n'avait à l'écran | bloquant | corrigé (§ 29.1) |
+| Le bandeau « autres mois » n'existait que côté technicien | bloquant | corrigé (§ 29.2) |
+| Un collaborateur désactivé perdait son onglet, pas ses non-lus | bloquant | corrigé ci-dessous |
+| Les pastilles par personne survivaient au changement de mois | mineur | corrigé ci-dessous |
+
+**Le collaborateur parti.** `ongletsFils()` ne listait que les comptes actifs.
+Le jour où quelqu'un s'en va avec un message non lu, ce message reste compté
+dans la pastille et plus aucun bouton ne l'ouvre : le compteur ne peut plus
+revenir à zéro, définitivement. Son fil se rouvre donc tant qu'il porte quelque
+chose dans le mois affiché — `messages_lire` en donne déjà le nom, il n'y a
+rien à deviner. Un seul compte est désactivé aujourd'hui (`ZTest`, sans
+message) : le piège était armé pour le premier vrai départ.
+
+**Les pastilles fantômes.** `moisNav` vidait les messages mais pas `S.fils` :
+le temps du chargement, les compteurs par personne du mois précédent
+s'affichaient sous le titre du nouveau.
+
+### 31.2 Écartés, et pourquoi
+
+- **« Les rappels automatiques gonflent la pastille »** — le mécanisme existe
+  (ils s'insèrent `lu_direction = false`), mais ils sont coupés depuis
+  `20260828100000` et la base n'en porte aucun non lu. Rien à corriger.
+- **« La fiduciaire hérite d'un non-lu sur les fils privés des techniciens »** —
+  elle a bel et bien accès à ces fils ; ce n'est pas une fuite, c'est le
+  fonctionnement voulu.
+- **« Deux comptes fiduciaire partagent un seul drapeau `lu_compta` »** — vrai
+  en théorie, sans objet ici : il n'y a qu'un compte `compta`.
+
+### 31.3 Laissé ouvert, à votre appréciation
+
+Corriger un message ne réarme aucun drapeau de lecture : le destinataire a lu
+l'ancienne version, voit la marque « modifié » s'il rouvre le fil, mais rien ne
+le rappelle. On pourrait faire repasser le message en non lu quand le texte
+change réellement. C'est un choix, pas un défaut : à dire si vous le voulez.
