@@ -240,6 +240,14 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .bulle .qui-msg{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;opacity:.75}
 .bulle .txt{font-size:14.5px;white-space:pre-wrap;word-break:break-word}
 .bulle .quand{font-size:11px;color:var(--gris);margin-top:4px}
+.bandeau-msg{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:var(--bleu);color:#fff;border-radius:14px;padding:13px 15px;margin-bottom:12px;
+  font-size:15px;font-weight:600;box-shadow:0 2px 8px rgba(1,167,107,.28)}
+.bandeau-msg:active{filter:brightness(.95)}
+.bm-pt{flex:none;min-width:24px;height:24px;border-radius:99px;background:rgba(255,255,255,.25);
+  display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.bm-t{flex:1}
+.bm-fl{flex:none;font-size:22px;line-height:1;opacity:.8}
 .lien-jour{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:12.5px;
   font-weight:600;color:var(--bleu-f);background:var(--carte);border:1px solid var(--ligne);
   border-radius:99px;padding:4px 11px;cursor:pointer}
@@ -310,6 +318,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <div class="titre-carte">📄 Mes bulletins de salaire</div>
     <div id="emp-bulletins"></div>
   </div>
+  <div id="emp-autres-mois" hidden></div>
   <div class="carte" id="carte-questions">
     <div class="titre-carte">💬 Une question sur ce mois ?<span class="pastille" id="emp-msg-pastille" hidden></span></div>
     <div class="muet" style="margin-bottom:8px" id="emp-msg-aide"></div>
@@ -681,7 +690,7 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
-  msgJour: null, msgEdit: null,
+  msgJour: null, msgEdit: null, autresMois: [],
   jrJours: 14, jrQui: null, journal: [], jrActeurs: [],
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
@@ -1420,13 +1429,45 @@ function bulleMsg(m) {
 }
 async function chargerMsgEmp() {
   try {
-    const res = await rpc('messages_lire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+    // p_marquer faux : ouvrir l'application n'est pas lire. Le marquage se fait
+    // quand la carte des questions est réellement à l'écran (voir veilleQuestions).
+    const res = await rpc('messages_lire', {
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_marquer: false });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); return; }
     S.messages = res.messages; S.msgNonLus = res.non_lus; S.msgCharges = true;
+    S.autresMois = res.autres_mois || [];
     renderMsgEmp();
   } catch (e) { toast(e.message); }
 }
+// Le technicien arrive toujours dans le mois courant. Un message reçu à propos
+// d'un mois précédent est alors invisible : le fil affiché n'est pas le sien.
+// Le bandeau le dit en haut de l'écran, avant tout le reste, et y emmène.
+function libMois(a, m) { return MOIS[m - 1] + (a !== S.annee ? ' ' + a : ''); }
+function renderBandeauMois() {
+  const b = $('emp-autres-mois');
+  if (!b) return;
+  const autres = S.autresMois || [];
+  if (!autres.length) { b.hidden = true; b.innerHTML = ''; return; }
+  b.hidden = false;
+  b.innerHTML = autres.map(x => {
+    const n = x.non_lus;
+    return '<button class="bandeau-msg" data-a="' + x.annee + '" data-m="' + x.mois + '">' +
+      '<span class="bm-pt">' + n + '</span>' +
+      '<span class="bm-t">nouveau' + (n > 1 ? 'x' : '') + ' message' + (n > 1 ? 's' : '') +
+      ' — ' + esc(libMois(x.annee, x.mois)) + '</span><span class="bm-fl">›</span></button>';
+  }).join('');
+  b.querySelectorAll('[data-a]').forEach(btn => btn.addEventListener('click', () => {
+    S.annee = Number(btn.dataset.a); S.mois = Number(btn.dataset.m);
+    S.msgCharges = false;
+    charger();
+    setTimeout(() => {
+      const c = $('carte-questions');
+      if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  }));
+}
 function renderMsgEmp() {
+  renderBandeauMois();
   const p = $('emp-msg-pastille');
   p.hidden = !S.msgNonLus;
   if (S.msgNonLus) p.textContent = S.msgNonLus;
@@ -1435,6 +1476,25 @@ function renderMsgEmp() {
     : 'Posez votre question sur ' + MOIS[S.mois - 1] + ' ' + S.annee + ' — le back office vous répondra ici.';
   $('emp-msg-fil').innerHTML = S.messages.map(bulleMsg).join('');
   brancherLiensJour($('emp-msg-fil'), S.moi.id);
+  veilleQuestions();
+}
+// « Lu » veut dire vu. On attend que la carte des questions soit réellement
+// à l'écran — pas qu'elle existe quelque part plus bas dans la page.
+let observateurQuestions = null;
+function veilleQuestions() {
+  if (!S.msgNonLus || observateurQuestions || typeof IntersectionObserver === 'undefined') return;
+  const carte = $('carte-questions');
+  if (!carte) return;
+  observateurQuestions = new IntersectionObserver(async entrees => {
+    if (!entrees.some(e => e.isIntersecting)) return;
+    observateurQuestions.disconnect(); observateurQuestions = null;
+    try {
+      const r = await rpc('messages_marquer_lus',
+        { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+      if (r && r.ok) { S.msgNonLus = r.non_lus; renderMsgEmp(); }
+    } catch (e) { /* sans conséquence : le message reste non lu, on réessaiera */ }
+  }, { threshold: 0.4 });
+  observateurQuestions.observe(carte);
 }
 async function envoyerMsgEmp() {
   const texte = $('emp-msg-texte').value.trim();
