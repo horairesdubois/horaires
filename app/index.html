@@ -1069,6 +1069,8 @@ const JR = {
   message:        ['💬', e => 'a écrit à ' + e.cible],
   message_lu:     ['👀', e => 'a lu le message' + (e.cible ? ' de ' + e.cible : '')],
   message_modifie:['✍️', e => 'a corrigé son message' + (e.cible ? ' à ' + e.cible : '')],
+  message_supprime:['🗑', e => 'a supprimé son message' + (e.cible ? ' à ' + e.cible : '') +
+    ((e.detail || {}).deja_lu === true ? ' — déjà lu' : '')],
   deconnexion:    ['🚪', e => 's’est déconnecté'],
   bulletin_depose:   ['📄', e => 'a déposé le bulletin ' + jrPeriode(e) + ' de ' + e.cible],
   bulletin_supprime: ['🗑', e => 'a supprimé le bulletin ' + jrPeriode(e) + ' de ' + e.cible],
@@ -1672,6 +1674,8 @@ function renderMessages() {
               '<div class="txt">' + esc(m.texte) + '</div>' + pastilleJour(m) +
               '<div class="quand">' + esc(m.quand) + (m.modifie ? ' · modifié' : '') +
               (mien ? ' <button class="lien-mod" data-mod="' + esc(m.id) + '">Modifier</button>' : '') +
+              (mien && moiRole === 'admin'
+                ? ' <button class="lien-mod" data-sup="' + esc(m.id) + '">Supprimer</button>' : '') +
               '</div></div>';
           }).join('')
         : '<div class="fil-vide">Aucun échange avec ' + esc(libFil) + ' pour ' +
@@ -1720,6 +1724,8 @@ function renderMessages() {
       t.value = m.texte; t.focus();
       t.setSelectionRange(t.value.length, t.value.length);
     }));
+  $('ong-messages').querySelectorAll('[data-sup]').forEach(b =>
+    b.addEventListener('click', () => supprimerMessage(b.dataset.sup)));
   brancherLiensJour($('ong-messages'), S.filMsg);
   $('ong-messages').querySelectorAll('.fils button').forEach(b =>
     b.addEventListener('click', () => {
@@ -1739,6 +1745,24 @@ function renderMessages() {
     }));
   if (!S.msgCharges) chargerMessages();
   else if (S.ongletAdmin === 'messages') marquerFilLu();
+}
+// Un message parti par erreur s'enlève pour de bon : pas de « message
+// supprimé » dans le fil, l'autre partie ne doit rien voir passer. La trace
+// reste au journal, que seul le back office ouvre.
+async function supprimerMessage(id) {
+  const m = S.messages.find(x => x.id === id);
+  if (!m) return;
+  const extrait = m.texte.length > 60 ? m.texte.slice(0, 60) + '…' : m.texte;
+  if (!confirm('Supprimer ce message ?\n\n« ' + extrait + ' »\n\n' +
+      'Il disparaîtra du fil sans laisser de trace visible. Cette action est définitive.')) return;
+  try {
+    const res = await rpc('message_supprimer', { p_token: S.token, p_id: id });
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
+    if (S.msgEdit === id) { S.msgEdit = null; S.msgJour = null; }  // on corrigeait celui-là
+    toast('Message supprimé');
+    S.msgCharges = false;
+    await chargerMessages();
+  } catch (e) { toast(e.message); }
 }
 function quitterCorrection() {
   S.msgEdit = null; S.msgJour = null;
