@@ -99,13 +99,11 @@ h1{font-size:22px;font-weight:700}
 .pt.ok{background:var(--ok)}
 .pt.attente{background:var(--attn)}
 .pt.vide{background:var(--neutre)}
-.pt.envoye{background:#fff;box-shadow:inset 0 0 0 2.5px var(--ok)}
 /* Sur la pastille sombre du jour choisi, la couleur s'éclaircit — elle ne
    disparaît pas : un jour confirmé reste vert quand on le regarde. */
 .bande .sel .pt.ok{background:#4ade80}
 .bande .sel .pt.attente{background:#fbbf24}
 .bande .sel .pt.vide{background:#8fa0b4}
-.bande .sel .pt.envoye{background:var(--texte);box-shadow:inset 0 0 0 2.5px #4ade80}
 .legende{display:flex;gap:11px;flex-wrap:wrap;justify-content:center;margin:0 0 12px;
   font-size:11px;color:var(--gris)}
 .legende span{display:inline-flex;align-items:center;gap:5px}
@@ -123,9 +121,7 @@ h1{font-size:22px;font-weight:700}
 .jour-sel .js-etat{flex:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;
   background:#eef2f5;color:var(--gris);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
 .jour-sel .js-etat.ok{background:#dcfce7;color:#15803d}
-.jour-sel .js-etat.envoye{background:#fff;box-shadow:inset 0 0 0 1.5px #86e0a5;color:#15803d}
 .jour-sel .js-etat.attente{background:#fef3c7;color:#92400e}
-.jour-sel .js-sous{font-size:12.5px;color:var(--gris);margin:-2px 0 12px}
 .jour-sel .js-chiffre{font-size:40px;font-weight:800;line-height:1.05;letter-spacing:-.02em;
   font-variant-numeric:tabular-nums;margin:6px 0 2px}
 .jour-sel .js-chiffre .sup{font-size:15px;font-weight:700;color:var(--ok);margin-left:8px;letter-spacing:0}
@@ -449,8 +445,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="bande-cadre"><div class="bande" id="emp-bande"></div></div>
   <div class="legende">
     <span><i class="pt vide"></i>à saisir</span>
-    <span><i class="pt attente"></i>à confirmer</span>
-    <span><i class="pt envoye"></i>envoyée</span>
+    <span><i class="pt attente"></i>à approuver</span>
     <span><i class="pt ok"></i>approuvée</span>
   </div>
 
@@ -461,7 +456,6 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     </div>
     <div class="js-chiffre" id="js-chiffre" hidden></div>
     <div class="js-heures" id="js-heures"></div>
-    <div class="js-sous" id="js-sous" hidden></div>
     <button class="btn vert large" id="btn-pointer"></button>
     <button class="js-lien" id="btn-modifier-jour">Corriger l’horaire ou signaler une absence</button>
   </div>
@@ -1161,32 +1155,26 @@ function etatJour(p, iso, js, auj) {
   if (iso === auj) return 'aujourdhui';          // pas en retard : la journée court encore
   return 'manquant';
 }
-/* Quatre états, dans l'ordre où le technicien les vit :
-     rien saisi → il envoie → le back office approuve.
-   Le point le suit : gris (rien), ambre (un geste attendu de lui), cerclé de
-   vert (parti, en attente d'approbation), vert plein (approuvé). Sans ce
-   quatrième signe, une journée envoyée et une journée approuvée se
-   ressemblaient — et il ne savait pas ce qui restait à approuver. */
-const MARQUE = { valide: 'ok', confirme: 'envoye', attente: 'attente',
+/* Trois états, pas un de plus. Le technicien n'a que trois questions :
+   qu'est-ce que je dois saisir, qu'est-ce qui attend l'approbation du back
+   office, et qu'est-ce qui est approuvé.
+     gris  = à saisir
+     ambre = à approuver
+     vert  = approuvée
+   Une journée posée par le back office qu'il n'a pas encore confirmée tombe
+   dans « à approuver » : elle n'est pas approuvée, et c'est tout ce qu'il a
+   besoin de savoir — le bouton de la carte, lui, propose de la confirmer. */
+const MARQUE = { valide: 'ok', confirme: 'attente', attente: 'attente',
                  manquant: 'vide', aujourdhui: 'vide' };
 const ETAT_LIB = {
   valide:   ['Approuvée', 'ok'],
-  confirme: ['À approuver', 'envoye'],
-  attente:  ['À confirmer', 'attente'],
-  manquant: ['À saisir', 'attente'],
-  aujourdhui: ['À saisir', 'attente'],
+  confirme: ['À approuver', 'attente'],
+  attente:  ['À approuver', 'attente'],
+  manquant: ['À saisir', 'vide'],
+  aujourdhui: ['À saisir', 'vide'],
   ferie:    ['Jour férié', ''],
   weekend:  ['Week-end', ''],
   futur:    ['À venir', '']
-};
-// La phrase qui explique où en est la journée, sous le chiffre.
-const ETAT_SOUS = {
-  valide:   'Approuvée par le back office — elle ne bouge plus.',
-  confirme: 'Envoyée. Le back office ne l’a pas encore approuvée.',
-  attente:  'Posée par le back office : vérifiez l’horaire, puis confirmez-le.',
-  manquant: '',
-  aujourdhui: '',
-  ferie: '', weekend: '', futur: ''
 };
 
 /* Tout le mois sur une ligne. C'était l'objet d'une liste verticale qu'il
@@ -1231,12 +1219,11 @@ function renderJourSel(map, auj) {
   // La carte se teinte de l'état : vert quand c'est fait, ambre quand il reste
   // un geste. C'est la seule couleur de fond de l'écran, donc la seule chose
   // qu'on regarde en premier.
+  // La carte ne se teinte que là où il a quelque chose à faire — vert quand
+  // c'est approuvé, ambre quand il doit saisir. Une journée envoyée qui attend
+  // le back office ne réclame rien : elle reste blanche.
   $('carte-jour-sel').className = 'carte jour-sel ' +
-    (ton === 'ok' || ton === 'envoye' ? 'fait' : ton === 'attente' ? 'afaire' : '');
-  // Dire où en est la journée, en une phrase : « envoyée » et « approuvée » ne
-  // doivent pas se deviner à la couleur d'un point.
-  $('js-sous').hidden = !ETAT_SOUS[e];
-  $('js-sous').textContent = ETAT_SOUS[e] || '';
+    (ton === 'ok' ? 'fait' : ton === 'vide' ? 'afaire' : '');
 
   const type = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
     ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
@@ -1331,9 +1318,8 @@ function renderResumeMois(jours, map, auj, moisCourant) {
     : aConfirmer > 0
       ? '<span class="rappel att">⚠ ' + aConfirmer + ' journée' + (aConfirmer > 1 ? 's' : '') + ' à confirmer</span>'
       : aApprouver > 0
-        ? '<span class="rappel att" style="color:#15803d">' + aApprouver + ' journée' +
-          (aApprouver > 1 ? 's' : '') + ' envoyée' + (aApprouver > 1 ? 's' : '') +
-          ', en attente d’approbation</span>'
+        ? '<span class="rappel att">' + aApprouver + ' journée' + (aApprouver > 1 ? 's' : '') +
+          ' à approuver</span>'
         : (moisCommence ? '<span class="rappel ok">✓ Tout est approuvé</span>' : '');
 
   let chips = '';
@@ -1371,9 +1357,7 @@ function renderListeMois(jours, map, auj) {
       '<div class="contenu"><div class="heures-txt">' +
         (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
-      (e === 'attente' ? '<div class="rem" style="color:#8a6116">À confirmer</div>'
-        : e === 'manquant' ? '<div class="rem" style="color:#8a6116">À saisir</div>'
-        : e === 'confirme' ? '<div class="rem" style="color:#15803d">Envoyée, à approuver</div>' : '') + '</div>' +
+      '</div>' +
       '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') +
       (heuresSupJour(p, j.iso, j.js) ? ' <span class="delta-sup">+' + fmtMin(heuresSupJour(p, j.iso, j.js)) + '</span>' : '') +
       '</div></button>';

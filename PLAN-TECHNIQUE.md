@@ -2113,53 +2113,54 @@ Les quatre suites d'essais passent.
 
 ---
 
-## 44. Ce que le technicien a envoyé, et ce qui reste à approuver
+## 44. Trois états, pas un de plus
 
-Le mot manquait. L'écran disait « Confirmée » pour une journée que le technicien
-venait d'envoyer et « Validée » pour une journée que le back office avait
-approuvée — deux mots proches, **la même couleur verte**, et donc aucun moyen de
-savoir ce qui restait en attente.
+Le mot manquait, puis il y en a eu trop. Deux passages, et la leçon du second.
 
-### 44.1 Quatre états, dans l'ordre où il les vit
+### 44.1 Ce qui manquait
+
+L'écran disait « Confirmée » pour une journée que le technicien venait d'envoyer
+et « Validée » pour une journée que le back office avait approuvée — deux mots
+proches, **la même couleur verte**, et donc aucun moyen de savoir ce qui restait
+en attente.
+
+### 44.2 Ce qui était de trop
+
+La première réponse distinguait quatre états — à saisir, à confirmer, envoyée,
+approuvée — avec quatre signes, une phrase explicative sous le chiffre, et des
+mentions supplémentaires dans le détail du mois. C'était exact, et c'était trop :
+le technicien n'a que **trois** questions.
 
 | Ce qu'il voit | Le point | Ce que ça veut dire |
 |---|---|---|
-| **À saisir** | gris plein | rien n'est enregistré |
-| **À confirmer** | ambre plein | le back office a posé la journée : à vérifier, puis confirmer |
-| **À approuver** | **cerclé de vert** | il l'a envoyée ; le back office ne l'a pas encore approuvée |
-| **Approuvée** | vert plein | c'est fini, la journée ne bouge plus |
+| **À saisir** | gris | rien n'est enregistré |
+| **À approuver** | ambre | c'est saisi, le back office ne l'a pas encore approuvé |
+| **Approuvée** | vert | c'est fini, la journée ne bouge plus |
 
-Le cercle vert est le signe qui manquait : parti, mais pas encore arrivé. Un
-plein et un cerclé se distinguent à huit pixels, deux verts non.
+Une journée posée par le back office qu'il n'a pas confirmée tombe dans « à
+approuver » : elle n'est pas approuvée, et c'est tout ce qu'il a besoin de
+savoir. Le bouton de la carte, lui, propose de la confirmer — la nuance vit dans
+le geste, pas dans une étiquette de plus.
 
-### 44.2 Et la couleur ne suffit pas
+Sont retirés : la phrase sous le chiffre, les mentions « À confirmer » et
+« Envoyée, à approuver » du détail du mois, et le quatrième signe.
 
-Sous le chiffre, une phrase dit l'état en toutes lettres — un point de couleur
-se devine, une phrase se lit :
+### 44.3 La teinte de la carte suit la même règle
 
-- *« Envoyée. Le back office ne l'a pas encore approuvée. »*
-- *« Approuvée par le back office — elle ne bouge plus. »*
-- *« Posée par le back office : vérifiez l'horaire, puis confirmez-le. »*
+Verte quand c'est approuvé, ambre quand il doit saisir, **blanche quand la
+journée est partie** — une journée qui attend le back office ne réclame rien de
+lui.
 
-Le résumé du mois compte lui aussi : **« 2 journées envoyées, en attente
-d'approbation »**, et « ✓ Tout est approuvé » quand il n'en reste plus. La
-modale de saisie parle la même langue : « Approuvé par le back office —
-modification impossible ».
-
-Un seul mot par chose, partout : *à saisir* remplace « à compléter »,
-*approuvé* remplace « validé ».
-
-### 44.3 Retiré
+### 44.4 Aussi retiré
 
 « Posez votre question sur septembre 2026 — le back office vous répondra ici. »
-Le champ de saisie porte déjà son invite ; la phrase ne disait rien de plus.
+Le champ de saisie porte déjà son invite.
 
-### 44.4 Vérifications
+Et un seul mot par chose, partout : *à saisir* remplace « à compléter »,
+*approuvé* remplace « validé », y compris dans la fenêtre de saisie.
 
-La phrase d'état coûtait 78 px : trois lignes de relevé au lieu de quatre, un peu
-d'air retiré là où il ne manque à personne, et la marge basse de la vue ramenée
-de 60 à 26 px — **hauteur 844 pour une fenêtre de 844, toujours aucun
-défilement**, y compris avec la phrase affichée.
+### 44.5 Vérifications
 
-Les quatre états rendus et relevés un à un (`tests/etats-journee.mjs`), et les
-six suites d'essais passent.
+Les trois états rendus et relevés un à un (`tests/etats-journee.mjs`) ; hauteur
+844 pour une fenêtre de 844, **toujours aucun défilement** ; les six suites
+d'essais passent.

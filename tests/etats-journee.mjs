@@ -1,4 +1,4 @@
-// Essai d’écran, serveur simulé : les quatre états d’une journée, vus du technicien.
+// Essai d’écran, serveur simulé : les trois états d’une journée, vus du technicien.
 // Lancer : npm i playwright && node tests/etats-journee.mjs
 import { chromium } from 'playwright';
 const D={id:'D1',prenom:'Démo',nom:'',metier:"Compte d'essai",role:'employe',actif:true,demo:false,
@@ -27,9 +27,9 @@ for (const [jour,nom] of [['2026-09-02','etat-envoye'],['2026-09-01','etat-appro
   await pg.waitForTimeout(300);
   const r=await pg.evaluate(()=>({
     pastille:document.getElementById('js-etat').textContent,
-    phrase:document.getElementById('js-sous').hidden?'—':document.getElementById('js-sous').textContent,
+
     h:document.documentElement.scrollHeight}));
-  console.log(nom.padEnd(17), '→', r.pastille.padEnd(14), '|', r.phrase);
+  console.log(nom.padEnd(17), '→', r.pastille);
   if (nom==='etat-envoye') await pg.screenshot({path:R+'etats.png'});
 }
 console.log('rappel du mois  :', await pg.evaluate(()=>document.getElementById('emp-etat').textContent));
