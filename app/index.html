@@ -897,7 +897,8 @@ function moisNav(delta) {
   if (S.mois < 1) { S.mois = 12; S.annee--; }
   S.deplieAvant = false; S.deplieApres = false;
   S.messages = []; S.msgCharges = false; // chaque mois a son propre fil de questions
-  charger();
+  S.fils = [];                           // sinon les pastilles du mois précédent
+  charger();                             // s'affichent sous le titre du nouveau
 }
 
 /* ---------- Résumé absences ---------- */
@@ -1647,8 +1648,16 @@ function ongletsFils() {
   // Le fil sans employé est celui que la direction et la fiduciaire partagent.
   // On le nomme par l'interlocuteur, pas par un mot vide : « Général » ne
   // disait pas avec qui l'on parle.
+  //
+  // Un collaborateur désactivé disparaît de la liste, mais pas ses messages :
+  // ils restent comptés dans la pastille et plus aucun bouton ne les atteint.
+  // On rouvre donc son fil tant qu'il porte quelque chose ce mois-ci — le
+  // serveur nous en donne le nom, on n'a pas à le deviner.
+  const actifs = new Set(emps.map(e => e.id));
+  const partis = S.fils.filter(f => f.employe_id && !actifs.has(f.employe_id));
   return '<div class="fils">' + bouton(null, estCompta() ? 'Direction' : 'Fiduciaire') +
-    emps.map(e => bouton(e.id, e.prenom)).join('') + '</div>';
+    emps.map(e => bouton(e.id, e.prenom)).join('') +
+    partis.map(f => bouton(f.employe_id, f.nom)).join('') + '</div>';
 }
 function renderMessages() {
   const moiRole = S.moi.role;
