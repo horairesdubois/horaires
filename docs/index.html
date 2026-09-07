@@ -195,6 +195,9 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .aide-det{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-size:13px}
 .aide-det b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
   border-radius:6px;background:var(--vert);color:#fff;font-size:12px;flex:none}
+.demo-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+  background:#eef2f5;color:#334155;border-radius:99px;padding:2px 8px;margin-left:7px;
+  vertical-align:middle}
 .retards{background:#fef7e6;border:1px solid #f0dcb0;border-radius:12px;padding:11px 13px;margin-bottom:12px}
 .retards .t{font-size:12px;font-weight:700;color:#8a6116;text-transform:uppercase;letter-spacing:.3px;margin-bottom:7px}
 .retards button{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;padding:4px 0;font-size:14px;color:#5b4412}
@@ -2120,9 +2123,11 @@ async function copierLien(cle, prenom) {
 function renderEmployes() {
   // Les deux accès non techniciens portent déjà leur rôle comme nom :
   // « Back Office » et « Fiduciaire ». Pas d'étiquette qui répète le nom.
-  const etiquette = e => '';
+  const etiquette = e => e.demo ? '<span class="demo-lbl">démonstration</span>' : '';
   const sousTitre = e => e.role === 'compta' ? 'Accès en consultation et export'
     : e.role === 'admin' ? 'Accès complet · validation des heures'
+    : e.demo ? 'Pour essayer l’écran technicien — rien n’est inscrit au journal, ' +
+               'et ce compte est exclu de l’export et de la vue fiduciaire'
     : (e.metier || '') + ' · CCT ' + cctDe(e).nom;
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
@@ -2144,8 +2149,10 @@ function renderEmployes() {
 }
 function renderExport() {
   const map = ptgMap();
+  // Le compte de démonstration n'a rien à faire dans un document comptable :
+  // ni proposé ici, ni fabriqué plus bas si quelqu'un force la sélection.
   const choix = S.employes.filter(e =>
-    (e.actif || Object.keys(map[e.id] || {}).length) && e.role !== 'compta' &&
+    !e.demo && (e.actif || Object.keys(map[e.id] || {}).length) && e.role !== 'compta' &&
     (e.role !== 'admin' || Object.keys(map[e.id] || {}).length)).map(e =>
     '<label><input type="checkbox" data-id="' + e.id + '" ' + (e.role === 'admin' ? '' : 'checked') + '> ' +
     esc(nomComplet(e)) + ' <span class="muet">' + esc(e.metier || '') + (e.actif ? '' : ' · désactivé') + '</span></label>').join('');
@@ -2447,7 +2454,9 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   return { ws, totMin: totTrav, totCred, totDues, totPlus, totMoins, totMaj, solde, absCnt, valide, nApp, present, jt, cct };
 }
 async function exporterExcel() {
-  const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked')).map(c => c.dataset.id);
+  const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked'))
+    .map(c => c.dataset.id)
+    .filter(id => { const e = S.employes.find(x => x.id === id); return e && !e.demo; });
   if (!ids.length) { toast('Sélectionnez au moins un employé'); return; }
   const btn = $('btn-export');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Préparation…';
