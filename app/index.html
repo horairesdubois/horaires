@@ -192,6 +192,11 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
   color:#8a6116;margin-bottom:3px}
 .mj-alerte{font-size:13px;color:#8a6116;background:#fef7e6;border-radius:8px;
   padding:7px 10px;margin-top:6px;display:none}
+.rallonge{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 10px}
+.rallonge .lib{font-size:12px;color:var(--gris);flex:none;min-width:96px}
+.rallonge button{flex:none;font-size:13px;font-weight:600;padding:6px 11px;border-radius:99px;
+  background:var(--fond);color:var(--bleu-f);border:1px solid var(--ligne);font-variant-numeric:tabular-nums}
+.rallonge button:active{background:var(--ligne)}
 .aide-det{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-size:13px}
 .aide-det b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
   border-radius:6px;background:var(--vert);color:#fff;font-size:12px;flex:none}
@@ -386,6 +391,20 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
         <div class="champ-h"><label>Début</label><input type="time" id="mj-ad"><button class="now" data-cible="mj-ad" title="Maintenant">⏱</button></div>
         <div class="champ-h"><label>Fin</label><input type="time" id="mj-af"><button class="now" data-cible="mj-af" title="Maintenant">⏱</button></div>
       </div>
+    </div>
+    <div class="rallonge" id="mj-rallonge">
+      <span class="lib">Fini plus tard</span>
+      <button type="button" data-fin="15">+15 min</button>
+      <button type="button" data-fin="30">+30 min</button>
+      <button type="button" data-fin="60">+1 h</button>
+      <button type="button" data-fin="-15">−15 min</button>
+    </div>
+    <div class="rallonge" id="mj-avance">
+      <span class="lib">Commencé plus tôt</span>
+      <button type="button" data-debut="-15">−15 min</button>
+      <button type="button" data-debut="-30">−30 min</button>
+      <button type="button" data-debut="-60">−1 h</button>
+      <button type="button" data-debut="15">+15 min</button>
     </div>
     <div class="mj-demande" id="mj-demande" hidden></div>
     <input type="text" id="mj-rem" placeholder="Remarque (chantier, client…)" maxlength="200">
@@ -1321,7 +1340,39 @@ function majStatuts() {
   $('mj-statut-a').value = MJ.apm;
   $('mj-heures-m').style.display = MJ.matin === 'travail' ? '' : 'none';
   $('mj-heures-a').style.display = MJ.apm === 'travail' ? '' : 'none';
+  majRallonges();
   majTotalApercu();
+}
+/* Rallonger une journée à la main, sur un téléphone, c'est ouvrir un sélecteur
+   d'heure et faire défiler deux molettes. Deux appuis sur « +1 h » disent la
+   même chose. Les raccourcis agissent sur la demi-journée qui compte : la fin
+   de l'après-midi si l'on y travaille, sinon celle du matin — et
+   symétriquement pour le début. */
+function champFin() {
+  if (MJ.apm === 'travail') return 'mj-af';
+  if (MJ.matin === 'travail') return 'mj-mf';
+  return null;
+}
+function champDebut() {
+  if (MJ.matin === 'travail') return 'mj-md';
+  if (MJ.apm === 'travail') return 'mj-ad';
+  return null;
+}
+function decaler(champ, minutes) {
+  if (!champ || MJ.verrou) return;
+  const e = $(champ);
+  // Champ vide : on part de l'horaire type plutôt que de minuit.
+  const base = e.value || defPour(champ);
+  const [h, m] = base.split(':').map(Number);
+  let t = h * 60 + m + minutes;
+  t = Math.max(0, Math.min(23 * 60 + 59, t));      // on ne déborde pas du jour
+  e.value = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+  majTotalApercu();
+}
+function majRallonges() {
+  const f = !!champFin(), d = !!champDebut();
+  $('mj-rallonge').style.display = (f && !MJ.verrou) ? '' : 'none';
+  $('mj-avance').style.display   = (d && !MJ.verrou) ? '' : 'none';
 }
 function majTotalApercu() {
   const min = demiMin(MJ.matin, $('mj-md').value, $('mj-mf').value) + demiMin(MJ.apm, $('mj-ad').value, $('mj-af').value);
@@ -1355,8 +1406,7 @@ function majAlerteSup() {
   const vide = !$('mj-rem').value.trim();
   a.style.display = (sup > 0 && vide && !MJ.verrou) ? 'block' : 'none';
   if (sup > 0 && vide) {
-    a.textContent = '⚠ ' + fmtMin(sup) + ' de plus que la journée type — dites en un mot pourquoi ' +
-      '(déplacement, urgence, chantier prolongé…).';
+    a.textContent = '⚠ ' + fmtMin(sup) + ' supplémentaires détectées, merci de les motiver dans la remarque.';
   }
 }
 function ouvrirJour(empId, jour) {
@@ -1425,7 +1475,7 @@ async function sauverJour() {
   if (MJ.verrou) return;
   const sup = supEnCours();
   if (sup > 0 && !$('mj-rem').value.trim() &&
-      !confirm(fmtMin(sup) + ' de plus que la journée type, sans explication.\n\n' +
+      !confirm(fmtMin(sup) + ' supplémentaires détectées, sans motif.\n\n' +
                'Enregistrer quand même ? La journée sera signalée au back office.')) {
     $('mj-rem').focus();
     return;
@@ -2586,6 +2636,10 @@ function init() {
   initLogin();
   initStatuts();
   $('mj-rem').addEventListener('input', majAlerteSup);   // écrire fait taire l'avertissement
+  $('mj-rallonge').querySelectorAll('[data-fin]').forEach(b =>
+    b.addEventListener('click', () => decaler(champFin(), Number(b.dataset.fin))));
+  $('mj-avance').querySelectorAll('[data-debut]').forEach(b =>
+    b.addEventListener('click', () => decaler(champDebut(), Number(b.dataset.debut))));
   ['mj-md', 'mj-mf', 'mj-ad', 'mj-af'].forEach(id => {
     $(id).addEventListener('input', majTotalApercu);
     // Champ vide touché → on propose directement l'heure de la journée type.

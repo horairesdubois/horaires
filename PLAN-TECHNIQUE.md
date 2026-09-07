@@ -1784,11 +1784,11 @@ l'écarter, c'est demandé uniquement lorsqu'il y a des heures supplémentaires
 rajoutées ».*
 
 - Pendant la saisie, dès que la journée dépasse la journée type et que la
-  remarque est vide, une ligne apparaît sous le champ : **« ⚠ 2h00 de plus que
-  la journée type — dites en un mot pourquoi »**. Elle suit la frappe et
-  disparaît dès qu'il écrit.
-- À l'enregistrement, une dernière question : *« 2h00 de plus, sans
-  explication. Enregistrer quand même ? La journée sera signalée au back
+  remarque est vide, une ligne apparaît sous le champ : **« ⚠ 2h00
+  supplémentaires détectées, merci de les motiver dans la remarque. »** Elle
+  suit la frappe et disparaît dès qu'il écrit.
+- À l'enregistrement, une dernière question : *« 2h00 supplémentaires détectées,
+  sans motif. Enregistrer quand même ? La journée sera signalée au back
   office. »* Il peut passer outre — un technicien pressé à 19h doit pouvoir
   enregistrer. Mais la journée part alors marquée, et cela se voit.
 
@@ -1919,3 +1919,43 @@ office reste en `localStorage` ; le back office rechargé est toujours lui-même
 se déconnecter de l'aperçu ne lui retire rien ; le lien d'aperçu collé à la main
 ne pose aucune question ; et le lien d'un **vrai** compte, lui, prévient avant
 de fermer la session — refusée, on reste où l'on était.
+
+
+---
+
+## 41. Rallonger la journée sans ouvrir le sélecteur d'heure
+
+Rallonger une journée à la main, sur un téléphone, c'est ouvrir un sélecteur
+d'heure et faire défiler deux molettes. Deux appuis sur « +1 h » disent la même
+chose, et c'est là que se joue la différence entre une saisie faite le soir même
+et une saisie reconstruite de mémoire quatre jours plus tard.
+
+Deux rangées de raccourcis dans la modale du jour :
+
+| | |
+|---|---|
+| **Fini plus tard** | +15 min · +30 min · +1 h · −15 min |
+| **Commencé plus tôt** | −15 min · −30 min · −1 h · +15 min |
+
+Les deux sens sont offerts dans chaque rangée : on corrige un appui de trop sans
+rouvrir le sélecteur.
+
+### 41.1 Ce sur quoi ils agissent
+
+La demi-journée qui compte, et elle seule : la fin de l'après-midi si l'on y
+travaille, sinon celle du matin — et symétriquement pour le début. Une
+demi-journée d'absence n'est jamais touchée, et si la journée entière est une
+absence, les deux rangées disparaissent.
+
+Un champ vide part de l'horaire type plutôt que de minuit, et rien ne déborde du
+jour : on reste entre 00:00 et 23:59.
+
+### 41.2 Vérifications
+
+Dans un vrai navigateur, serveur simulé (`tests/raccourcis-heures.mjs`) : la
+journée type à 8h00 sans avertissement ; « +1 h » → 18:00 et 9h00, avec
+l'avertissement qui apparaît ; « +30 min » → 18:30 et 9h30 ; « −1 h » au début →
+07:00 et 10h30 ; « −15 min » → 18:15 et 10h15 — l'avertissement suivant le total
+à chaque fois. Puis l'après-midi mis en vacances : « +1 h » vise bien le matin.
+Les deux demi-journées absentes : les rangées disparaissent. Et le texte exact,
+à l'écran comme à l'enregistrement.
