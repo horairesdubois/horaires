@@ -170,8 +170,8 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-nb{font-size:11px;font-weight:700;background:var(--fond);color:var(--gris);
   border-radius:99px;padding:1px 6px;min-width:18px;text-align:center}
 .jr-qui button.actif .jr-nb{background:rgba(255,255,255,.25);color:#fff}
-.jr-jour{font-weight:700;font-size:13px;color:var(--gris);margin:16px 0 6px;text-transform:capitalize}
-.jr-jour:first-child{margin-top:0}
+.jr-jour{font-weight:700;font-size:13px;color:var(--gris);margin:16px 0 6px}
+.jr-jour:first-of-type{margin-top:0}
 .jr-l{display:flex;align-items:baseline;gap:10px;background:var(--carte);border-radius:10px;
   padding:9px 12px;margin-bottom:5px;box-shadow:0 1px 2px rgba(15,23,42,.05);font-size:14px}
 .jr-h{font-variant-numeric:tabular-nums;color:var(--gris);font-size:13px;flex:none;width:42px}
@@ -238,7 +238,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   background:var(--rouge);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center}
 .onglets button.actif .pastille{background:#fff;color:var(--rouge)}
 
-/* ---- Messagerie direction ↔ fiduciaire ---- */
+/* ---- Messagerie back office ↔ fiduciaire ---- */
 .fil{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .bulle{max-width:88%;padding:10px 13px;border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .bulle .qui-msg{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;opacity:.75}
@@ -285,7 +285,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 <div id="v-login" class="vue" hidden>
   <div class="logo">⏱️</div>
   <h1>Horaires</h1>
-  <div class="sous">Accès réservé à la direction</div>
+  <div class="sous">Accès réservé au back office</div>
   <div class="muet" style="margin:-18px 0 22px">Techniciens et fiduciaire : ouvrez votre <b>lien personnel</b>, aucun code n’est nécessaire.</div>
   <div class="pin-aff" id="pin-aff"></div>
   <div id="login-err"></div>
@@ -337,7 +337,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="bandeau"><img id="adm-logo" class="logo-marque" alt="" hidden></div>
   <div class="entete">
     <div>
-      <div class="qui" id="adm-titre">Administration</div>
+      <div class="qui" id="adm-titre">Back Office</div>
       <div class="sous-qui" id="adm-entreprise-lib"></div>
     </div>
     <button class="ico" id="btn-sortir-adm" title="Se déconnecter">🚪</button>
@@ -399,7 +399,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   </div>
 </div>
 
-<!-- ============ MODALE REVUE (direction : détail avant validation) ============ -->
+<!-- ============ MODALE REVUE (back office : détail avant validation) ============ -->
 <div class="voile" id="voile-det">
   <div class="modale">
     <h2 id="det-titre"></h2>
@@ -524,21 +524,9 @@ function heuresDues(jours, map) {
   }
   return net;
 }
-function joursATraiter(jours, map) {
-  const auj = aujourdhui();
-  return jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !ferieGE(j.iso)
-    && aTraiter(map[j.iso]));
-}
-// Un jour compte encore s'il n'a aucune ligne, OU si la ligne a été posée par la
-// génération automatique et que personne ne l'a reprise à son compte. Sans cette
-// seconde branche, pré-remplir la veille éteindrait le bandeau et le bouton de
-// rattrapage, et le technicien lirait « à jour » pendant que le rappel de 9h00
-// lui réclame des confirmations.
-function aTraiter(p) {
-  return !p || (p.prerempli && !p.confirme && !p.approuve);
-}
 function joursManquants(jours, map) {
-  return joursATraiter(jours, map).length;
+  const auj = aujourdhui();
+  return jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso] && !ferieGE(j.iso)).length;
 }
 /* Jours fériés officiels du canton de Genève, calculés pour n'importe quelle
    année (source : ge.ch — 9 jours) : 1er janvier, Vendredi saint, lundi de
@@ -820,7 +808,7 @@ async function deconnexion() {
 }
 
 /* ---------- Marque de l'entreprise ---------- */
-// Demandée une seule fois par ouverture : la grille de la direction se
+// Demandée une seule fois par ouverture : la grille du back office se
 // rafraîchit toutes les minutes, et retransmettre le logo à chaque cycle
 // serait du gaspillage.
 async function chargerMarque() {
@@ -922,7 +910,7 @@ function renderEmp() {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = aujourdhui();
 
-  // Côté employé, pas de total mensuel ni de solde (ils restent côté direction
+  // Côté employé, pas de total mensuel ni de solde (ils restent côté back office
   // et dans l'export) : ce qui lui parle, c'est « reste-t-il des jours à saisir ? ».
   const abs = resumeAbsences(S.pointages);
   const manq = joursManquants(jours, map);
@@ -935,7 +923,7 @@ function renderEmp() {
   const pAuj = map[auj] || null;
   const aConfirmerAuj = !!(pAuj && !pAuj.confirme && !pAuj.approuve);
   $('emp-etat').innerHTML = manq > 0
-    ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à confirmer</div>'
+    ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</div>'
     : aConfirmerAuj
       ? '<div class="etat-mois attention">⚠ Journée d’aujourd’hui à confirmer</div>'
       : (moisCommence ? '<div class="etat-mois ok">✓ Vos heures sont à jour</div>' : '');
@@ -947,8 +935,8 @@ function renderEmp() {
   }
   $('emp-chips').innerHTML = chips;
   $('emp-remplir').innerHTML = manq > 0
-    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Confirmer les ' + manq +
-      ' jour' + (manq > 1 ? 's' : '') + ' en attente avec l’horaire normal</button>'
+    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter les ' + manq +
+      ' jour' + (manq > 1 ? 's' : '') + ' manquant' + (manq > 1 ? 's' : '') + ' avec l’horaire normal</button>'
     : '';
   if (manq > 0) $('btn-remplir').addEventListener('click', remplirManquants);
   $('carte-mois').hidden = !$('emp-etat').innerHTML && !chips && manq === 0;
@@ -974,7 +962,7 @@ function renderEmp() {
       $('btn-pointer').textContent = '✓ Journée confirmée' + (min ? ' · ' + fmtMin(min) : '');
       $('pointer-info').textContent = dateLib + ' — pour corriger, touchez le jour dans la liste.';
     } else if (p) {
-      // Journée déjà posée (horaire pré-rempli ou saisie par la direction) :
+      // Journée déjà posée (horaire pré-rempli ou saisie par le back office) :
       // le collaborateur doit pouvoir la confirmer, c'est ce qui atteste son passage.
       const min = jourMin(p);
       $('btn-pointer').disabled = false;
@@ -1063,7 +1051,11 @@ function renderEmp() {
   if (pp) pp.addEventListener('click', () => { S.deplieApres = !S.deplieApres; renderEmp(); });
 }
 
-/* ---------- Journal des actions (direction seulement) ---------- */
+/* ---------- Journal des actions — direction seulement ----------
+   Le journal répond à une question que « dernière connexion » ne couvre pas :
+   non pas quand quelqu'un est passé, mais ce qu'il a fait. Il se lit depuis la
+   direction et nulle part ailleurs : la base refuse la lecture à tout autre
+   rôle, y compris sur ses propres lignes. */
 const JR = {
   connexion:      ['🔑', e => 's’est connecté'],
   ouverture:      ['📱', e => 'a ouvert l’application'],
@@ -1147,7 +1139,8 @@ function renderJournal() {
   // minuit, il ne remonte pas à hier à la même heure.
   const choix = [[1, 'Aujourd’hui'], [7, '7 jours'], [30, '30 jours'], [90, '3 mois']];
   let html = '<div class="jr-filtres">' + choix.map(([v, lib]) =>
-    '<button data-jr="' + v + '"' + ((S.jrJours || 14) === v ? ' class="actif"' : '') + '>' + lib + '</button>').join('') + '</div>';
+    '<button data-jr="' + v + '"' + ((S.jrJours || 14) === v ? ' class="actif"' : '') +
+    '>' + lib + '</button>').join('') + '</div>';
 
   // Le journal d'une seule personne : c'est là qu'une habitude se lit. Mélangé,
   // il ne raconte qu'une suite d'événements.
@@ -1158,7 +1151,6 @@ function renderJournal() {
         (S.jrQui === a.id ? ' class="actif"' : '') + '>' + esc(a.nom) +
         '<span class="jr-nb">' + a.nb + '</span></button>').join('') + '</div>';
   }
-
   const lignes = S.journal || [];
   if (!lignes.length) {
     html += '<div class="muet">' + (S.jrQui
@@ -1167,7 +1159,7 @@ function renderJournal() {
   } else {
     let jourCourant = '';
     for (const e of lignes) {
-      if (e.jour !== jourCourant) { jourCourant = e.jour; html += '<div class="jr-jour">' + e.jour + '</div>'; }
+      if (e.jour !== jourCourant) { jourCourant = e.jour; html += '<div class="jr-jour">' + esc(e.jour) + '</div>'; }
       const d = JR[e.action] || ['•', x => x.action + (x.cible ? ' ' + x.cible : '')];
       const icone = typeof d[0] === 'function' ? d[0](e) : d[0];
       const auto = (e.detail || {}).par === 'systeme';
@@ -1191,7 +1183,7 @@ async function remplirManquants() {
   const jours = joursDuMois(S.annee, S.mois);
   const map = ptgMap()[S.moi.id] || {};
   const auj = aujourdhui();
-  const cibles = joursATraiter(jours, map);
+  const cibles = jours.filter(j => j.js >= 1 && j.js <= 5 && j.iso < auj && !map[j.iso] && !ferieGE(j.iso));
   if (!cibles.length) return;
   const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
     ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
@@ -1221,7 +1213,7 @@ async function remplirManquants() {
 async function journeeTypeAujourdhui() {
   const auj = aujourdhui();
   const p = (ptgMap()[S.moi.id] || {})[auj] || null;
-  if (p && p.approuve) return;            // verrouillée par la direction
+  if (p && p.approuve) return;            // verrouillée par le back office
   if (p && p.confirme) return;            // déjà confirmée : rien à refaire
   const args = p
     ? { p_token: S.token, p_jour: auj,     // confirmation : on reprend l'horaire tel quel
@@ -1310,7 +1302,7 @@ function ouvrirJour(empId, jour) {
   const btnApp = $('mj-approuver');
   if (admin && p) {
     btnApp.hidden = false;
-    btnApp.textContent = MJ.approuve ? '🔓 Déverrouiller ce jour' : '✓ Valider ce jour (direction)';
+    btnApp.textContent = MJ.approuve ? '🔓 Déverrouiller ce jour' : '✓ Valider ce jour (back office)';
   } else { btnApp.hidden = true; }
   majStatuts();
   $('voile-jour').classList.add('ouvert');
@@ -1457,7 +1449,7 @@ function enTrainDEcrire() {
 /* ---------- Questions (employé) ---------- */
 function bulleMsg(m) {
   // Pour le collaborateur, l'entreprise parle d'une seule voix : le back office.
-  const roles = { admin: 'Back office', compta: 'Back office', employe: m.auteur };
+  const roles = { admin: 'Back Office', compta: 'Back Office', employe: m.auteur };
   const moi = m.role === S.moi.role && (m.role !== 'employe' || m.employe_id === S.moi.id);
   return '<div class="bulle ' + (moi ? 'moi' : '') + '">' +
     '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + ' · ' + esc(m.quand) + '</div>' +
@@ -1551,7 +1543,7 @@ async function envoyerMsgEmp() {
 /* ---------- Vue admin ---------- */
 function renderAdmin() {
   const compta = estCompta();
-  $('adm-titre').textContent = compta ? 'Espace fiduciaire' : 'Administration';
+  $('adm-titre').textContent = compta ? 'Espace fiduciaire' : 'Back Office';
   $('adm-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
   $('adm-entreprise-lib').textContent = S.entreprise || (compta ? '' : 'Nom d’entreprise à définir (onglet Export)');
   // La fiduciaire ne gère pas les comptes ; elle consulte, exporte et pose ses questions.
@@ -1566,8 +1558,7 @@ function renderAdmin() {
   $('ong-bulletins').hidden = S.ongletAdmin !== 'bulletins';
   $('ong-messages').hidden = S.ongletAdmin !== 'messages';
   $('ong-journal').hidden = S.ongletAdmin !== 'journal';
-  // Le journal ne s'ouvre que depuis la direction : la fiduciaire n'a pas à
-  // savoir qu'on relève ses passages, et le technicien pas davantage.
+  // La fiduciaire n'a pas à savoir qu'on relève ses passages.
   $('ong-btn-journal').hidden = compta;
   if (S.ongletAdmin === 'equipe') renderEquipe();
   if (S.ongletAdmin === 'employes') renderEmployes();
@@ -1673,8 +1664,8 @@ function renderMessages() {
     ? (S.messages.length
         ? S.messages.map(m => {
             const roles = empFil
-              ? { admin: 'Back office', compta: 'Back office', employe: m.auteur }
-              : { admin: 'Direction', compta: 'Fiduciaire', employe: m.auteur };
+              ? { admin: 'Back Office', compta: 'Back Office', employe: m.auteur }
+              : { admin: 'Back Office', compta: 'Fiduciaire', employe: m.auteur };
             const mien = !m.automatique && m.auteur_id === S.moi.id;
             return '<div class="bulle ' + (m.role === moiRole ? 'moi' : 'eux') + '">' +
               '<div class="qui-msg">' + esc(roles[m.role] || m.auteur) + '</div>' +
@@ -1695,7 +1686,7 @@ function renderMessages() {
     '<div class="fil">' + fil + '</div>' +
     '<textarea id="msg-texte" maxlength="2000" placeholder="' +
       (empFil ? 'Votre réponse à ' + esc(empFil.prenom) + '…'
-              : (estCompta() ? 'Votre question à la direction sur ce mois…' : 'Votre réponse à la fiduciaire…')) +
+              : (estCompta() ? 'Votre question au back office sur ce mois…' : 'Votre réponse à la fiduciaire…')) +
       '"></textarea>' +
     (empFil ? '<div class="msg-jour"><label for="msg-jour">Question sur un jour précis</label>' +
       '<input type="date" id="msg-jour" min="' + isoDebutMois() + '" max="' + isoFinMois() + '">' +
@@ -1774,6 +1765,8 @@ async function envoyerMessage() {
     await chargerMessages();
   } catch (e) { toast(e.message); }
   finally {
+    // En cas d'échec, aucun rendu ne suit : le bouton doit retrouver son
+    // libellé ici, sinon il reste bloqué sur son animation d'attente.
     btn.disabled = false;
     btn.textContent = correction ? 'Enregistrer la correction' : 'Envoyer';
   }
@@ -1790,9 +1783,9 @@ function nonConfirme(e, p, iso) {
   return !S.lecture                    // affaire interne, pas comptable
     && !!p                             // rien de saisi = déjà signalé en jaune
     && !p.confirme
-    && !p.approuve                     // la validation direction absorbe la confirmation
+    && !p.approuve                     // la validation back office absorbe la confirmation
     && e.role === 'employe' && e.actif
-    && (p.prerempli || iso >= S.depuis) // pré-remplie : l'origine est certaine, la date n'a plus à trancher
+    && iso >= S.depuis                 // avant la traçabilité, l'auteur est inconnu
     && iso < (S.auj || aujourdhui())   // le jour même n'est jamais en défaut
     && (p.matin_type === 'travail' || p.apm_type === 'travail');
 }
@@ -1819,7 +1812,7 @@ function renderEquipe() {
   const map = ptgMap();
   // Les employés désactivés qui ont des heures ce mois restent visibles :
   // leurs pointages doivent pouvoir être contrôlés et exportés.
-  // La Direction (admin) n'a pas de feuille de temps : elle valide, sauf si
+  // Le Back Office (admin) n'a pas de feuille de temps : il valide, sauf si
   // des heures ont été saisies sur son compte.
   const actifs = S.employes.filter(e =>
     (e.actif || Object.keys(map[e.id] || {}).length) && e.role !== 'compta' &&
@@ -1876,7 +1869,7 @@ function renderEquipe() {
   }
   html += '</table></div>';
   html += lecture
-    ? '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour voir son mois jour par jour. Fond vert = jour validé par la direction · fond jaune = jour ouvré non encore saisi. Cette page se met à jour automatiquement dès qu’une saisie est ajoutée.</div>'
+    ? '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour voir son mois jour par jour. Fond vert = jour validé par le back office · fond jaune = jour ouvré non encore saisi. Cette page se met à jour automatiquement dès qu’une saisie est ajoutée.</div>'
     : '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour examiner son mois et <b>valider jour par jour</b>. Cliquez sur une case pour saisir ou corriger une journée. Fond vert = jour validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · <b>coin orangé</b> = journée posée par le back office, que le technicien n’a pas confirmée. Sous chaque nom, la dernière ouverture de l’application.</div>';
   $('ong-equipe').innerHTML = html;
   if (!lecture) $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
@@ -1885,7 +1878,7 @@ function renderEquipe() {
     b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
 }
 
-/* ---------- Bulletins de salaire (fiduciaire / direction) ---------- */
+/* ---------- Bulletins de salaire (fiduciaire / back office) ---------- */
 function renderBulletinsAdmin() {
   const emps = S.employes.filter(e => e.role === 'employe' && e.actif);
   const duMois = {};
@@ -1949,7 +1942,7 @@ async function supprimerBulletin(id) {
   } catch (e) { toast(e.message); }
 }
 
-/* ---------- Revue détaillée d'un employé (direction) ---------- */
+/* ---------- Revue détaillée d'un employé (back office) ---------- */
 const DET = { empId: null };
 function ouvrirDetails(empId) {
   DET.empId = empId;
@@ -2056,10 +2049,12 @@ async function copierLien(cle, prenom) {
   }
 }
 function renderEmployes() {
-  const etiquette = e => e.role === 'admin' ? ' <span class="muet">(direction)</span>'
-    : e.role === 'compta' ? ' <span class="muet">(fiduciaire)</span>' : '';
+  // Les deux accès non techniciens portent déjà leur rôle comme nom :
+  // « Back Office » et « Fiduciaire ». Pas d'étiquette qui répète le nom.
+  const etiquette = e => '';
   const sousTitre = e => e.role === 'compta' ? 'Accès en consultation et export'
-    : (e.metier || '') + (e.role === 'employe' ? ' · CCT ' + cctDe(e).nom : '');
+    : e.role === 'admin' ? 'Accès complet · validation des heures'
+    : (e.metier || '') + ' · CCT ' + cctDe(e).nom;
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
     '<div><div class="nom">' + esc(nomComplet(e)) + etiquette(e) + '</div>' +
@@ -2126,7 +2121,7 @@ function ouvrirEmp(id) {
   $('me-nom').value = e ? e.nom : '';
   $('me-metier').value = e ? e.metier : '';
   $('me-role').value = estFid ? 'compta' : 'employe';
-  // Le rôle de la direction ne se modifie pas depuis ce formulaire.
+  // Le rôle du back office ne se modifie pas depuis ce formulaire.
   $('me-role').disabled = !!(e && e.role === 'admin');
   $('me-cct').value = (e && e.cct) || 'ferblanterie';
   majCctInfo();
@@ -2137,7 +2132,7 @@ function ouvrirEmp(id) {
   $('me-af').value = e ? e.apm_fin_def : '17:00';
   $('me-pin').value = '';
   $('me-actif').checked = e ? e.actif : true;
-  $('me-regen').hidden = !(e && e.cle); // la direction aussi a son lien personnel
+  $('me-regen').hidden = !(e && e.cle); // le back office aussi a son lien personnel
   $('voile-emp').classList.add('ouvert');
 }
 async function sauverEmp() {
@@ -2241,14 +2236,6 @@ const dueDuJour = iso =>
 
 function feuilleEmploye(emp, map, jours, titreMois) {
   const auj = aujourdhui();
-  // Journées posées par la génération automatique que l'intéressé n'a jamais
-  // reprises à son compte. Leurs heures figurent dans les totaux comme les
-  // autres : la fiduciaire doit savoir qu'elles ne sont attestées par personne
-  // avant qu'une signature ne les couvre.
-  const nonAttestes = jours.filter(j => {
-    const p = map[j.iso];
-    return p && p.prerempli && !p.confirme && !p.approuve;
-  }).length;
   const aoa = [];
   let present = 0, nApp = 0, dateVal = '', jt = 0;
   let totTrav = 0, totCred = 0, totDues = 0, totPlus = 0, totMoins = 0;
@@ -2378,21 +2365,13 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     .map(d => d.h + ' +' + pourcent(d.t) + ' : ' + fmtHM(totMaj[d.k]));
   aoa.push([cel('Heures majorées selon la CCT — ' + (detailMaj.length ? detailMaj.join('   ·   ') : 'aucune ce mois'), STY.sous)]);
   const valide = present > 0 && nApp === present;
-  aoa.push([cel(valide ? '✓ Validé par la direction' + (dateVal ? ' le ' + dateVal : '')
-                       : 'En attente de validation par la direction',
+  aoa.push([cel(valide ? '✓ Validé par le back office' + (dateVal ? ' le ' + dateVal : '')
+                       : 'En attente de validation par le back office',
     valide ? { font: { bold: true, sz: 11, color: { rgb: '065F46' } } }
            : { font: { italic: true, sz: 11, color: { rgb: '92400E' } } })]);
-  if (nonAttestes) {
-    aoa.push([cel('⚠ ' + nonAttestes + ' journée' + (nonAttestes > 1 ? 's' : '') +
-      ' pré-remplie' + (nonAttestes > 1 ? 's' : '') + ' automatiquement avec l’horaire type et ' +
-      (nonAttestes > 1 ? 'jamais confirmées' : 'jamais confirmée') +
-      ' par l’employé. Ces heures sont comprises dans les totaux ci-dessus mais ' +
-      'ne sont attestées par personne — à vérifier avant signature.',
-      { font: { bold: true, sz: 11, color: { rgb: 'B3261E' } } })]);
-  }
   aoa.push([]);
   aoa.push([cel('Signature employé : ______________________', STY.sous), null, null, null, null, null, null,
-    cel('Signature direction : ______________________', STY.sous)]);
+    cel('Signature back office : ______________________', STY.sous)]);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = enTetes.map((h, i) => largeur(h, minis[i]));
   ws['!rows'] = [{ hpt: 20 }, { hpt: 28 }, { hpt: 18 }];
@@ -2520,7 +2499,7 @@ function init() {
       if (b.dataset.ong === 'messages') S.msgCharges = false;
       renderAdmin();
     }));
-  // Direction et fiduciaire : la page se rafraîchit toute seule pour refléter
+  // Back office et fiduciaire : la page se rafraîchit toute seule pour refléter
   // les saisies et confirmations faites entre-temps par les techniciens.
   setInterval(() => {
     if (!S.token || !S.moi || document.hidden) return;
