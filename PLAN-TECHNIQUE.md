@@ -1959,3 +1959,84 @@ l'avertissement qui apparaît ; « +30 min » → 18:30 et 9h30 ; « −1 h » a
 à chaque fois. Puis l'après-midi mis en vacances : « +1 h » vise bien le matin.
 Les deux demi-journées absentes : les rangées disparaissent. Et le texte exact,
 à l'écran comme à l'enregistrement.
+
+---
+
+## 42. L'écran du technicien, refait autour d'une bande de jours
+
+Demandé : la phrase de la carte du jour réduite au jour, mieux dire où l'on voit
+les autres jours, montrer ce qui est confirmé et ce qui reste à confirmer,
+polir l'interface — et si possible ne plus avoir à faire défiler.
+
+### 42.1 Ce qui a servi de référence
+
+Trois écrans réels plutôt qu'une intuition :
+
+- [timespent](https://mobbin.com/screens/343de2e4-53d4-4c71-b16b-1f371cb24507) —
+  une bande de jours où chacun porte sa marque : fait, pas fait.
+- [Grab Driver](https://mobbin.com/screens/d44d707e-5028-49aa-827e-8462090b6a32)
+  et [DoorDash Dasher](https://mobbin.com/screens/967b4dee-b5d7-4766-9876-53b33222dc0d) —
+  la bande **est** la navigation : elle est visible d'emblée, on n'a rien à
+  déplier pour comprendre qu'on peut aller ailleurs.
+- [Fitbit](https://mobbin.com/screens/260cc0b3-2846-4d3f-ac4c-f09837a98310) —
+  des lignes compactes, un chevron, rien de plus.
+
+### 42.2 Ce que la bande remplace
+
+La longue liste verticale des trente jours, qui obligeait à faire défiler pour
+atteindre le bas de l'écran. Elle passe derrière **« Voir le détail du mois »**,
+repliée par défaut, et la bande prend sa place : tout le mois sur une ligne, un
+dégradé aux deux bords pour dire qu'elle se poursuit, et le jour choisi ramené
+sous les yeux tout seul.
+
+Un point sous chaque jour, et une légende de trois mots en dessous :
+
+| Marque | Sens |
+|---|---|
+| ● vert | confirmé (ou validé par le back office) |
+| ● orange | posé, **à confirmer** par le technicien |
+| ○ cerclé | **à compléter** — rien de saisi |
+| *(rien)* | week-end, jour férié, jour à venir |
+
+### 42.3 La carte du jour ne parle plus que du jour
+
+    Lundi 7 septembre                    [À enregistrer]
+    Horaire normal : 08:00–12:00 · 13:00–17:00
+    [ Enregistrer l'horaire normal ]
+    Corriger l'horaire ou signaler une absence
+
+Le reste de la phrase — « horaire différent ou absence ? Touchez le jour dans la
+liste » — est devenu le lien du bas : ce qu'on peut faire n'a plus à s'expliquer,
+il se touche.
+
+Et la carte suit **le jour choisi dans la bande**, plus seulement aujourd'hui :
+un technicien qui rattrape trois journées le vendredi soir enregistre chacune
+d'un appui, au lieu d'ouvrir trois fois la fenêtre de saisie.
+
+Sept états, sept phrases : *Validée · Confirmée · À confirmer · À compléter ·
+À enregistrer · Jour férié · Week-end · À venir*. « À enregistrer » distingue
+la journée du jour, qui court encore, de celle d'hier qu'on a oubliée.
+
+### 42.4 Les questions ne prennent la place qu'une fois ouvertes
+
+Repliées, elles tiennent en une ligne. Un message non lu ouvre la carte de
+lui-même — il ne doit pas se cacher derrière un repli — et le marquage « lu »
+observe désormais le fil, pas la carte : une carte repliée peut être à l'écran
+sans qu'on ait rien lu.
+
+### 42.5 Vérifications
+
+Dans un vrai navigateur, au format d'un téléphone (390 × 844), serveur simulé
+(`tests/ecran-technicien.mjs`) :
+
+- **hauteur de page 844 pour une fenêtre de 844 — aucun défilement** ;
+- le jour du jour est choisi d'office et la bande s'y positionne ;
+- appuyer sur une journée posée → « À confirmer » et le bouton *Confirmer cette
+  journée · 07:00–12:00 · 13:00–18:00 · 10h00* ;
+- appuyer sur une journée vide du passé → « À compléter » et *Enregistrer
+  l'horaire normal* ;
+- appuyer sur un dimanche → « Week-end », aucun bouton ;
+- le détail du mois, déplié, rend bien ses trente lignes.
+
+Un message non lu ouvre la carte des questions ; la page défile alors de 237 px,
+ce qui est le prix d'un message à lire.

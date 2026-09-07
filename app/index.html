@@ -57,12 +57,78 @@ h1{font-size:22px;font-weight:700}
 /* ---- Entêtes ---- */
 /* ---- Marque ---- */
 .bandeau{display:flex;align-items:center;margin-bottom:10px}
+
+/* ---- Écran technicien ---- */
+.entete-emp{display:flex;align-items:center;gap:11px;margin-bottom:12px}
+.entete-emp .logo-marque{flex:none}
+.entete-emp .ident{flex:1;min-width:0}
+.entete-emp .qui{font-size:19px;font-weight:700;line-height:1.2}
+.entete-emp .sous-qui{color:var(--gris);font-size:13px}
+
+/* La bande de jours : tout le mois tient sur une ligne, et l'on s'y déplace.
+   Elle remplace la longue liste verticale qui obligeait à faire défiler. */
+.bande-cadre{position:relative;margin:0 -14px}
+.bande-cadre::before,.bande-cadre::after{content:'';position:absolute;top:0;bottom:8px;width:26px;
+  pointer-events:none;z-index:1}
+.bande-cadre::before{left:0;background:linear-gradient(90deg,var(--fond),rgba(246,248,250,0))}
+.bande-cadre::after{right:0;background:linear-gradient(270deg,var(--fond),rgba(246,248,250,0))}
+.bande{display:flex;gap:6px;overflow-x:auto;scroll-behavior:smooth;
+  padding:2px 14px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bande::-webkit-scrollbar{display:none}
+.bande button{flex:none;width:44px;padding:7px 0 6px;border-radius:13px;background:var(--carte);
+  box-shadow:0 1px 2px rgba(15,23,42,.06);display:flex;flex-direction:column;align-items:center;gap:3px}
+.bande button:active{background:#f1f5f9}
+.bande .js{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gris)}
+.bande .num{font-size:16px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.bande button.we{background:transparent;box-shadow:none}
+.bande button.we .num,.bande button.we .js{color:#a5b2c2}
+.bande button.futur .num{color:#a5b2c2}
+.bande button.sel{background:var(--texte);box-shadow:0 2px 8px rgba(19,43,70,.28)}
+.bande button.sel .js{color:rgba(255,255,255,.72)}
+.bande button.sel .num{color:#fff}
+.bande button.auj:not(.sel){outline:1.5px solid var(--bleu)}
+.bande button.auj:not(.sel) .num{color:var(--bleu-f)}
+
+/* Un seul point par jour : c'est lui qui dit ce qui reste à faire. */
+.pt{display:block;width:7px;height:7px;border-radius:99px;background:transparent}
+.pt.ok{background:var(--bleu)}
+.pt.attente{background:var(--ambre)}
+.pt.vide{background:transparent;box-shadow:inset 0 0 0 2px var(--ambre)}
+.bande .sel .pt{background:#fff}
+.bande .sel .pt.attente{background:#fbbf24}
+.bande .sel .pt.vide{background:transparent;box-shadow:inset 0 0 0 2px #fbbf24}
+.legende{display:flex;gap:14px;justify-content:center;margin:0 0 12px;font-size:11px;color:var(--gris)}
+.legende span{display:inline-flex;align-items:center;gap:5px}
+
+/* La journée choisie : ce qu'elle vaut, où elle en est, et le geste à faire. */
+.jour-sel .js-tete{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:2px}
+.jour-sel .js-date{font-size:16px;font-weight:700}
+.jour-sel .js-date::first-letter{text-transform:uppercase}
+.jour-sel .js-etat{flex:none;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;
+  background:#eef2f5;color:var(--gris);white-space:nowrap}
+.jour-sel .js-etat.ok{background:#e7f6ef;color:var(--bleu-f)}
+.jour-sel .js-etat.attente{background:#fef3c7;color:#92400e}
+.jour-sel .js-heures{font-size:14px;color:var(--gris);font-variant-numeric:tabular-nums;margin-bottom:12px}
+.jour-sel .btn.large{margin-bottom:2px}
+.jour-sel .js-lien{display:block;width:100%;text-align:center;font-size:13px;font-weight:600;
+  color:var(--gris);padding:9px 0 1px}
+.jour-sel .js-lien:active{color:var(--texte)}
+
+/* Les questions ne prennent la place qu'une fois ouvertes. */
+.pliable{padding:0;overflow:hidden}
+.pli-tete{display:flex;align-items:center;justify-content:space-between;width:100%;padding:15px 16px;text-align:left}
+.pli-tete:active{background:#f8fafc}
+.pli-fl{color:var(--gris);font-size:20px;line-height:1;transition:transform .15s}
+.pli-fl.ouvert{transform:rotate(90deg)}
+#q-corps{padding:0 16px 16px}
 .logo-marque{height:30px;width:auto;max-width:60%;display:block}
 @media(min-width:640px){.logo-marque{height:36px}}
 .entete{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .entete .qui{font-size:19px;font-weight:700}
 .entete .sous-qui{color:var(--gris);font-size:13px}
 .ico{font-size:20px;padding:8px;border-radius:10px;background:var(--carte);box-shadow:0 1px 3px rgba(15,23,42,.08)}
+.entete-emp .ico{font-size:15px;padding:7px 9px;background:transparent;box-shadow:none;opacity:.5}
+.entete-emp .ico:active{opacity:1}
 .nav-mois{display:flex;align-items:center;justify-content:space-between;background:var(--carte);
   border-radius:var(--r);box-shadow:0 1px 3px rgba(15,23,42,.08);margin-bottom:14px}
 .nav-mois button{font-size:22px;padding:10px 20px;color:var(--bleu)}
@@ -312,36 +378,60 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 
 <!-- ============ EMPLOYÉ ============ -->
 <div id="v-emp" class="vue" hidden>
-  <div class="bandeau"><img id="emp-logo" class="logo-marque" alt="" hidden></div>
-  <div class="entete">
-    <div>
+  <div class="entete-emp">
+    <img id="emp-logo" class="logo-marque" alt="" hidden>
+    <div class="ident">
       <div class="qui" id="emp-nom"></div>
       <div class="sous-qui" id="emp-metier"></div>
     </div>
     <button class="ico" id="btn-sortir-emp" title="Se déconnecter">🚪</button>
   </div>
   <div class="nav-mois">
-    <button id="emp-prev">‹</button>
+    <button id="emp-prev" aria-label="Mois précédent">‹</button>
     <div class="lib" id="emp-mois-lib"></div>
-    <button id="emp-next">›</button>
+    <button id="emp-next" aria-label="Mois suivant">›</button>
   </div>
-  <div class="carte" id="carte-pointer" hidden>
-    <div class="muet" id="pointer-info"></div>
+
+  <!-- La bande des jours : c'est ici qu'on voit tout le mois et qu'on s'y déplace. -->
+  <div class="bande-cadre"><div class="bande" id="emp-bande"></div></div>
+  <div class="legende">
+    <span><i class="pt ok"></i>confirmé</span>
+    <span><i class="pt attente"></i>à confirmer</span>
+    <span><i class="pt vide"></i>à compléter</span>
+  </div>
+
+  <div class="carte jour-sel" id="carte-jour-sel">
+    <div class="js-tete">
+      <div class="js-date" id="js-date"></div>
+      <div class="js-etat" id="js-etat"></div>
+    </div>
+    <div class="js-heures" id="js-heures"></div>
     <button class="btn vert large" id="btn-pointer"></button>
+    <button class="js-lien" id="btn-modifier-jour">Corriger l’horaire ou signaler une absence</button>
   </div>
+
   <div class="carte" id="carte-mois">
     <div id="emp-etat"></div>
     <div class="chips" id="emp-chips"></div>
     <div id="emp-remplir"></div>
   </div>
-  <div id="emp-liste"></div>
+
   <div id="emp-autres-mois" hidden></div>
-  <div class="carte" id="carte-questions">
-    <div class="titre-carte">💬 Une question sur ce mois ?<span class="pastille" id="emp-msg-pastille" hidden></span></div>
-    <div class="muet" style="margin-bottom:8px" id="emp-msg-aide"></div>
-    <div id="emp-msg-fil"></div>
-    <textarea id="emp-msg-texte" maxlength="2000" placeholder="Votre question au back office…"></textarea>
-    <button class="btn large" id="emp-msg-envoyer">Envoyer ma question</button>
+
+  <button class="plier" id="btn-tout-mois"></button>
+  <div id="emp-liste" hidden></div>
+
+  <div class="carte pliable" id="carte-questions">
+    <button class="pli-tete" id="q-tete">
+      <span class="titre-carte" style="margin:0">💬 Questions<span class="pastille" id="emp-msg-pastille" hidden></span></span>
+      <span class="pli-fl" id="q-fleche">›</span>
+    </button>
+    <div id="q-corps" hidden>
+      <div class="muet" style="margin:8px 0" id="emp-msg-aide"></div>
+      <div id="emp-msg-fil"></div>
+      <textarea id="emp-msg-texte" maxlength="2000" placeholder="Votre question au back office…"></textarea>
+      <button class="btn large" id="emp-msg-envoyer">Envoyer ma question</button>
+    </div>
   </div>
 </div>
 
@@ -763,7 +853,7 @@ const S = {
   ongletAdmin: 'equipe',
   msgJour: null, msgEdit: null, autresMois: [], filViser: false,
   jrJours: 14, jrQui: null, journal: [], jrActeurs: [],
-  deplieAvant: false, deplieApres: false,
+  jourSel: null, moisDeplie: false, qOuvert: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
   lecture: false, msgNonLus: 0, messages: [], msgCharges: false,
   filMsg: null, fils: [], retards: [], detMsgs: [], detEmp: null, detCharge: null,
@@ -952,7 +1042,7 @@ function moisNav(delta) {
   S.mois += delta;
   if (S.mois > 12) { S.mois = 1; S.annee++; }
   if (S.mois < 1) { S.mois = 12; S.annee--; }
-  S.deplieAvant = false; S.deplieApres = false;
+  S.jourSel = null; S.moisDeplie = false;   // le mois change, le jour choisi aussi
   S.messages = []; S.msgCharges = false; // chaque mois a son propre fil de questions
   S.detMsgs = []; S.detCharge = null;    // le fil chargé ne vaut que pour son mois
   S.fils = [];                           // sinon les pastilles du mois précédent
@@ -978,10 +1068,117 @@ function renderEmp() {
   $('emp-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
   const map = (ptgMap()[S.moi.id]) || {};
   const jours = joursDuMois(S.annee, S.mois);
-  const auj = aujourdhui();
+  const auj = S.auj || aujourdhui();
+  const maintenant = new Date();
+  const moisCourant = maintenant.getFullYear() === S.annee && (maintenant.getMonth() + 1) === S.mois;
 
-  // Côté employé, pas de total mensuel ni de solde (ils restent côté back office
-  // et dans l'export) : ce qui lui parle, c'est « reste-t-il des jours à saisir ? ».
+  // Le jour choisi suit le mois : aujourd'hui si l'on y est, sinon le 1er.
+  if (!S.jourSel || S.jourSel.slice(0, 7) !== jours[0].iso.slice(0, 7)) {
+    S.jourSel = moisCourant ? auj : jours[0].iso;
+  }
+
+  renderBande(jours, map, auj);
+  renderJourSel(map, auj);
+  renderResumeMois(jours, map, auj, moisCourant);
+  renderListeMois(jours, map, auj);
+}
+
+/* L'état d'une journée en un mot. La bande et la carte disent tous deux la même
+   chose : sans cela, un point de couleur reste une devinette. */
+function etatJour(p, iso, js, auj) {
+  if (p && p.approuve) return 'valide';
+  if (p && p.confirme) return 'confirme';
+  if (p) return 'attente';                       // posée, pas encore confirmée par lui
+  if (ferieGE(iso)) return 'ferie';
+  if (js === 0 || js === 6) return 'weekend';
+  if (iso > auj) return 'futur';
+  if (iso === auj) return 'aujourdhui';          // pas en retard : la journée court encore
+  return 'manquant';
+}
+const MARQUE = { valide: 'ok', confirme: 'ok', attente: 'attente',
+                 manquant: 'vide', aujourdhui: 'vide' };
+const ETAT_LIB = {
+  valide:   ['Validée', 'ok'],
+  confirme: ['Confirmée', 'ok'],
+  attente:  ['À confirmer', 'attente'],
+  manquant: ['À compléter', 'attente'],
+  aujourdhui: ['À enregistrer', 'attente'],
+  ferie:    ['Jour férié', ''],
+  weekend:  ['Week-end', ''],
+  futur:    ['À venir', '']
+};
+
+/* Tout le mois sur une ligne. C'était l'objet d'une liste verticale qu'il
+   fallait faire défiler ; la bande la remplace et rend visible, d'un coup
+   d'œil, ce qui est confirmé et ce qui ne l'est pas. */
+function renderBande(jours, map, auj) {
+  const b = $('emp-bande');
+  b.innerHTML = jours.map(j => {
+    const e = etatJour(map[j.iso], j.iso, j.js, auj);
+    const cls = [
+      j.iso === S.jourSel ? 'sel' : '',
+      j.iso === auj ? 'auj' : '',
+      (j.js === 0 || j.js === 6) ? 'we' : '',
+      j.iso > auj ? 'futur' : ''
+    ].filter(Boolean).join(' ');
+    return '<button class="' + cls + '" data-j="' + j.iso + '" aria-label="' +
+      j.num + ' ' + MOIS[S.mois - 1] + ' — ' + ETAT_LIB[e][0] + '">' +
+      '<span class="js">' + JS_COURT[j.js].slice(0, 2) + '</span>' +
+      '<span class="num">' + j.num + '</span>' +
+      '<i class="pt ' + (MARQUE[e] || '') + '"></i></button>';
+  }).join('');
+  b.querySelectorAll('[data-j]').forEach(x =>
+    x.addEventListener('click', () => { S.jourSel = x.dataset.j; renderEmp(); }));
+  // Le jour choisi doit être sous les yeux, pas trois écrans plus loin.
+  const sel = b.querySelector('.sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
+}
+
+function renderJourSel(map, auj) {
+  const iso = S.jourSel;
+  const [an, mo, jr] = iso.split('-').map(Number);
+  const js = new Date(an, mo - 1, jr).getDay();
+  const p = map[iso] || null;
+  const e = etatJour(p, iso, js, auj);
+  const fer = ferieGE(iso);
+  const min = jourMin(p);
+
+  $('js-date').textContent = JS_LONG[js] + ' ' + jr + ' ' + MOIS[mo - 1];
+  const [lib, ton] = ETAT_LIB[e];
+  $('js-etat').textContent = lib;
+  $('js-etat').className = 'js-etat ' + ton;
+
+  const type = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
+    ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
+  $('js-heures').innerHTML = p
+    ? heuresTexte(p) + (min ? ' · <b>' + fmtMin(min) + '</b>' : '')
+    : (fer ? esc(fer) : (e === 'weekend' ? 'Rien à saisir un week-end' : 'Horaire normal : ' + type));
+
+  const btn = $('btn-pointer');
+  btn.hidden = false;
+  btn.disabled = false;
+  if (e === 'valide') {
+    btn.hidden = true;
+  } else if (e === 'confirme') {
+    btn.hidden = true;
+  } else if (e === 'attente') {
+    btn.innerHTML = '<span>Confirmer cette journée</span>' +
+      '<span class="btn-sous">' + heuresTexte(p).replace(/<[^>]+>/g, '') + (min ? ' · ' + fmtMin(min) : '') + '</span>';
+    btn.onclick = () => journeeType(iso);
+  } else if (e === 'manquant' || e === 'aujourdhui') {
+    btn.innerHTML = '<span>Enregistrer l’horaire normal</span><span class="btn-sous">' + type + '</span>';
+    btn.onclick = () => journeeType(iso);
+  } else {
+    btn.hidden = true;                            // férié, week-end, jour à venir
+  }
+
+  const lien = $('btn-modifier-jour');
+  lien.textContent = p ? 'Corriger l’horaire ou signaler une absence'
+                       : (e === 'futur' ? 'Saisir cette journée à l’avance' : 'Saisir un autre horaire ou une absence');
+  lien.onclick = () => ouvrirJour(S.moi.id, iso);
+}
+
+function renderResumeMois(jours, map, auj, moisCourant) {
   const abs = resumeAbsences(S.pointages);
   const manq = joursManquants(jours, map);
   let supMois = 0;
@@ -989,14 +1186,18 @@ function renderEmp() {
     const [aS, mS, dS] = p.jour.split('-').map(Number);
     supMois += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
   }
+  const aConfirmer = jours.filter(j => {
+    const p = map[j.iso];
+    return p && !p.confirme && !p.approuve;
+  }).length;
   const moisCommence = jours[0].iso <= auj;
-  const pAuj = map[auj] || null;
-  const aConfirmerAuj = !!(pAuj && !pAuj.confirme && !pAuj.approuve);
+
   $('emp-etat').innerHTML = manq > 0
     ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</div>'
-    : aConfirmerAuj
-      ? '<div class="etat-mois attention">⚠ Journée d’aujourd’hui à confirmer</div>'
+    : aConfirmer > 0
+      ? '<div class="etat-mois attention">⚠ ' + aConfirmer + ' journée' + (aConfirmer > 1 ? 's' : '') + ' à confirmer</div>'
       : (moisCommence ? '<div class="etat-mois ok">✓ Vos heures sont à jour</div>' : '');
+
   let chips = '';
   if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
@@ -1004,121 +1205,59 @@ function renderEmp() {
     chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par le back office</span>';
   }
   $('emp-chips').innerHTML = chips;
+
   $('emp-remplir').innerHTML = manq > 0
-    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter les ' + manq +
-      ' jour' + (manq > 1 ? 's' : '') + ' manquant' + (manq > 1 ? 's' : '') + ' avec l’horaire normal</button>'
+    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter ' +
+      (manq > 1 ? 'les ' + manq + ' jours manquants' : 'le jour manquant') + ' avec l’horaire normal</button>'
     : '';
   if (manq > 0) $('btn-remplir').addEventListener('click', remplirManquants);
   $('carte-mois').hidden = !$('emp-etat').innerHTML && !chips && manq === 0;
+}
 
-  // Carte du jour : un appui enregistre l'horaire normal de la journée en cours.
-  const maintenant = new Date();
-  const moisCourant = maintenant.getFullYear() === S.annee && (maintenant.getMonth() + 1) === S.mois;
-  $('carte-pointer').hidden = !moisCourant;
-  if (moisCourant) {
-    const p = map[auj] || null;
-    const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
-      ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
-    const [anj, moj, jrj] = auj.split('-').map(Number);
-    const jsAuj = new Date(anj, moj - 1, jrj).getDay();
-    const dateLib = JS_LONG[jsAuj] + ' ' + jrj + ' ' + MOIS[moj - 1];
-    if (p && p.approuve) {
-      $('btn-pointer').disabled = true;
-      $('btn-pointer').textContent = '✓ Journée validée par le back office';
-      $('pointer-info').textContent = dateLib;
-    } else if (p && p.confirme) {
-      const min = jourMin(p);
-      $('btn-pointer').disabled = true;
-      $('btn-pointer').textContent = '✓ Journée confirmée' + (min ? ' · ' + fmtMin(min) : '');
-      $('pointer-info').textContent = dateLib + ' — pour corriger, touchez le jour dans la liste.';
-    } else if (p) {
-      // Journée déjà posée (horaire pré-rempli ou saisie par le back office) :
-      // le collaborateur doit pouvoir la confirmer, c'est ce qui atteste son passage.
-      const min = jourMin(p);
-      $('btn-pointer').disabled = false;
-      $('btn-pointer').innerHTML = '<span>Confirmer ma journée</span>' +
-        '<span class="btn-sous">' + heuresTexte(p).replace(/<[^>]+>/g, '') +
-        (min ? ' · ' + fmtMin(min) : '') + '</span>';
-      $('pointer-info').textContent = dateLib + ' — vérifiez l’horaire ci-dessus, puis confirmez. ' +
-        'S’il est différent, touchez le jour dans la liste pour le corriger.';
-    } else if (ferieGE(auj)) {
-      $('btn-pointer').disabled = true;
-      $('btn-pointer').textContent = '🎉 ' + ferieGE(auj);
-      $('pointer-info').textContent = 'Jour férié officiel à Genève — rien à saisir, la journée est créditée automatiquement.';
-    } else {
-      $('btn-pointer').disabled = false;
-      $('btn-pointer').innerHTML = '<span>Enregistrer ma journée d’aujourd’hui</span>' +
-        '<span class="btn-sous">' + lib + '</span>';
-      $('pointer-info').textContent = dateLib + ' — horaire différent ou absence ? Touchez le jour dans la liste.';
-    }
-  }
+/* Le détail du mois reste disponible, mais replié : c'est lui qui obligeait à
+   faire défiler alors qu'on vient surtout saisir la journée du jour. */
+function renderListeMois(jours, map, auj) {
+  const ouvert = !!S.moisDeplie;
+  $('btn-tout-mois').textContent = ouvert ? '▾ Masquer le détail du mois' : '▸ Voir le détail du mois, jour par jour';
+  $('emp-liste').hidden = !ouvert;
+  if (!ouvert) { $('emp-liste').innerHTML = ''; return; }
 
   const ligneJour = j => {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const min = jourMin(p);
     const fer = ferieGE(j.iso);
-    const manque = !p && !we && j.iso < auj && !fer;
-    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
+    const e = etatJour(p, j.iso, j.js, auj);
+    return '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') +
+      (e === 'manquant' ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
-      '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
-      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + '</div>' +
+      '<div class="contenu"><div class="heures-txt">' +
+        (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
+      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
+      (e === 'attente' ? '<div class="rem" style="color:#8a6116">À confirmer</div>'
+        : e === 'manquant' ? '<div class="rem" style="color:#8a6116">À compléter</div>' : '') + '</div>' +
       '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') +
       (heuresSupJour(p, j.iso, j.js) ? ' <span class="delta-sup">+' + fmtMin(heuresSupJour(p, j.iso, j.js)) + '</span>' : '') +
       '</div></button>';
   };
-  // Insère un sous-total (heures + heures sup) à la fin de chaque semaine.
-  const avecSemaines = (liste, cloture) => {
-    let html = '', sMin = 0, sSup = 0, sDebut = null;
-    for (const j of liste) {
-      const p = map[j.iso];
-      if (sDebut === null) sDebut = j.num;
-      sMin += jourMin(p);
-      sSup += heuresSupJour(p, j.iso, j.js);
-      html += ligneJour(j);
-      if (j.js === 0 || (cloture && j === liste[liste.length - 1])) {
-        if (sMin > 0) {
-          html += '<div class="sem-sub"><span>Semaine ' + sDebut + '–' + j.num + '</span><span>' + fmtMin(sMin) +
-            (sSup ? ' <span class="delta-sup">dont +' + fmtMin(sSup) + ' sup</span>' : '') + '</span></div>';
-        }
-        sMin = 0; sSup = 0; sDebut = null;
+  let html = '', sMin = 0, sSup = 0, sDebut = null;
+  for (const j of jours) {
+    const p = map[j.iso];
+    if (sDebut === null) sDebut = j.num;
+    sMin += jourMin(p);
+    sSup += heuresSupJour(p, j.iso, j.js);
+    html += ligneJour(j);
+    if (j.js === 0 || j === jours[jours.length - 1]) {
+      if (sMin > 0) {
+        html += '<div class="sem-sub"><span>Semaine ' + sDebut + '–' + j.num + '</span><span>' + fmtMin(sMin) +
+          (sSup ? ' <span class="delta-sup">dont +' + fmtMin(sSup) + ' sup</span>' : '') + '</span></div>';
       }
+      sMin = 0; sSup = 0; sDebut = null;
     }
-    return html;
-  };
-  let htmlListe;
-  if (moisCourant) {
-    // Aujourd'hui toujours en avant ; les autres jours se déplient à la demande.
-    const avant = jours.filter(j => j.iso < auj);
-    const apres = jours.filter(j => j.iso > auj);
-    const jAuj = jours.find(j => j.iso === auj);
-    const nSaisis = avant.filter(j => map[j.iso]).length;
-    htmlListe = '';
-    if (avant.length) {
-      htmlListe += '<button class="plier" id="plier-avant">' +
-        (S.deplieAvant ? '▾ Masquer les jours précédents'
-                       : '▸ Jours précédents (1–' + (jAuj.num - 1) + ' ' + MOIS[S.mois - 1] + ' · ' +
-                         nSaisis + ' saisi' + (nSaisis > 1 ? 's' : '') +
-                         (manq ? ' · <span style="color:#b45309">⚠ ' + manq + ' à compléter</span>' : '') + ')') + '</button>';
-      if (S.deplieAvant) htmlListe += avecSemaines(avant, false);
-    }
-    if (jAuj) htmlListe += ligneJour(jAuj);
-    if (apres.length) {
-      htmlListe += '<button class="plier" id="plier-apres">' +
-        (S.deplieApres ? '▾ Masquer les jours suivants'
-                       : '▸ Jours suivants (' + (jAuj.num + 1) + '–' + jours.length + ' ' + MOIS[S.mois - 1] + ')') + '</button>';
-      if (S.deplieApres) htmlListe += apres.map(ligneJour).join('');
-    }
-  } else {
-    htmlListe = avecSemaines(jours, true);
   }
-  $('emp-liste').innerHTML = htmlListe;
+  $('emp-liste').innerHTML = html;
   $('emp-liste').querySelectorAll('.jour-ligne').forEach(b =>
     b.addEventListener('click', () => ouvrirJour(S.moi.id, b.dataset.jour)));
-  const pa = $('plier-avant');
-  if (pa) pa.addEventListener('click', () => { S.deplieAvant = !S.deplieAvant; renderEmp(); });
-  const pp = $('plier-apres');
-  if (pp) pp.addEventListener('click', () => { S.deplieApres = !S.deplieApres; renderEmp(); });
 }
 
 /* ---------- Journal des actions — direction seulement ----------
@@ -1293,17 +1432,20 @@ async function remplirManquants() {
    posé, ou confirmer telle quelle la journée déjà là. Dans les deux cas
    l'enregistrement passe par le compte du collaborateur, ce qui atteste son
    passage — c'est précisément ce que contrôle le back office chaque soir. */
-async function journeeTypeAujourdhui() {
-  const auj = aujourdhui();
-  const p = (ptgMap()[S.moi.id] || {})[auj] || null;
+/* Le geste d'un appui, sur la journée qu'on regarde — et non plus seulement sur
+   celle du jour : un technicien qui rattrape trois journées le vendredi soir ne
+   devait pas avoir à ouvrir trois fois la fenêtre de saisie. */
+async function journeeType(iso) {
+  const jour = iso || aujourdhui();
+  const p = (ptgMap()[S.moi.id] || {})[jour] || null;
   if (p && p.approuve) return;            // verrouillée par le back office
   if (p && p.confirme) return;            // déjà confirmée : rien à refaire
   const args = p
-    ? { p_token: S.token, p_jour: auj,     // confirmation : on reprend l'horaire tel quel
+    ? { p_token: S.token, p_jour: jour,    // confirmation : on reprend l'horaire tel quel
         p_matin_type: p.matin_type, p_matin_debut: p.matin_debut, p_matin_fin: p.matin_fin,
         p_apm_type: p.apm_type, p_apm_debut: p.apm_debut, p_apm_fin: p.apm_fin,
         p_remarque: p.remarque || '' }
-    : { p_token: S.token, p_jour: auj,     // première saisie : journée type
+    : { p_token: S.token, p_jour: jour,    // première saisie : journée type
         p_matin_type: 'travail',
         p_matin_debut: S.moi.matin_debut_def || '08:00', p_matin_fin: S.moi.matin_fin_def || '12:00',
         p_apm_type: 'travail',
@@ -1318,7 +1460,7 @@ async function journeeTypeAujourdhui() {
       await charger();
       return;
     }
-    toast(p ? '✓ Journée confirmée' : '✓ Journée d’aujourd’hui enregistrée');
+    toast(p ? '✓ Journée confirmée' : '✓ Journée enregistrée');
     await charger();
   } catch (e) { toast(e.message); $('btn-pointer').disabled = false; }
 }
@@ -1629,6 +1771,12 @@ function renderMsgEmp() {
   const p = $('emp-msg-pastille');
   p.hidden = !S.msgNonLus;
   if (S.msgNonLus) p.textContent = S.msgNonLus;
+  // Un message non lu ouvre la carte de lui-même : il ne doit pas se cacher
+  // derrière un repli.
+  if (S.msgNonLus) S.qOuvert = true;
+  $('q-corps').hidden = !S.qOuvert;
+  $('q-fleche').classList.toggle('ouvert', S.qOuvert);
+  if (!S.qOuvert) return;
   $('emp-msg-aide').textContent = S.messages.length
     ? 'Vos échanges avec le back office au sujet de ' + MOIS[S.mois - 1] + ' ' + S.annee + '.'
     : 'Posez votre question sur ' + MOIS[S.mois - 1] + ' ' + S.annee + ' — le back office vous répondra ici.';
@@ -1640,8 +1788,11 @@ function renderMsgEmp() {
 // à l'écran — pas qu'elle existe quelque part plus bas dans la page.
 let observateurQuestions = null;
 function veilleQuestions() {
-  if (!S.msgNonLus || observateurQuestions || typeof IntersectionObserver === 'undefined') return;
-  const carte = $('carte-questions');
+  // Une carte repliée peut être à l'écran sans qu'on ait rien lu : on observe
+  // le fil lui-même, et seulement quand il est ouvert.
+  if (!S.msgNonLus || !S.qOuvert || observateurQuestions
+      || typeof IntersectionObserver === 'undefined') return;
+  const carte = $('emp-msg-fil');
   if (!carte) return;
   observateurQuestions = new IntersectionObserver(async entrees => {
     if (!entrees.some(e => e.isIntersecting)) return;
@@ -1867,7 +2018,6 @@ function renderMessages() {
       S.filViser = true;                     // le bon mois, puis le bon fil
       S.msgEdit = null; S.msgJour = null;
       S.msgCharges = false; S.messages = [];
-      S.deplieAvant = false; S.deplieApres = false;
       renderMessages(); charger();
     }));
   if (!S.msgCharges) chargerMessages();
@@ -2671,7 +2821,8 @@ function init() {
     } catch (e) { toast(e.message); }
   });
   $('det-fermer').addEventListener('click', fermerDetails);
-  $('btn-pointer').addEventListener('click', journeeTypeAujourdhui);
+  $('btn-tout-mois').addEventListener('click', () => { S.moisDeplie = !S.moisDeplie; renderEmp(); });
+  $('q-tete').addEventListener('click', () => { S.qOuvert = !S.qOuvert; renderMsgEmp(); });
   $('emp-msg-envoyer').addEventListener('click', envoyerMsgEmp);
   $('btn-sortir-emp').addEventListener('click', deconnexion);
   $('btn-sortir-adm').addEventListener('click', deconnexion);
