@@ -2225,3 +2225,63 @@ Trois cas rapportés « morts » par le balayage automatique étaient des faux
 négatifs, vérifiés un à un : *Copier le lien* écrit dans le presse-papiers sans
 rien changer à l'écran ; *Envoyer un message* refuse à juste titre un message
 vide ; *Filtre par personne* n'apparaît qu'à partir de deux personnes.
+
+---
+
+## 46. La fenêtre de saisie tient sur un iPhone
+
+Signalé : « je dois scroller ». Mesurée, la fenêtre faisait **741 px** — et elle
+« tenait » pourtant, en théorie, dans une fenêtre de 844.
+
+### 46.1 Le piège du `vh`
+
+`max-height: 92vh` se calcule sur la fenêtre **pleine**. Sur Safari iPhone, la
+barre d'adresse et la barre d'outils prennent près de 180 px : la hauteur
+réellement visible est d'environ 664 px, pas 844. La fenêtre débordait donc de
+plus de 70 px alors que le calcul disait qu'elle passait.
+
+`max-height: 92dvh` suit la hauteur réellement visible ; la règle `vh` reste
+juste au-dessus, en secours pour les navigateurs qui ignorent `dvh`.
+
+### 46.2 Et 741 px, c'était trop de toute façon
+
+Deux références ont servi :
+[Remote Global HR](https://mobbin.com/screens/326e2edc-cccb-4ad3-95a8-156a21a38b21)
+met le total **sous le titre** et les heures début/fin **côte à côte** ;
+[Jobber](https://mobbin.com/screens/047d527b-c6cd-4dcb-a7c9-0f201f1f6744) **colle
+le bouton d'enregistrement en bas**, où il ne quitte jamais l'écran.
+
+| Avant | Après |
+|---|---|
+| deux cartes « Matin » / « Après-midi » | **une seule carte**, séparée d'un filet |
+| total en bas, perdu sous les champs | **en haut à droite**, en 22 px |
+| libellés « Fini plus tard » / « Commencé plus tôt » sur 96 px, pastilles qui passaient à la ligne | **DÉBUT** / **FIN** sur 44 px, quatre pastilles qui remplissent la ligne |
+| trois rangées de boutons (Journée type, Supprimer, Valider, Annuler, Enregistrer) | deux **liens** discrets, et une barre à deux boutons |
+| tout défilait ensemble | **la barre reste collée en bas**, seul le corps défile |
+
+**741 px → 547 px.** Dans la hauteur réelle de Safari (664 px), il reste
+117 px de marge.
+
+### 46.3 Le cas le plus chargé tient aussi
+
+Back office, journée à valider, question du back office affichée et alerte
+d'heures supplémentaires : **611 px**. Le corps défile alors de 79 px — mais
+« Enregistrer » et « Annuler », eux, restent visibles. C'est tout l'intérêt de
+la barre collée.
+
+### 46.4 Deux défauts corrigés au passage
+
+Les champs d'heure **débordaient de leur colonne** : le navigateur ajoute sa
+propre icône d'horloge à côté de la nôtre, et « 12:00 PM » se retrouvait coupé.
+L'icône native est masquée, l'heure est centrée, le champ peut rétrécir.
+
+Et le titre affichait « Mercredi 2 **Septembre** 2026 » : la majuscule ne va
+qu'à la première lettre, et l'année n'apprend rien puisqu'on vient de choisir le
+mois.
+
+### 46.5 Vérifications
+
+`tests/fenetre-saisie.mjs` mesure la fenêtre dans **390 × 664**, la hauteur que
+Safari laisse vraiment. Les 19 boutons du technicien répondent toujours au
+doigt, les dix écrans n'ont **aucun élément recouvert**, et les huit suites
+d'essais passent.
