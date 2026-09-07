@@ -244,6 +244,14 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .bulle .qui-msg{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;opacity:.75}
 .bulle .txt{font-size:14.5px;white-space:pre-wrap;word-break:break-word}
 .bulle .quand{font-size:11px;color:var(--gris);margin-top:4px}
+.bandeau-msg{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:var(--bleu);color:#fff;border-radius:14px;padding:13px 15px;margin-bottom:12px;
+  font-size:15px;font-weight:600;box-shadow:0 2px 8px rgba(1,167,107,.28)}
+.bandeau-msg:active{filter:brightness(.95)}
+.bm-pt{flex:none;min-width:24px;height:24px;border-radius:99px;background:rgba(255,255,255,.25);
+  display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.bm-t{flex:1}
+.bm-fl{flex:none;font-size:22px;line-height:1;opacity:.8}
 .lien-jour{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:12.5px;
   font-weight:600;color:var(--bleu-f);background:var(--carte);border:1px solid var(--ligne);
   border-radius:99px;padding:4px 11px;cursor:pointer}
@@ -314,6 +322,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     <div class="titre-carte">📄 Mes bulletins de salaire</div>
     <div id="emp-bulletins"></div>
   </div>
+  <div id="emp-autres-mois" hidden></div>
   <div class="carte" id="carte-questions">
     <div class="titre-carte">💬 Une question sur ce mois ?<span class="pastille" id="emp-msg-pastille" hidden></span></div>
     <div class="muet" style="margin-bottom:8px" id="emp-msg-aide"></div>
@@ -697,7 +706,7 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
-  msgJour: null, msgEdit: null,
+  msgJour: null, msgEdit: null, autresMois: [],
   jrJours: 14, jrQui: null, journal: [], jrActeurs: [],
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
@@ -1065,9 +1074,31 @@ const JR = {
   deverrouillage: ['🔓', e => 'a déverrouillé le ' + e.cible + jrQui(e)],
   suppression:    ['🗑', e => 'a supprimé le ' + e.cible + jrQui(e)],
   message:        ['💬', e => 'a écrit à ' + e.cible],
+  message_lu:     ['👀', e => 'a lu le message' + (e.cible ? ' de ' + e.cible : '')],
+  message_modifie:['✍️', e => 'a corrigé son message' + (e.cible ? ' à ' + e.cible : '')],
+  deconnexion:    ['🚪', e => 's’est déconnecté'],
+  bulletin_depose:   ['📄', e => 'a déposé le bulletin ' + jrPeriode(e) + ' de ' + e.cible],
+  bulletin_supprime: ['🗑', e => 'a supprimé le bulletin ' + jrPeriode(e) + ' de ' + e.cible],
+  fiche_modifiee: ['👤', e => 'a modifié la fiche de ' + e.cible + jrChamps(e)],
+  reglage_modifie:['⚙️', e => 'a modifié le réglage « ' + e.cible + ' »'],
   message_auto:   ['🤖', e => 'rappel automatique à ' + e.cible]
 };
 function jrQui(e) { return e.detail && e.detail.employe ? ' de ' + e.detail.employe : ''; }
+function jrPeriode(e) { return (e.detail && e.detail.periode) ? e.detail.periode : ''; }
+// Ce qui a bougé dans une fiche : on nomme les champs, jamais les secrets —
+// la base a déjà remplacé leur valeur par « — modifié — ».
+function jrChamps(e) {
+  const d = e.detail || {};
+  const cles = Object.keys(d);
+  if (!cles.length) return '';
+  const lib = { metier: 'métier', prenom: 'prénom', nom: 'nom', actif: 'actif', role: 'rôle',
+    pin_hash: 'code PIN', cle_acces: 'clé d’accès', cct: 'CCT', notifications: 'notifications',
+    matin_debut_def: 'horaire type', matin_fin_def: 'horaire type',
+    apm_debut_def: 'horaire type', apm_fin_def: 'horaire type' };
+  const vus = [];
+  for (const c of cles) { const l = lib[c] || c; if (!vus.includes(l)) vus.push(l); }
+  return ' — ' + vus.join(', ');
+}
 // Un appui sur le bouton pose l'horaire type sans rien taper ; des heures
 // réellement saisies s'en écartent. La distinction ne se lit nulle part
 // ailleurs, et c'est elle qui dit si le technicien a regardé sa journée ou
@@ -1111,7 +1142,9 @@ async function chargerJournal() {
 }
 function renderJournal() {
   const c = $('ong-journal');
-  const choix = [[7, '7 jours'], [14, '14 jours'], [30, '30 jours'], [90, '3 mois']];
+  // La fenêtre se compte en jours civils genevois : « Aujourd'hui » s'arrête à
+  // minuit, il ne remonte pas à hier à la même heure.
+  const choix = [[1, 'Aujourd’hui'], [7, '7 jours'], [30, '30 jours'], [90, '3 mois']];
   let html = '<div class="jr-filtres">' + choix.map(([v, lib]) =>
     '<button data-jr="' + v + '"' + ((S.jrJours || 14) === v ? ' class="actif"' : '') + '>' + lib + '</button>').join('') + '</div>';
 
@@ -1432,13 +1465,45 @@ function bulleMsg(m) {
 }
 async function chargerMsgEmp() {
   try {
-    const res = await rpc('messages_lire', { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+    // p_marquer faux : ouvrir l'application n'est pas lire. Le marquage se fait
+    // quand la carte des questions est réellement à l'écran (voir veilleQuestions).
+    const res = await rpc('messages_lire', {
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_marquer: false });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); return; }
     S.messages = res.messages; S.msgNonLus = res.non_lus; S.msgCharges = true;
+    S.autresMois = res.autres_mois || [];
     renderMsgEmp();
   } catch (e) { toast(e.message); }
 }
+// Le technicien arrive toujours dans le mois courant. Un message reçu à propos
+// d'un mois précédent est alors invisible : le fil affiché n'est pas le sien.
+// Le bandeau le dit en haut de l'écran, avant tout le reste, et y emmène.
+function libMois(a, m) { return MOIS[m - 1] + (a !== S.annee ? ' ' + a : ''); }
+function renderBandeauMois() {
+  const b = $('emp-autres-mois');
+  if (!b) return;
+  const autres = S.autresMois || [];
+  if (!autres.length) { b.hidden = true; b.innerHTML = ''; return; }
+  b.hidden = false;
+  b.innerHTML = autres.map(x => {
+    const n = x.non_lus;
+    return '<button class="bandeau-msg" data-a="' + x.annee + '" data-m="' + x.mois + '">' +
+      '<span class="bm-pt">' + n + '</span>' +
+      '<span class="bm-t">nouveau' + (n > 1 ? 'x' : '') + ' message' + (n > 1 ? 's' : '') +
+      ' — ' + esc(libMois(x.annee, x.mois)) + '</span><span class="bm-fl">›</span></button>';
+  }).join('');
+  b.querySelectorAll('[data-a]').forEach(btn => btn.addEventListener('click', () => {
+    S.annee = Number(btn.dataset.a); S.mois = Number(btn.dataset.m);
+    S.msgCharges = false;
+    charger();
+    setTimeout(() => {
+      const c = $('carte-questions');
+      if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  }));
+}
 function renderMsgEmp() {
+  renderBandeauMois();
   const p = $('emp-msg-pastille');
   p.hidden = !S.msgNonLus;
   if (S.msgNonLus) p.textContent = S.msgNonLus;
@@ -1447,6 +1512,25 @@ function renderMsgEmp() {
     : 'Posez votre question sur ' + MOIS[S.mois - 1] + ' ' + S.annee + ' — le back office vous répondra ici.';
   $('emp-msg-fil').innerHTML = S.messages.map(bulleMsg).join('');
   brancherLiensJour($('emp-msg-fil'), S.moi.id);
+  veilleQuestions();
+}
+// « Lu » veut dire vu. On attend que la carte des questions soit réellement
+// à l'écran — pas qu'elle existe quelque part plus bas dans la page.
+let observateurQuestions = null;
+function veilleQuestions() {
+  if (!S.msgNonLus || observateurQuestions || typeof IntersectionObserver === 'undefined') return;
+  const carte = $('carte-questions');
+  if (!carte) return;
+  observateurQuestions = new IntersectionObserver(async entrees => {
+    if (!entrees.some(e => e.isIntersecting)) return;
+    observateurQuestions.disconnect(); observateurQuestions = null;
+    try {
+      const r = await rpc('messages_marquer_lus',
+        { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
+      if (r && r.ok) { S.msgNonLus = r.non_lus; renderMsgEmp(); }
+    } catch (e) { /* sans conséquence : le message reste non lu, on réessaiera */ }
+  }, { threshold: 0.4 });
+  observateurQuestions.observe(carte);
 }
 async function envoyerMsgEmp() {
   const texte = $('emp-msg-texte').value.trim();
@@ -1504,7 +1588,7 @@ async function chargerMessages() {
       (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
   } catch (e) { toast(e.message); }
 }
-// Onglets de fils : « Général » (direction ↔ fiduciaire) puis un fil par collaborateur.
+// Onglets de fils : celui du back office avec la fiduciaire, puis un par collaborateur.
 function ongletsFils() {
   const emps = S.employes.filter(e => e.role === 'employe' && e.actif);
   const nonLus = {};
@@ -1512,7 +1596,10 @@ function ongletsFils() {
   const bouton = (id, nom) =>
     '<button data-fil="' + (id || '') + '" class="' + ((S.filMsg || '') === (id || '') ? 'actif' : '') + '">' +
     esc(nom) + (nonLus[id || ''] ? '<span class="pastille">' + nonLus[id || ''] + '</span>' : '') + '</button>';
-  return '<div class="fils">' + bouton(null, 'Général') +
+  // Le fil sans employé est celui que la direction et la fiduciaire partagent.
+  // On le nomme par l'interlocuteur, pas par un mot vide : « Général » ne
+  // disait pas avec qui l'on parle.
+  return '<div class="fils">' + bouton(null, estCompta() ? 'Direction' : 'Fiduciaire') +
     emps.map(e => bouton(e.id, e.prenom)).join('') + '</div>';
 }
 function renderMessages() {
@@ -1524,7 +1611,7 @@ function renderMessages() {
   const curseur = (actif && actif.id === 'msg-texte')
     ? { debut: actif.selectionStart, fin: actif.selectionEnd } : null;
   const empFil = S.filMsg ? S.employes.find(e => e.id === S.filMsg) : null;
-  const libFil = empFil ? nomComplet(empFil) : 'la fiduciaire et la direction';
+  const libFil = empFil ? nomComplet(empFil) : (estCompta() ? 'la direction' : 'la fiduciaire');
   const fil = S.msgCharges
     ? (S.messages.length
         ? S.messages.map(m => {
