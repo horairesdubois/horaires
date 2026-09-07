@@ -15,6 +15,10 @@
   --bleu:#01a76b; --bleu-f:#047857; --fond:#f6f8fa; --carte:#ffffff;
   --texte:#132b46; --gris:#64748b; --ligne:#e4e9ee; --vert:#059669;
   --rouge:#dc2626; --ambre:#d97706; --r:14px;
+  /* Trois états, trois couleurs qu'on ne confond pas : fait, à faire, vide.
+     Le vert de marque (#01a76b) tire sur le bleu-vert et se lit mal sur un
+     point de sept pixels — l'état « confirmé » prend donc un vert franc. */
+  --ok:#16a34a; --attn:#f59e0b; --neutre:#94a3b8;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none !important}
@@ -26,7 +30,8 @@ input,select{font:inherit;color:inherit}
 .vue{max-width:520px;margin:0 auto;padding:16px 14px calc(60px + env(safe-area-inset-bottom))}
 #v-admin{max-width:1080px}
 h1{font-size:22px;font-weight:700}
-.carte{background:var(--carte);border-radius:var(--r);box-shadow:0 1px 3px rgba(15,23,42,.08);padding:16px;margin-bottom:14px}
+.carte{background:var(--carte);border-radius:var(--r);border:1px solid var(--ligne);padding:16px;margin-bottom:14px}
+.carte.plat{border:none;background:transparent;padding:0}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--bleu);color:#fff;
   border-radius:12px;padding:13px 18px;font-weight:600;transition:filter .12s}
 .btn:active{filter:brightness(.9)}
@@ -75,52 +80,94 @@ h1{font-size:22px;font-weight:700}
 .bande{display:flex;gap:6px;overflow-x:auto;scroll-behavior:smooth;
   padding:2px 14px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .bande::-webkit-scrollbar{display:none}
-.bande button{flex:none;width:44px;padding:7px 0 6px;border-radius:13px;background:var(--carte);
-  box-shadow:0 1px 2px rgba(15,23,42,.06);display:flex;flex-direction:column;align-items:center;gap:3px}
+.bande button{flex:none;width:46px;padding:8px 0 7px;border-radius:14px;background:var(--carte);
+  border:1px solid var(--ligne);display:flex;flex-direction:column;align-items:center;gap:4px}
 .bande button:active{background:#f1f5f9}
 .bande .js{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gris)}
 .bande .num{font-size:16px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
-.bande button.we{background:transparent;box-shadow:none}
+.bande button.we{background:transparent;border-color:transparent}
 .bande button.we .num,.bande button.we .js{color:#a5b2c2}
 .bande button.futur .num{color:#a5b2c2}
-.bande button.sel{background:var(--texte);box-shadow:0 2px 8px rgba(19,43,70,.28)}
+.bande button.sel{background:var(--texte);border-color:var(--texte);box-shadow:0 3px 10px rgba(19,43,70,.3)}
 .bande button.sel .js{color:rgba(255,255,255,.72)}
 .bande button.sel .num{color:#fff}
 .bande button.auj:not(.sel){outline:1.5px solid var(--bleu)}
 .bande button.auj:not(.sel) .num{color:var(--bleu-f)}
 
 /* Un seul point par jour : c'est lui qui dit ce qui reste à faire. */
-.pt{display:block;width:7px;height:7px;border-radius:99px;background:transparent}
-.pt.ok{background:var(--bleu)}
-.pt.attente{background:var(--ambre)}
-.pt.vide{background:transparent;box-shadow:inset 0 0 0 2px var(--ambre)}
-.bande .sel .pt{background:#fff}
+.pt{display:block;width:8px;height:8px;border-radius:99px;background:transparent}
+.pt.ok{background:var(--ok)}
+.pt.attente{background:var(--attn)}
+.pt.vide{background:var(--neutre)}
+/* Sur la pastille sombre du jour choisi, la couleur s'éclaircit — elle ne
+   disparaît pas : un jour confirmé reste vert quand on le regarde. */
+.bande .sel .pt.ok{background:#4ade80}
 .bande .sel .pt.attente{background:#fbbf24}
-.bande .sel .pt.vide{background:transparent;box-shadow:inset 0 0 0 2px #fbbf24}
+.bande .sel .pt.vide{background:#8fa0b4}
 .legende{display:flex;gap:14px;justify-content:center;margin:0 0 12px;font-size:11px;color:var(--gris)}
 .legende span{display:inline-flex;align-items:center;gap:5px}
 
-/* La journée choisie : ce qu'elle vaut, où elle en est, et le geste à faire. */
-.jour-sel .js-tete{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:2px}
-.jour-sel .js-date{font-size:16px;font-weight:700}
+/* La journée choisie porte tout l'écran : un chiffre qui se lit de loin, un
+   état qu'on ne cherche pas, un geste. Le reste doit se taire — trois cartes de
+   même poids, c'est trois choses qu'on ne regarde pas. */
+.jour-sel{padding:18px 18px 14px;border-radius:20px;box-shadow:0 4px 18px rgba(15,23,42,.07);
+  border:1px solid var(--ligne)}
+.jour-sel.fait{background:linear-gradient(180deg,#f0fdf4,#fff 62%);border-color:#c9ecd6}
+.jour-sel.afaire{background:linear-gradient(180deg,#fffbeb,#fff 62%);border-color:#f4e2b4}
+.jour-sel .js-tete{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.jour-sel .js-date{font-size:14px;font-weight:600;color:var(--gris);letter-spacing:.01em}
 .jour-sel .js-date::first-letter{text-transform:uppercase}
-.jour-sel .js-etat{flex:none;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;
-  background:#eef2f5;color:var(--gris);white-space:nowrap}
-.jour-sel .js-etat.ok{background:#e7f6ef;color:var(--bleu-f)}
+.jour-sel .js-etat{flex:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;
+  background:#eef2f5;color:var(--gris);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
+.jour-sel .js-etat.ok{background:#dcfce7;color:#15803d}
 .jour-sel .js-etat.attente{background:#fef3c7;color:#92400e}
-.jour-sel .js-heures{font-size:14px;color:var(--gris);font-variant-numeric:tabular-nums;margin-bottom:12px}
-.jour-sel .btn.large{margin-bottom:2px}
+.jour-sel .js-chiffre{font-size:40px;font-weight:800;line-height:1.05;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.jour-sel .js-chiffre .sup{font-size:15px;font-weight:700;color:var(--ok);margin-left:8px;letter-spacing:0}
+.jour-sel .js-heures{font-size:14px;color:var(--gris);font-variant-numeric:tabular-nums;margin-bottom:14px}
 .jour-sel .js-lien{display:block;width:100%;text-align:center;font-size:13px;font-weight:600;
-  color:var(--gris);padding:9px 0 1px}
+  color:var(--gris);padding:11px 0 1px}
 .jour-sel .js-lien:active{color:var(--texte)}
 
-/* Les questions ne prennent la place qu'une fois ouvertes. */
-.pliable{padding:0;overflow:hidden}
-.pli-tete{display:flex;align-items:center;justify-content:space-between;width:100%;padding:15px 16px;text-align:left}
-.pli-tete:active{background:#f8fafc}
-.pli-fl{color:var(--gris);font-size:20px;line-height:1;transition:transform .15s}
-.pli-fl.ouvert{transform:rotate(90deg)}
-#q-corps{padding:0 16px 16px}
+/* Le bas de l'écran : une carte, des lignes, rien de plus. Deux boutons de
+   poids différent se disputaient l'attention avec la carte du jour ; ici ils
+   attendent qu'on aille les chercher. */
+.liste-fin{padding:0;overflow:hidden}
+.ligne-fin{display:flex;align-items:center;gap:12px;width:100%;padding:15px 16px;text-align:left;
+  font-size:15px;font-weight:600;color:var(--texte)}
+.ligne-fin + .ligne-fin{border-top:1px solid var(--ligne)}
+.ligne-fin:active{background:#f8fafc}
+.lf-ico{flex:none;font-size:16px;width:20px;text-align:center}
+.lf-lib{flex:1;display:flex;align-items:center}
+.lf-fl{flex:none;color:#a5b2c2;font-size:20px;line-height:1;transition:transform .15s}
+.lf-fl.ouvert{transform:rotate(90deg)}
+#q-corps{padding:0 16px 16px;border-top:1px solid var(--ligne)}
+
+/* Les derniers jours, à la manière d'un relevé : un point d'état, la date, ce
+   qu'on a fait, le total. On lit une ligne sans avoir à la déchiffrer. */
+.lf-titre{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--gris);padding:14px 16px 8px}
+.dj{display:flex;align-items:center;gap:11px;width:100%;padding:11px 16px;text-align:left}
+.dj + .dj{border-top:1px solid var(--ligne)}
+.dj:active{background:#f8fafc}
+.dj .pt{flex:none}
+.dj .d{flex:none;width:52px;font-size:13.5px;font-weight:700;color:var(--texte)}
+.dj .d::first-letter{text-transform:uppercase}
+.dj .h{flex:1;min-width:0;font-size:12.5px;color:var(--gris);font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dj .t{flex:none;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.dj .t .sup{font-size:11.5px;color:var(--ok);margin-left:5px}
+.dj .fl{flex:none;color:#c3cdd9;font-size:17px;line-height:1}
+.dj.rien .h{color:#a5b2c2}
+
+/* Le résumé du mois se lit, il ne crie pas. */
+.resume{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 2px 14px}
+.resume .rappel{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600}
+.resume .rappel.att{color:#92400e}
+.resume .rappel.ok{color:var(--bleu-f)}
+.resume .act{margin-left:auto;font-size:13px;font-weight:700;color:var(--bleu-f);
+  border:1px solid #bfe3d1;background:#f2fbf6;border-radius:99px;padding:7px 13px;white-space:nowrap}
+.resume .act:active{background:#e3f5eb}
 .logo-marque{height:30px;width:auto;max-width:60%;display:block}
 @media(min-width:640px){.logo-marque{height:36px}}
 .entete{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -129,10 +176,11 @@ h1{font-size:22px;font-weight:700}
 .ico{font-size:20px;padding:8px;border-radius:10px;background:var(--carte);box-shadow:0 1px 3px rgba(15,23,42,.08)}
 .entete-emp .ico{font-size:15px;padding:7px 9px;background:transparent;box-shadow:none;opacity:.5}
 .entete-emp .ico:active{opacity:1}
-.nav-mois{display:flex;align-items:center;justify-content:space-between;background:var(--carte);
-  border-radius:var(--r);box-shadow:0 1px 3px rgba(15,23,42,.08);margin-bottom:14px}
+.nav-mois{display:flex;align-items:center;justify-content:space-between;background:transparent;
+  margin-bottom:6px}
 .nav-mois button{font-size:22px;padding:10px 20px;color:var(--bleu)}
-.nav-mois .lib{font-weight:700;font-size:17px;text-transform:capitalize}
+.nav-mois .lib{font-weight:700;font-size:17px}
+.nav-mois .lib::first-letter{text-transform:uppercase}
 
 /* ---- Pointeur ---- */
 #carte-pointer .btn{margin-top:4px}
@@ -143,7 +191,7 @@ h1{font-size:22px;font-weight:700}
 .totaux .gros{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .chips span{font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:#e7f6ef;color:var(--bleu-f)}
-.etat-mois{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;padding:11px 13px;border-radius:12px}
+.etat-mois{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;padding:10px 12px;border-radius:11px}
 .etat-mois.attention{background:#fef3c7;color:#92400e}
 .etat-mois.ok{background:#e7f6ef;color:#047857}
 #btn-pointer{display:flex;flex-direction:column;gap:1px}
@@ -405,34 +453,44 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
       <div class="js-date" id="js-date"></div>
       <div class="js-etat" id="js-etat"></div>
     </div>
+    <div class="js-chiffre" id="js-chiffre" hidden></div>
     <div class="js-heures" id="js-heures"></div>
     <button class="btn vert large" id="btn-pointer"></button>
     <button class="js-lien" id="btn-modifier-jour">Corriger l’horaire ou signaler une absence</button>
   </div>
 
-  <div class="carte" id="carte-mois">
-    <div id="emp-etat"></div>
-    <div class="chips" id="emp-chips"></div>
-    <div id="emp-remplir"></div>
+  <div class="resume" id="carte-mois">
+    <span id="emp-etat"></span>
+    <span id="emp-chips" class="chips" style="margin:0"></span>
+    <span id="emp-remplir"></span>
   </div>
 
   <div id="emp-autres-mois" hidden></div>
 
-  <button class="plier" id="btn-tout-mois"></button>
-  <div id="emp-liste" hidden></div>
+  <div class="carte liste-fin" id="derniers" hidden>
+    <div class="lf-titre">Ces derniers jours</div>
+    <div id="derniers-liste"></div>
+  </div>
 
-  <div class="carte pliable" id="carte-questions">
-    <button class="pli-tete" id="q-tete">
-      <span class="titre-carte" style="margin:0">💬 Questions<span class="pastille" id="emp-msg-pastille" hidden></span></span>
-      <span class="pli-fl" id="q-fleche">›</span>
+  <div class="carte liste-fin">
+    <button class="ligne-fin" id="btn-tout-mois">
+      <span class="lf-ico">📅</span>
+      <span class="lf-lib" id="tout-mois-lib">Détail du mois, jour par jour</span>
+      <span class="lf-fl" id="tout-mois-fl">›</span>
+    </button>
+    <button class="ligne-fin" id="q-tete">
+      <span class="lf-ico">💬</span>
+      <span class="lf-lib">Questions<span class="pastille" id="emp-msg-pastille" hidden></span></span>
+      <span class="lf-fl" id="q-fleche">›</span>
     </button>
     <div id="q-corps" hidden>
-      <div class="muet" style="margin:8px 0" id="emp-msg-aide"></div>
+      <div class="muet" style="margin:2px 0 8px" id="emp-msg-aide"></div>
       <div id="emp-msg-fil"></div>
       <textarea id="emp-msg-texte" maxlength="2000" placeholder="Votre question au back office…"></textarea>
       <button class="btn large" id="emp-msg-envoyer">Envoyer ma question</button>
     </div>
   </div>
+  <div id="emp-liste" hidden></div>
 </div>
 
 <!-- ============ ADMIN ============ -->
@@ -1079,6 +1137,7 @@ function renderEmp() {
 
   renderBande(jours, map, auj);
   renderJourSel(map, auj);
+  renderDerniers(jours, map, auj);
   renderResumeMois(jours, map, auj, moisCourant);
   renderListeMois(jours, map, auj);
 }
@@ -1147,11 +1206,21 @@ function renderJourSel(map, auj) {
   const [lib, ton] = ETAT_LIB[e];
   $('js-etat').textContent = lib;
   $('js-etat').className = 'js-etat ' + ton;
+  // La carte se teinte de l'état : vert quand c'est fait, ambre quand il reste
+  // un geste. C'est la seule couleur de fond de l'écran, donc la seule chose
+  // qu'on regarde en premier.
+  $('carte-jour-sel').className = 'carte jour-sel ' +
+    (ton === 'ok' ? 'fait' : ton === 'attente' ? 'afaire' : '');
 
   const type = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
     ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
+  // Le chiffre est le héros quand il existe : des heures se lisent de loin.
+  const sup = heuresSupJour(p, iso, js);
+  $('js-chiffre').hidden = !min;
+  if (min) $('js-chiffre').innerHTML = fmtMin(min) +
+    (sup ? '<span class="sup">+' + fmtMin(sup) + ' sup</span>' : '');
   $('js-heures').innerHTML = p
-    ? heuresTexte(p) + (min ? ' · <b>' + fmtMin(min) + '</b>' : '')
+    ? heuresTexte(p)
     : (fer ? esc(fer) : (e === 'weekend' ? 'Rien à saisir un week-end' : 'Horaire normal : ' + type));
 
   const btn = $('btn-pointer');
@@ -1178,6 +1247,39 @@ function renderJourSel(map, auj) {
   lien.onclick = () => ouvrirJour(S.moi.id, iso);
 }
 
+/* Ce qui vient de se passer, quatre lignes. Le détail du mois répond à « où en
+   suis-je » ; ceci répond à « qu'ai-je fait cette semaine », qui est la question
+   qu'on se pose en ouvrant l'application. */
+function amplitude(p) {
+  const deb = (p.matin_type === 'travail' && p.matin_debut) || (p.apm_type === 'travail' && p.apm_debut);
+  const fin = (p.apm_type === 'travail' && p.apm_fin) || (p.matin_type === 'travail' && p.matin_fin);
+  if (!deb || !fin) return TYPES[p.matin_type !== 'travail' ? p.matin_type : p.apm_type] || '';
+  return deb + ' → ' + fin;
+}
+function renderDerniers(jours, map, auj) {
+  const recents = jours.filter(j => j.iso < auj && !(j.js === 0 || j.js === 6) && !ferieGE(j.iso))
+                       .slice(-4).reverse();
+  $('derniers').hidden = !recents.length;
+  if (!recents.length) { $('derniers-liste').innerHTML = ''; return; }
+  $('derniers-liste').innerHTML = recents.map(j => {
+    const p = map[j.iso];
+    const e = etatJour(p, j.iso, j.js, auj);
+    const min = jourMin(p);
+    const sup = heuresSupJour(p, j.iso, j.js);
+    return '<button class="dj' + (p ? '' : ' rien') + '" data-dj="' + j.iso + '">' +
+      '<i class="pt ' + (MARQUE[e] || '') + '"></i>' +
+      '<span class="d">' + JS_COURT[j.js] + ' ' + j.num + '</span>' +
+      // L'amplitude de la journée plutôt que les deux demi-journées : la ligne
+      // ne se coupe pas, et c'est l'information qu'on cherche d'un coup d'œil.
+      '<span class="h">' + (p ? amplitude(p) : ETAT_LIB[e][0]) + '</span>' +
+      '<span class="t">' + (min ? fmtMin(min) : '') +
+        (sup ? '<span class="sup">+' + fmtMin(sup) + '</span>' : '') + '</span>' +
+      '<span class="fl">›</span></button>';
+  }).join('');
+  $('derniers-liste').querySelectorAll('[data-dj]').forEach(b =>
+    b.addEventListener('click', () => { S.jourSel = b.dataset.dj; renderEmp(); }));
+}
+
 function renderResumeMois(jours, map, auj, moisCourant) {
   const abs = resumeAbsences(S.pointages);
   const manq = joursManquants(jours, map);
@@ -1192,24 +1294,24 @@ function renderResumeMois(jours, map, auj, moisCourant) {
   }).length;
   const moisCommence = jours[0].iso <= auj;
 
+  // Une ligne, pas une boîte : la carte du jour est déjà teintée, deux alertes
+  // de même force sur un écran, c'est aucune alerte.
   $('emp-etat').innerHTML = manq > 0
-    ? '<div class="etat-mois attention">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</div>'
+    ? '<span class="rappel att">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>'
     : aConfirmer > 0
-      ? '<div class="etat-mois attention">⚠ ' + aConfirmer + ' journée' + (aConfirmer > 1 ? 's' : '') + ' à confirmer</div>'
-      : (moisCommence ? '<div class="etat-mois ok">✓ Vos heures sont à jour</div>' : '');
+      ? '<span class="rappel att">⚠ ' + aConfirmer + ' journée' + (aConfirmer > 1 ? 's' : '') + ' à confirmer</span>'
+      : (moisCommence ? '<span class="rappel ok">✓ Vos heures sont à jour</span>' : '');
 
   let chips = '';
-  if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
+  if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">+' + fmtMin(supMois) + ' sup</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (S.pointages.length && S.pointages.every(p => p.approuve)) {
-    chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé par le back office</span>';
+    chips += '<span style="background:#ecfdf5;color:#065f46">✓ Validé</span>';
   }
   $('emp-chips').innerHTML = chips;
 
   $('emp-remplir').innerHTML = manq > 0
-    ? '<button class="btn sec large" id="btn-remplir" style="margin-top:10px">✓ Compléter ' +
-      (manq > 1 ? 'les ' + manq + ' jours manquants' : 'le jour manquant') + ' avec l’horaire normal</button>'
-    : '';
+    ? '<button class="act" id="btn-remplir">Tout compléter</button>' : '';
   if (manq > 0) $('btn-remplir').addEventListener('click', remplirManquants);
   $('carte-mois').hidden = !$('emp-etat').innerHTML && !chips && manq === 0;
 }
@@ -1218,7 +1320,8 @@ function renderResumeMois(jours, map, auj, moisCourant) {
    faire défiler alors qu'on vient surtout saisir la journée du jour. */
 function renderListeMois(jours, map, auj) {
   const ouvert = !!S.moisDeplie;
-  $('btn-tout-mois').textContent = ouvert ? '▾ Masquer le détail du mois' : '▸ Voir le détail du mois, jour par jour';
+  $('tout-mois-lib').textContent = ouvert ? 'Masquer le détail du mois' : 'Détail du mois, jour par jour';
+  $('tout-mois-fl').classList.toggle('ouvert', ouvert);
   $('emp-liste').hidden = !ouvert;
   if (!ouvert) { $('emp-liste').innerHTML = ''; return; }
 
@@ -1760,10 +1863,13 @@ function renderBandeauMois() {
     S.annee = Number(btn.dataset.a); S.mois = Number(btn.dataset.m);
     S.msgCharges = false;
     charger();
+    // Le bandeau emmène au bon mois : le fil doit être ouvert et sous les yeux
+    // en arrivant, sinon on a changé de mois pour rien.
+    S.qOuvert = true;
     setTimeout(() => {
-      const c = $('carte-questions');
-      if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 300);
+      const c = $('q-corps');
+      if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 400);
   }));
 }
 function renderMsgEmp() {
