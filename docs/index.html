@@ -188,6 +188,10 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-src.modif{color:#8a6116;background:#fef7e6}
 .jr-src.bo{color:#334155;background:#eef2f5}
 .jr-src.auto{color:#b3261e;background:#fbeceb}
+.rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:2px 7px;display:inline-block}
+.aide-det{margin:0 0 12px;display:flex;align-items:center;gap:8px;font-size:13px}
+.aide-det b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:6px;background:var(--vert);color:#fff;font-size:12px;flex:none}
 .onglets{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
 .onglets button{flex:none;padding:9px 16px;border-radius:99px;font-weight:600;background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .onglets button.actif{background:var(--bleu);color:#fff}
@@ -400,7 +404,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="modale">
     <h2 id="det-titre"></h2>
     <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
-    <div class="muet" style="margin:0 0 10px" id="det-aide">Touchez la coche ✓ à droite d’un jour pour le valider — ou le déverrouiller. Chaque journée se valide séparément.</div>
+    <div class="muet aide-det" id="det-aide"><b>✓</b> valide un jour · un second appui le déverrouille</div>
     <div class="carte" style="padding:12px">
       <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
       <div class="chips" id="det-chips"></div>
@@ -1949,8 +1953,9 @@ function ouvrirDetails(empId) {
   const jours = joursDuMois(S.annee, S.mois);
   const auj = S.auj || aujourdhui();   // date de Genève renvoyée par le serveur
   $('det-titre').textContent = nomComplet(e);
-  $('det-sous').textContent = (e.metier ? e.metier + ' — ' : '') + MOIS[S.mois - 1] + ' ' + S.annee +
-    ' · CCT ' + cctDe(e).nom + txtVu(e);
+  // Le back office sait qui est la personne et quel mois il regarde : il l'a
+  // choisi lui-même deux clics plus tôt. Ne reste que ce qu'il ignore.
+  $('det-sous').textContent = txtVu(e).replace(/^\s*·\s*/, '');
   $('det-aide').hidden = S.lecture;
   let total = 0;
   for (const p of lignes) total += jourMin(p);
@@ -1994,7 +1999,10 @@ function ouvrirDetails(empId) {
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
-      (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') + '</div>' +
+      (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') +
+      // Des heures en plus sans un mot : c'est exactement ce qu'on cherche à
+      // comprendre plus tard, et qu'on ne retrouvera plus dans trois semaines.
+      (sup && !(p && p.remarque) ? '<div class="rem sansmotif">Heures en plus, sans explication</div>' : '') + '</div>' +
       '<div class="tot">' + (min ? fmtMin(min) : '') +
       (sup ? ' <span class="delta-sup">+' + fmtMin(sup) + '</span>' : '') + '</div>' + coche + '</button>';
     if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
