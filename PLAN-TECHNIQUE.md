@@ -2134,12 +2134,16 @@ le technicien n'a que **trois** questions.
 | Ce qu'il voit | Le point | Ce que ça veut dire |
 |---|---|---|
 | **À saisir** | gris | rien n'est enregistré |
-| **À approuver** | ambre | c'est saisi, le back office ne l'a pas encore approuvé |
+| **En attente** | ambre | c'est saisi, le back office ne l'a pas encore approuvé |
 | **Approuvée** | vert | c'est fini, la journée ne bouge plus |
 
-Une journée posée par le back office qu'il n'a pas confirmée tombe dans « à
-approuver » : elle n'est pas approuvée, et c'est tout ce qu'il a besoin de
-savoir. Le bouton de la carte, lui, propose de la confirmer — la nuance vit dans
+« À approuver » se lisait comme un ordre qui lui serait adressé ; « En attente »
+dit ce que c'est — la journée est partie, elle attend le back office. La
+pastille est courte par nécessité, elle tient à côté de la date ; la légende et
+le résumé du mois, qui ont la place, disent **« en attente d'approbation »**.
+
+Une journée posée par le back office qu'il n'a pas confirmée tombe dans cet
+état : elle n'est pas approuvée, et c'est tout ce qu'il a besoin de savoir. Le bouton de la carte, lui, propose de la confirmer — la nuance vit dans
 le geste, pas dans une étiquette de plus.
 
 Sont retirés : la phrase sous le chiffre, les mentions « À confirmer » et
