@@ -1890,3 +1890,32 @@ connecte bien par son lien, et voit ses propres écrans.
 Puis sur la production, après création du compte : journal inchangé, aucune
 ligne écrite par elle, aucune mention ; le relevé des retards ne réclame que
 Alen et Steve ; la fiduciaire ne la voit pas ; le back office la voit marquée.
+
+### 40.6 L'aperçu depuis le back office, sans se déconnecter
+
+Le lien de démonstration est un bouton **« 👁 Ouvrir »** sur sa carte, dans
+l'onglet Employés. Mais le poser là posait un problème que le lien seul n'avait
+pas : ouvert dans le même navigateur, il aurait chassé la session du back
+office. Deux corrections le règlent.
+
+**La session de l'aperçu ne vit que dans son onglet.** Un compte marqué
+`demo` s'installe dans `sessionStorage` — qui meurt avec l'onglet — là où les
+vrais comptes s'installent dans `localStorage` et survivent à la fermeture. Se
+déconnecter de l'aperçu ne vide que son propre tiroir : l'onglet d'à côté garde
+sa session. Tous les accès au stockage sont enveloppés : un navigateur qui le
+refuse ne doit pas empêcher l'application de s'ouvrir.
+
+**Un lien dans l'adresse l'emporte désormais sur la session en cours.** Avant,
+il était purement ignoré dès qu'une session existait — l'aperçu aurait affiché
+le back office au lieu de l'écran demandé. Pour ne pas déloger quelqu'un par
+mégarde, l'ouverture d'un lien **qui n'est pas l'aperçu** demande confirmation
+quand une session back office est ouverte sur l'appareil. L'aperçu, lui, se
+signale dans l'adresse (`&apercu=1`) et ne demande rien : il ne ferme rien.
+
+**Vérifié dans un vrai navigateur, deux onglets ouverts**
+(`tests/apercu-technicien.mjs`, serveur simulé) : le bouton ouvre l'aperçu qui
+affiche bien l'écran technicien ; l'aperçu est en `sessionStorage`, le back
+office reste en `localStorage` ; le back office rechargé est toujours lui-même ;
+se déconnecter de l'aperçu ne lui retire rien ; le lien d'aperçu collé à la main
+ne pose aucune question ; et le lien d'un **vrai** compte, lui, prévient avant
+de fermer la session — refusée, on reste où l'on était.
