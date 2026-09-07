@@ -1615,3 +1615,94 @@ subsiste — `derniere_connexion` de la fiduciaire est restée au 27 août.
 Un déclencheur voisin méritait d'être vérifié : `_trg_journal_employe` ignore
 explicitement `derniere_connexion`. Sans cela, toucher la présence toutes les
 minutes aurait écrit « fiche modifiée » toutes les minutes.
+
+---
+
+## 36. Ce qu'un technicien peut atteindre — vérification complète
+
+Demandée explicitement : « vérifie que les employés n'ont accès qu'à leur propre
+information ». La réponse est **oui pour tout ce qui passe par une session**, et
+**non pour une porte laissée ouverte à côté**.
+
+### 36.1 La porte dérobée : `_save_jour`
+
+`public._save_jour` est le cœur de l'écriture d'une journée. Elle ne demande
+**aucun jeton** : elle prend l'employé en paramètre, accepte `p_admin` — qui
+contourne le verrou des jours déjà validés — et `p_auteur`, qui décide de la
+signature portée au journal. C'est voulu : ses deux appelants,
+`enregistrer_jour` et `admin_enregistrer_jour`, ont déjà vérifié la session et
+le rôle.
+
+Elle était pourtant **accordée au rôle `anon`** — celui de la clé publique que
+porte la page publiée, lisible par quiconque ouvre le code source. Vérifié en
+conditions réelles, depuis Internet :
+
+    POST /rest/v1/rpc/_save_jour   →   {"ok": false, "erreur": "Date invalide"}
+
+La fonction *s'exécute*. Avec une date valide et l'identifiant d'un technicien —
+que `messages_lire` rend d'ailleurs disponible à qui possède un lien — n'importe
+qui pouvait écrire ou récrire une journée, passer outre une validation du back
+office, et signer la ligne du nom d'un autre.
+
+**Aucun essai d'écriture n'a été fait sur des données réelles.** La preuve a été
+obtenue avec une date invalide, que la fonction rejette d'elle-même : il suffit
+de la voir répondre.
+
+**Correctif** : les fonctions internes (préfixe `_`) ne sont plus accordées
+qu'à leur propriétaire. Les fonctions publiques sont `security definer` et
+s'exécutent sous ce propriétaire — rien ne change pour l'application. La règle
+est écrite **en boucle plutôt qu'en liste** : une fonction interne ajoutée
+demain se refermerait toute seule, là où une liste l'aurait oubliée.
+
+    POST /rest/v1/rpc/_save_jour   →   permission denied for function _save_jour
+
+### 36.2 Le registre que ses sujets pouvaient garnir
+
+`journal_noter` ne vérifiait que la session : un technicien pouvait y inscrire
+de fausses lignes « a exporté ». Peu de dégâts, mais un registre que les
+surveillés peuvent remplir ne prouve plus rien. Réservé au back office et à la
+fiduciaire, dont c'est l'écran.
+
+### 36.3 Tout le reste tient
+
+Vérifié depuis une vraie session de technicien, sur la base réelle en
+transaction annulée, puis rejoué comme scénario (`supabase/tests/acces_technicien.sql`) :
+
+| Ce que le technicien tente | Résultat |
+|---|---|
+| Ouvrir l'écran du back office | refusé |
+| Ouvrir l'écran de la fiduciaire | refusé |
+| Ouvrir les logs | refusé |
+| Valider ou supprimer le jour d'un autre | refusé |
+| Régénérer la clé d'accès d'un autre | refusé |
+| Modifier la fiche d'un autre, se nommer admin | refusé |
+| Changer un réglage de l'entreprise | refusé |
+| Écrire dans le registre | refusé |
+| Lire le fil d'un autre (`p_employe` forcé) | **son propre fil** est rendu |
+| Écrire dans le fil d'un autre | le message atterrit **dans le sien** |
+| Lister ou télécharger le bulletin d'un autre | rien, « bulletin introuvable » |
+| Lire ses pointages | **une seule personne** : lui |
+
+Le point important est la troisième ligne du bas : forcer l'identifiant d'un
+collègue dans l'appel ne produit pas une erreur, il produit **ses propres
+données**. Le paramètre est ignoré pour un technicien — c'est plus sûr qu'un
+refus, car il n'y a rien à contourner.
+
+---
+
+## 37. Trois écrans en moins de bruit
+
+- **« Journal » devient « Logs »**, le mot demandé.
+- **L'onglet « Bulletins de salaire » disparaît**, des deux côtés : l'onglet du
+  back office et la carte « Mes bulletins » du technicien. Les fonctions en base
+  restent — on retire un écran, on ne détruit ni données ni capacité. Le code
+  d'écran devenu mort est retiré, lui : dépôt, téléchargement, suppression,
+  styles.
+- **« Export comptable » devient « Exporter »**, et le bouton de téléchargement
+  porte partout le même libellé.
+- **Le nom de l'entreprise disparaît de l'en-tête** : le logo le dit déjà. Il
+  reste réglable dans l'onglet Exporter, où il sert au fichier Excel.
+
+Un garde-fou accompagne le retrait : si l'application se souvient d'un onglet
+qui n'existe plus, elle revient aux feuilles de temps plutôt que d'afficher un
+écran vide.
