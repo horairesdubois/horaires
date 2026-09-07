@@ -1832,3 +1832,61 @@ message envoyé avec le bon jour et le bon destinataire, ligne qui devient
 « Explication demandée », journée qui **ne s'ouvre pas** par mégarde, question
 visible sur la journée côté technicien, avertissement affiché puis disparu dès
 qu'il écrit, question posée à l'enregistrement, et passage outre possible.
+
+---
+
+## 40. Un compte de démonstration, que le journal ne voit pas
+
+Migration `20260907220000_compte_demonstration.sql`, appliquée en production.
+
+### 40.1 Le problème
+
+Ouvrir le lien d'un technicien pour vérifier un écran, c'est se faire passer
+pour lui : la connexion, l'ouverture, la saisie — tout part au journal sous son
+nom. On ne distingue plus ce qu'il a fait de ce qu'on a fait à sa place, et le
+registre perd exactement ce qui en fait la valeur.
+
+### 40.2 Le drapeau `demo`, et le silence dans les deux sens
+
+Une colonne `employes.demo`. Le compte se connecte comme un technicien et a tous
+ses écrans, mais **rien de ce qui le concerne n'est inscrit au journal** — ni ce
+qu'il fait, ni ce qu'on fait sur lui. Sans cette seconde moitié, une question
+posée à la démonstration laisserait une ligne « a écrit à Démo » au milieu des
+vraies.
+
+Le silence est posé à la source, dans `_journal`, donc pour tous les
+déclencheurs qui passent par elle ; et à la main dans les trois qui écrivent en
+direct — fiches, pointages, messages.
+
+### 40.3 Tenu à l'écart de ce qui compte
+
+| Où | La démonstration |
+|---|---|
+| Journal | **invisible**, dans les deux sens |
+| Export comptable | ni proposée, ni fabriquée si l'on force la sélection |
+| Vue de la fiduciaire | absente — employés comme pointages |
+| Relevé des saisies en retard | ignorée |
+| Onglet Employés (back office) | **visible**, étiquetée « démonstration », avec son lien |
+| Feuilles de temps, Questions | visible : c'est là qu'on essaie |
+
+Elle reste visible côté back office à dessein : c'est de là qu'on prend le lien,
+et c'est là qu'on veut voir l'effet de ce qu'on essaie.
+
+### 40.4 Ce que le compte porte
+
+Trois journées de septembre, choisies pour que chaque écran ait quelque chose à
+montrer : une journée normale, une journée longue **avec** explication, une
+journée longue **sans** — de quoi essayer le bouton « Demander » — et le
+3 septembre laissé vide, de quoi essayer « Compléter les jours manquants ».
+
+### 40.5 Vérifications
+
+Sur base reconstruite : le vrai technicien laisse ses traces habituelles ; la
+démonstration fait exactement les mêmes gestes — connexion, saisie, message,
+lecture — et le back office lui écrit, saisit pour elle et modifie sa fiche.
+Résultat : **zéro ligne** au journal la nommant, de près ou de loin. Elle se
+connecte bien par son lien, et voit ses propres écrans.
+
+Puis sur la production, après création du compte : journal inchangé, aucune
+ligne écrite par elle, aucune mention ; le relevé des retards ne réclame que
+Alen et Steve ; la fiduciaire ne la voit pas ; le back office la voit marquée.
