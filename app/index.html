@@ -706,7 +706,7 @@ const S = {
   mois: new Date().getMonth() + 1,
   pointages: [], employes: [], entreprise: '',
   ongletAdmin: 'equipe',
-  msgJour: null, msgEdit: null, autresMois: [],
+  msgJour: null, msgEdit: null, autresMois: [], filViser: false,
   jrJours: 14, jrQui: null, journal: [], jrActeurs: [],
   deplieAvant: false, deplieApres: false,
   // Accès fiduciaire : consultation seule, et fil de questions du mois.
@@ -1579,14 +1579,62 @@ function renderAdmin() {
 /* ---------- Questions : un fil général et un fil par collaborateur ---------- */
 async function chargerMessages() {
   try {
+    // p_marquer faux : la grille se rafraîchit toutes les minutes et appelait
+    // cette lecture depuis n'importe quel onglet. Elle marquait donc lus des
+    // messages que personne n'avait sous les yeux, et la pastille ne s'allumait
+    // jamais pour le mois affiché. Lire, ici, c'est ouvrir le fil (marquerFilLu).
     const res = await rpc('messages_lire', {
-      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_employe: S.filMsg });
+      p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_employe: S.filMsg,
+      p_marquer: false });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
     S.messages = res.messages; S.msgNonLus = res.non_lus; S.fils = res.fils || []; S.msgCharges = true;
+    S.autresMois = res.autres_mois || [];
+    // On arrive par le bandeau « non lus en août » : le mois est le bon, le fil
+    // pas forcément. On se pose sur celui qui porte les non-lus, sinon le
+    // bandeau mènerait à un écran vide — le défaut qu'il est censé réparer.
+    if (S.filViser) {
+      S.filViser = false;
+      const cible = S.fils.find(f => f.non_lus > 0);
+      if (cible && (cible.employe_id || null) !== (S.filMsg || null)) {
+        S.filMsg = cible.employe_id || null;
+        S.msgCharges = false; S.messages = [];
+        return chargerMessages();
+      }
+    }
     if (S.ongletAdmin === 'messages') renderMessages();
     $('ong-btn-messages').innerHTML = '💬 Questions' +
       (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
   } catch (e) { toast(e.message); }
+}
+// Le compteur ignore le mois, la vue est filtrée dessus : sans ce bandeau, le
+// back office lit « 2 » en rouge et ne trouve rien, parce que les deux messages
+// sont dans le fil d'un autre mois.
+function bandeauAutresMois() {
+  const autres = S.autresMois || [];
+  if (!autres.length) return '';
+  return autres.map(x => {
+    const n = x.non_lus;
+    return '<button class="bandeau-msg" data-am-a="' + x.annee + '" data-am-m="' + x.mois + '">' +
+      '<span class="bm-pt">' + n + '</span><span class="bm-t">non lu' + (n > 1 ? 's' : '') +
+      ' \u2014 ' + esc(libMois(x.annee, x.mois)) + '</span><span class="bm-fl">\u203A</span></button>';
+  }).join('');
+}
+// Marquer lu, c'est avoir ouvert le fil, pas avoir laissé l'application tourner
+// sur un autre onglet. On remet le compteur du fil à zéro avant l'appel : le
+// rendu qui suit ne doit pas redemander la même chose.
+async function marquerFilLu() {
+  const f = S.fils.find(x => (x.employe_id || null) === (S.filMsg || null));
+  if (!f || !f.non_lus) return;
+  f.non_lus = 0;
+  try {
+    const r = await rpc('messages_marquer_lus',
+      { p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_employe: S.filMsg });
+    if (!r || !r.ok) return;
+    S.msgNonLus = r.non_lus;
+    $('ong-btn-messages').innerHTML = '💬 Questions' +
+      (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
+    renderMessages();
+  } catch (e) { /* sans conséquence : le message reste non lu, on réessaiera */ }
 }
 // Onglets de fils : celui du back office avec la fiduciaire, puis un par collaborateur.
 function ongletsFils() {
@@ -1633,6 +1681,7 @@ function renderMessages() {
     '<div class="carte"><div style="font-weight:700;margin-bottom:4px">Questions sur ' +
       MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
     '<div class="muet" style="margin-bottom:10px">Chaque mois et chaque personne ont leur propre fil. Un collaborateur ne voit que le sien.</div>' +
+    bandeauAutresMois() +
     ongletsFils() +
     '<div class="fil">' + fil + '</div>' +
     '<textarea id="msg-texte" maxlength="2000" placeholder="' +
@@ -1679,7 +1728,17 @@ function renderMessages() {
       S.msgCharges = false; S.messages = [];
       renderMessages(); chargerMessages();
     }));
+  $('ong-messages').querySelectorAll('[data-am-a]').forEach(b =>
+    b.addEventListener('click', () => {
+      S.annee = Number(b.dataset.amA); S.mois = Number(b.dataset.amM);
+      S.filViser = true;                     // le bon mois, puis le bon fil
+      S.msgEdit = null; S.msgJour = null;
+      S.msgCharges = false; S.messages = [];
+      S.deplieAvant = false; S.deplieApres = false;
+      renderMessages(); charger();
+    }));
   if (!S.msgCharges) chargerMessages();
+  else if (S.ongletAdmin === 'messages') marquerFilLu();
 }
 function quitterCorrection() {
   S.msgEdit = null; S.msgJour = null;
