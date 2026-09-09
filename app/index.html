@@ -328,6 +328,19 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-src.modif{color:#8a6116;background:#fef7e6}
 .jr-src.bo{color:#334155;background:#eef2f5}
 .jr-src.auto{color:#b3261e;background:#fbeceb}
+/* Ce qui a réellement changé dans une journée : l'ancien barré, le nouveau en
+   gras, et l'écart en minutes — c'est la question qu'on se pose en lisant
+   « a modifié le 07.09 » et à laquelle le journal ne répondait pas. */
+.jr-diff{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:4px;
+  font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--gris)}
+.jr-diff .av{text-decoration:line-through;opacity:.7}
+.jr-diff .ap{font-weight:600;color:var(--texte)}
+.jr-diff .fl{opacity:.45}
+.jr-note{font-style:italic}
+.jr-delta{font-size:11px;font-weight:700;border-radius:5px;padding:1px 7px;white-space:nowrap}
+.jr-delta.plus{color:#8a6116;background:#fef7e6}
+.jr-delta.moins{color:#334155;background:#eef2f5}
+.jr-delta.appr{color:#b3261e;background:#fbeceb}
 .rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:3px 8px;
   display:block;max-width:100%;white-space:normal;margin-top:3px}
 .rem.sansmotif .demander{display:inline-block;margin-left:6px;padding:2px 0;font-weight:700;
@@ -1429,6 +1442,9 @@ const JR = {
     ((e.detail || {}).n ? ' — ' + e.detail.n + ' collaborateur' + (e.detail.n > 1 ? 's' : '') : '')],
   saisie:         [e => jrIcone(e), e => jrPose(e, 'a saisi')],
   modification:   ['✏️',             e => jrPose(e, 'a modifié')],
+  confirmation:   ['✅', e => 'a confirmé le ' + e.cible + jrQui(e)],
+  validation_mois:      ['✓',  e => 'a validé ' + jrMois(e.cible) + jrQui(e) + jrNb(e)],
+  deverrouillage_mois:  ['🔓', e => 'a déverrouillé ' + jrMois(e.cible) + jrQui(e) + jrNb(e)],
   preremplissage: ['🤖', e => 'journée du ' + e.cible + ' pré-remplie' + jrQui(e)],
   validation:     ['✓',  e => 'a validé le ' + e.cible + jrQui(e)],
   deverrouillage: ['🔓', e => 'a déverrouillé le ' + e.cible + jrQui(e)],
@@ -1483,7 +1499,7 @@ function jrIcone(e) {
 function jrPose(e, verbe) {
   const d = e.detail || {};
   if (d.par === 'systeme') return 'journée du ' + e.cible + ' posée automatiquement' + jrQui(e);
-  return verbe + ' le ' + e.cible + jrQui(e) + jrHeures(e);
+  return verbe + ' le ' + e.cible + jrQui(e);
 }
 function jrChips(e) {
   const d = e.detail || {};
@@ -1494,13 +1510,46 @@ function jrChips(e) {
   if (d.par === 'systeme')     h += '<span class="jr-src auto">sans intervention du technicien</span>';
   return h;
 }
-function jrHeures(e) {
-  const d = e.detail || {};
-  // Quand c'est l'horaire type, la pastille le dit : répéter les heures
-  // allongerait chaque ligne sans rien apprendre.
-  if (d.horaire === 'type') return '';
-  const h = [d.matin, d.apres_midi].filter(Boolean).join(' · ');
-  return h ? ' — ' + h : '';
+function jrNb(e) {
+  const n = (e.detail || {}).n;
+  return n ? ' — ' + n + ' jour' + (n > 1 ? 's' : '') : '';
+}
+// Une journée en une ligne lisible : les deux demi-journées et le total.
+function jrEtat(r) {
+  if (!r) return '';
+  const t = [r.m, r.a].filter(x => x && x !== '—').join(' · ');
+  return t + (r.min ? ' · ' + fmtMin(r.min) : '');
+}
+/* Le cœur de la réponse : d'où l'on vient, où l'on va, et combien de minutes
+   cela fait. Sans ça, « a modifié le 07.09 » ne dit pas si des heures
+   supplémentaires sont apparues — qui est justement ce qu'on veut savoir. */
+function jrBloc(e) {
+  const d = e.detail || {}, av = d.avant, ap = d.apres;
+  let h = '';
+  if (av && ap) {
+    const delta = Number(d.delta || 0);
+    h += '<div class="jr-diff"><span class="av">' + esc(jrEtat(av)) + '</span>' +
+      '<span class="fl">→</span><span class="ap">' + esc(jrEtat(ap)) + '</span>' +
+      (delta ? '<span class="jr-delta ' + (delta > 0 ? 'plus' : 'moins') + '">' +
+        (delta > 0 ? '+' : '−') + fmtMin(Math.abs(delta)) + '</span>' : '') +
+      (d.etait_approuve ? '<span class="jr-delta appr">modifiée après validation</span>' : '') +
+      '</div>';
+    if ((av.rem || '') !== (ap.rem || '')) h += jrRem(av.rem, ap.rem);
+  } else if (ap) {
+    const t = jrEtat(ap);
+    if (t) h += '<div class="jr-diff"><span class="ap">' + esc(t) + '</span>' +
+      (ap.rem ? '<span class="jr-note">« ' + esc(ap.rem) + ' »</span>' : '') + '</div>';
+  } else if (av) {
+    const t = jrEtat(av);
+    if (t) h += '<div class="jr-diff"><span class="av">' + esc(t) + '</span></div>';
+  }
+  return h;
+}
+function jrRem(a, b) {
+  return '<div class="jr-diff"><span class="jr-note">remarque : ' +
+    (a ? '« ' + esc(a) + ' »' : '—') + '</span>' +
+    '<span class="fl">→</span><span class="jr-note">' +
+    (b ? '« ' + esc(b) + ' »' : '—') + '</span></div>';
 }
 async function chargerJournal() {
   const r = await rpc('journal_lire', {
@@ -1544,7 +1593,7 @@ function renderJournal() {
       html += '<div class="jr-l"><span class="jr-h">' + esc(e.heure) + '</span>' +
         '<span class="jr-i">' + icone + '</span>' +
         '<span class="jr-t"><b>' + esc(auto ? 'Le système' : e.qui) + '</b> ' +
-        esc(d[1](e)) + jrChips(e) + '</span>' +
+        esc(d[1](e)) + jrChips(e) + jrBloc(e) + '</span>' +
         '<span class="jr-r ' + esc(e.role) + '">' + esc(e.role || '—') + '</span></div>';
     }
   }

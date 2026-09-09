@@ -2285,3 +2285,72 @@ mois.
 Safari laisse vraiment. Les 19 boutons du technicien répondent toujours au
 doigt, les dix écrans n'ont **aucun élément recouvert**, et les huit suites
 d'essais passent.
+
+## 47. Le journal dit enfin ce qui a changé
+
+### 47.1 Le symptôme, et la vraie cause
+
+Le journal affichait « **Steve Carvalho** a modifié le 07.09.2026 de Steve »
+sans dire un mot de ce qui avait bougé. Impossible de savoir si des heures
+supplémentaires étaient apparues après une validation — précisément la question
+qu'on se pose en lisant cette ligne.
+
+En reconstituant les horodatages, le diagnostic était pire que prévu : **Steve
+n'avait rien modifié**. Les trois lignes du 08.09 tombaient à la minute près sur
+les `approuve_le` du back office :
+
+| Jour | dernière modif du contenu | `approuve_le` | ligne « a modifié » |
+|---|---|---|---|
+| 07.09 | 07.09 19:13 | 08.09 **11:20** | 08.09 **11:20** |
+| 04.09 | 07.09 19:13 | 08.09 **09:34** | 08.09 **09:34** |
+| 31.08 | 31.08 21:34 | 08.09 **09:21** | 08.09 **09:21** |
+
+Approuver une journée met à jour sa ligne ; le déclencheur se réveillait et
+prenait `new.saisi_par` comme auteur. Or `saisi_par` appartient au technicien et
+**survit délibérément aux écritures du back office** (c'est la règle qui protège
+sa confirmation). Le patron signait donc ses propres approbations du nom de son
+employé.
+
+### 47.2 Qui a agi
+
+L'acteur réel voyage maintenant dans `horaires.acteur`, le réglage transactionnel
+déjà utilisé par les messages. `_save_jour`, `admin_approuver`, `supprimer_jour`
+et `admin_supprimer_jour` l'annoncent avant d'écrire ; le déclencheur le lit et
+ne retombe sur `saisi_par` qu'à défaut.
+
+### 47.3 Ce qui a changé
+
+Une mise à jour est désormais **classée** au lieu d'être appelée « modification »
+en bloc :
+
+- le contenu a bougé → `modification`, avec `avant`, `apres`, `delta` en minutes,
+  les `champs` touchés et surtout `etait_approuve` ;
+- seule l'approbation a bougé → `validation` / `deverrouillage`, au nom du patron ;
+- seule la confirmation a bougé → `confirmation` ;
+- un mois validé d'un geste → **une** ligne `validation_mois`, pas trente
+  (drapeau `horaires.lot` qui fait taire le déclencheur le temps du lot).
+
+`_ptg_resume()` réduit une journée à un objet comparable — deux demi-journées en
+clair, le total en minutes, la remarque — si bien que « le contenu a-t-il
+changé ? » est une simple comparaison de `jsonb`. Les absences se lisent en
+toutes lettres : `Maladie · 13:00–17:00 · 4h00`.
+
+### 47.4 À l'écran
+
+Sous chaque ligne, l'état précédent **barré**, le nouveau en gras, l'écart en
+pastille ambre ou grise, et — quand la journée était déjà validée — un
+`modifiée après validation` rouge. Les changements de remarque ont leur propre
+ligne. Les lignes d'avant la migration, sans `avant`/`apres`, s'affichent comme
+avant sans rien casser.
+
+### 47.5 Vérifications
+
+Les quatre scénarios ont été joués sur les données réelles dans une transaction
+**annulée** : modification (+120 min, champs `après-midi` + `remarque`),
+validation et déverrouillage attribués au back office, mois validé en une ligne
+(n = 2), et **aucune trace** pour le compte de démonstration. `tests/journal-avant-apres.mjs`
+couvre les neuf formes d'affichage, y compris l'ancienne.
+
+Les trois helpers `_demi_txt`, `_demi_min` et `_ptg_resume` sont révoqués à
+`anon` dès leur création : une fonction en `public._%` ne s'appelle pas depuis
+Internet, et les nouvelles n'héritent pas de la révocation en boucle de 2026-09-07.
