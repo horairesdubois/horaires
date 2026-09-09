@@ -240,6 +240,23 @@ h1{font-size:22px;font-weight:700}
   padding:10px 12px;background:var(--carte);margin-bottom:8px;font:inherit;color:inherit}
 .dep-mois{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .note-verrou{background:#ecfdf5;color:#065f46;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;text-align:center;margin-top:8px}
+/* Une journée validée n'est plus un cul-de-sac : le technicien demande son
+   ouverture en disant pourquoi, et le back office tranche. */
+.note-verrou .vb-etat{font-weight:500;margin-top:6px;text-align:left;line-height:1.45}
+.note-verrou .vb-etat i{font-style:normal;opacity:.75}
+.note-verrou #mj-dem-ouvrir{margin-top:8px;display:inline-block}
+.note-verrou textarea{width:100%;margin-top:8px;padding:9px 11px;border:1px solid var(--ligne);
+  border-radius:9px;font:inherit;font-weight:400;font-size:14px;resize:vertical;
+  background:var(--carte);color:var(--texte);box-sizing:border-box}
+.note-verrou #mj-dem-envoyer{margin-top:8px}
+.dem-admin{background:#fef7e6;border:1px solid #f0dcb0;border-radius:10px;padding:10px 12px;
+  margin-top:10px;font-size:13px;color:#6b4d12}
+.dem-admin b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.3px;
+  color:#8a6116;margin-bottom:5px}
+.dem-admin input{width:100%;margin-top:8px;padding:9px 11px;border:1px solid #e6d3a6;
+  border-radius:9px;font:inherit;font-size:14px;background:#fff;color:var(--texte);box-sizing:border-box}
+.dem-btns{display:flex;gap:8px;margin-top:8px}
+.dem-btns .btn{flex:1}
 .btn-val{padding:6px 10px !important;font-size:12px !important}
 
 /* ---- Modales ---- */
@@ -341,6 +358,12 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-delta.plus{color:#8a6116;background:#fef7e6}
 .jr-delta.moins{color:#334155;background:#eef2f5}
 .jr-delta.appr{color:#b3261e;background:#fbeceb}
+.jr-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.jr-meta-p{font-size:11px;font-weight:600;border-radius:5px;padding:1px 7px;white-space:nowrap;
+  color:#334155;background:#eef2f5}
+.jr-meta-p.tard{color:#8a6116;background:#fef7e6}
+.jr-meta-p.sup{color:#8a6116;background:#fef7e6}
+.jr-meta-p.gris{color:var(--gris);background:var(--fond);font-weight:500}
 .rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:3px 8px;
   display:block;max-width:100%;white-space:normal;margin-top:3px}
 .rem.sansmotif .demander{display:inline-block;margin-left:6px;padding:2px 0;font-weight:700;
@@ -372,6 +395,17 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .retards button:active{opacity:.6}
 .retards .n{font-weight:700;flex:none}
 .retards .d{color:#8a6116;font-size:12.5px;margin-left:auto;flex:none}
+/* Distinct des « saisies en attente » (ambre) : ici quelqu'un attend une
+   réponse, ce n'est pas un simple retard à surveiller. */
+.demandes{background:#eef2ff;border:1px solid #d5dbf5;border-radius:12px;padding:11px 13px;margin-bottom:12px}
+.demandes .t{font-size:12px;font-weight:700;color:#3730a3;text-transform:uppercase;
+  letter-spacing:.3px;margin-bottom:7px}
+.demandes button{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;
+  padding:5px 0;font-size:14px;color:#312e81;flex-wrap:wrap}
+.demandes button:active{opacity:.6}
+.demandes .n{font-weight:700;flex:none}
+.demandes .j{font-size:12.5px;color:#4f46e5;flex:none}
+.demandes .m{font-style:italic;font-size:12.5px;width:100%;color:#4338ca}
 .onglets{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
 .onglets button{flex:none;padding:9px 16px;border-radius:99px;font-weight:600;background:var(--carte);color:var(--gris);box-shadow:0 1px 2px rgba(15,23,42,.06)}
 .onglets button.actif{background:var(--bleu);color:#fff}
@@ -610,7 +644,25 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
       <div class="mj-demande" id="mj-demande" hidden></div>
       <input type="text" id="mj-rem" placeholder="Remarque (chantier, client…)" maxlength="200">
       <div class="mj-alerte" id="mj-sup-alerte"></div>
-      <div class="note-verrou" id="mj-verrou" hidden>✓ Approuvé par le back office — modification impossible</div>
+      <div class="note-verrou" id="mj-verrou" hidden>
+        <div id="mj-verrou-txt">🔒 Journée validée par le back office</div>
+        <div class="vb-etat" id="mj-dem-etat" hidden></div>
+        <button class="lien-mj" id="mj-dem-ouvrir" hidden>Demander à pouvoir la modifier</button>
+        <div id="mj-dem-form" hidden>
+          <textarea id="mj-dem-motif" rows="2" maxlength="300"
+            placeholder="Que faut-il corriger, et pourquoi ? (obligatoire)"></textarea>
+          <button class="btn vert large" id="mj-dem-envoyer">Envoyer la demande</button>
+        </div>
+      </div>
+      <div class="dem-admin" id="mj-dem-admin" hidden>
+        <b>Demande de modification</b>
+        <div id="mj-dem-admin-txt"></div>
+        <input type="text" id="mj-dem-rep" maxlength="300" placeholder="Un mot de réponse (facultatif)">
+        <div class="dem-btns">
+          <button class="btn vert" id="mj-dem-accorder">Accorder</button>
+          <button class="btn rouge" id="mj-dem-refuser">Refuser</button>
+        </div>
+      </div>
       <button class="btn vert large" id="mj-approuver" hidden style="margin-top:10px"></button>
     </div>
 
@@ -1443,6 +1495,11 @@ const JR = {
   saisie:         [e => jrIcone(e), e => jrPose(e, 'a saisi')],
   modification:   ['✏️',             e => jrPose(e, 'a modifié')],
   confirmation:   ['✅', e => 'a confirmé le ' + e.cible + jrQui(e)],
+  demande_modification: ['🙋', e => 'demande à modifier le ' + e.cible],
+  deblocage_accorde:    ['🔓', e => 'a rouvert le ' + e.cible + jrQui(e)],
+  deblocage_refuse:     ['⛔', e => 'a refusé de rouvrir le ' + e.cible + jrQui(e)],
+  connexion_echouee:    ['⚠️', e => 'a saisi un code refusé' +
+    ((e.detail || {}).n > 1 ? ' — ' + e.detail.n + ' tentatives en 10 min' : '')],
   validation_mois:      ['✓',  e => 'a validé ' + jrMois(e.cible) + jrQui(e) + jrNb(e)],
   deverrouillage_mois:  ['🔓', e => 'a déverrouillé ' + jrMois(e.cible) + jrQui(e) + jrNb(e)],
   preremplissage: ['🤖', e => 'journée du ' + e.cible + ' pré-remplie' + jrQui(e)],
@@ -1542,8 +1599,36 @@ function jrBloc(e) {
   } else if (av) {
     const t = jrEtat(av);
     if (t) h += '<div class="jr-diff"><span class="av">' + esc(t) + '</span></div>';
+  } else if (d.etat) {
+    h += '<div class="jr-diff"><span class="ap">' + esc(jrEtat(d.etat)) + '</span></div>';
   }
+  // Le motif d'une demande, la réponse du back office, et le motif rappelé sur
+  // la modification qu'il a autorisée : la chaîne se lit d'un bout à l'autre.
+  if (d.motif)         h += jrCite('motif :', d.motif);
+  if (d.motif_demande) h += jrCite('rouverte pour :', d.motif_demande);
+  if (d.reponse)       h += jrCite('réponse :', d.reponse);
+  h += jrMeta(e);
   return h;
+}
+/* Le contexte d'une écriture : quand elle a été faite par rapport au jour
+   concerné, ce qu'elle ajoute au-delà de la journée normale, et d'où. C'est ce
+   qui distingue une feuille tenue au jour le jour d'une reconstitution de fin
+   de mois. */
+function jrMeta(e) {
+  const d = e.detail || {};
+  const p = [];
+  if (d.retard !== undefined && d.retard !== null) {
+    const n = Number(d.retard);
+    const lib = n === 0 ? 'le jour même' : n === 1 ? 'le lendemain'
+      : n > 1 ? n + ' jours après' : Math.abs(n) + ' jours à l’avance';
+    p.push('<span class="jr-meta-p' + (n >= 3 ? ' tard' : '') + '">' + esc(lib) + '</span>');
+  }
+  if (Number(d.sup) > 0) p.push('<span class="jr-meta-p sup">+' + fmtMin(Number(d.sup)) + ' au-delà</span>');
+  if (d.appareil) p.push('<span class="jr-meta-p gris">' + esc(d.appareil) + '</span>');
+  return p.length ? '<div class="jr-meta">' + p.join('') + '</div>' : '';
+}
+function jrCite(lib, txt) {
+  return '<div class="jr-diff"><span class="jr-note">' + lib + ' « ' + esc(txt) + ' »</span></div>';
 }
 function jrRem(a, b) {
   return '<div class="jr-diff"><span class="jr-note">remarque : ' +
@@ -1592,7 +1677,8 @@ function renderJournal() {
       const auto = (e.detail || {}).par === 'systeme';
       html += '<div class="jr-l"><span class="jr-h">' + esc(e.heure) + '</span>' +
         '<span class="jr-i">' + icone + '</span>' +
-        '<span class="jr-t"><b>' + esc(auto ? 'Le système' : e.qui) + '</b> ' +
+        '<span class="jr-t"><b>' + esc(auto ? 'Le système'
+          : e.action === 'connexion_echouee' ? 'Quelqu’un' : e.qui) + '</b> ' +
         esc(d[1](e)) + jrChips(e) + jrBloc(e) + '</span>' +
         '<span class="jr-r ' + esc(e.role) + '">' + esc(e.role || '—') + '</span></div>';
     }
@@ -1790,6 +1876,17 @@ function ouvrirJour(empId, jour) {
   $('mj-defaut').textContent = 'Journée type · ' + defPour('mj-md') + '–' + defPour('mj-af');
   $('mj-save').hidden = MJ.verrou;
   $('mj-verrou').hidden = !MJ.verrou;
+  MJ.dem = p ? (p.demande_etat || null) : null;
+  if (MJ.verrou) peindreGuichet(p);
+  // Côté back office, une demande en attente se traite ici, sur la journée
+  // même : c'est là qu'on a les heures sous les yeux pour juger.
+  const enAttente = admin && p && p.demande_etat === 'attente';
+  $('mj-dem-admin').hidden = !enAttente;
+  if (enAttente) {
+    $('mj-dem-admin-txt').innerHTML = esc(p.demande_motif || '') +
+      '<div class="muet" style="margin-top:4px">demandé le ' + esc(p.demande_le || '') + '</div>';
+    $('mj-dem-rep').value = '';
+  }
   const btnApp = $('mj-approuver');
   if (admin && p) {
     btnApp.hidden = false;
@@ -1799,6 +1896,48 @@ function ouvrirJour(empId, jour) {
   $('voile-jour').classList.add('ouvert');
 }
 function fermerJour() { $('voile-jour').classList.remove('ouvert'); }
+/* Trois états possibles quand la journée est verrouillée : rien de demandé,
+   une demande en attente, ou un refus. Chacun dit au technicien où il en est
+   et ce qu'il peut faire — plutôt que de le laisser devant une porte close. */
+function peindreGuichet(p) {
+  const etat = p ? p.demande_etat : null;
+  const f = $('mj-dem-form'), o = $('mj-dem-ouvrir'), e = $('mj-dem-etat');
+  f.hidden = true; $('mj-dem-motif').value = '';
+  if (etat === 'attente') {
+    o.hidden = true; e.hidden = false;
+    e.innerHTML = '⏳ <b>Demande envoyée</b>, en attente de réponse.<br><i>« ' +
+      esc(p.demande_motif || '') + ' »</i>';
+  } else if (etat === 'refusee') {
+    o.hidden = false; e.hidden = false;
+    o.textContent = 'Faire une nouvelle demande';
+    e.innerHTML = '✕ <b>Demande refusée.</b>' +
+      (p.demande_reponse ? '<br><i>« ' + esc(p.demande_reponse) + ' »</i>' : '');
+  } else {
+    o.hidden = false; e.hidden = true;
+    o.textContent = 'Demander à pouvoir la modifier';
+  }
+}
+async function envoyerDemande() {
+  const motif = $('mj-dem-motif').value.trim();
+  if (motif.length < 5) { alert('Expliquez en une phrase ce qu’il faut corriger.'); return; }
+  const b = $('mj-dem-envoyer'); b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+  const r = await rpc('demande_modification',
+    { p_token: S.token, p_jour: MJ.jour, p_motif: motif });
+  b.disabled = false; b.textContent = 'Envoyer la demande';
+  if (!r || !r.ok) { alert((r && r.erreur) || 'Envoi impossible'); return; }
+  fermerJour();
+  await charger();
+  alert('Demande envoyée au back office.');
+}
+async function repondreDemande(accorde) {
+  const rep = $('mj-dem-rep').value.trim();
+  if (!accorde && !rep && !confirm('Refuser sans un mot d’explication ?')) return;
+  const r = await rpc('admin_repondre_demande', { p_token: S.token, p_employe: MJ.empId,
+    p_jour: MJ.jour, p_accorde: accorde, p_reponse: rep });
+  if (!r || !r.ok) { alert((r && r.erreur) || 'Action impossible'); return; }
+  fermerJour();
+  await charger();
+}
 /* La demande d'explication n'est pas une donnée de plus : c'est un message du
    back office rattaché à un jour. On la retrouve donc dans le fil déjà chargé —
    celui du technicien pour lui, celui du collaborateur examiné pour le back
@@ -2323,6 +2462,21 @@ async function chargerRetards() {
     if (S.ongletAdmin === 'equipe') renderEquipe();
   } catch (e) { /* le signal réapparaîtra au prochain chargement */ }
 }
+/* Une demande d'ouverture bloque le travail de quelqu'un : elle passe avant
+   tout le reste, en haut de la feuille de temps, et mène droit à la journée. */
+function bandeauDemandes() {
+  if (S.lecture) return '';
+  const d = (S.pointages || []).filter(p => p.demande_etat === 'attente');
+  if (!d.length) return '';
+  return '<div class="demandes"><div class="t">Demandes d’ouverture · ' + d.length + '</div>' +
+    d.map(p => {
+      const e = (S.employes || []).find(x => x.id === p.employe_id);
+      return '<button data-dem="' + esc(p.employe_id + '|' + p.jour) + '">' +
+        '<span class="n">' + esc(e ? e.prenom : '?') + '</span>' +
+        '<span class="j">' + esc(libJour(p.jour)) + '</span>' +
+        '<span class="m">« ' + esc(p.demande_motif || '') + ' »</span></button>';
+    }).join('') + '</div>';
+}
 function bandeauRetards() {
   const r = S.retards || [];
   if (!r.length || S.lecture) return '';      // pas de nouvelle, bonne nouvelle
@@ -2346,7 +2500,7 @@ function renderEquipe() {
   const auj = S.auj || aujourdhui();   // date de Genève renvoyée par le serveur
   const lecture = S.lecture;
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
-  let html = bandeauRetards();
+  let html = bandeauDemandes() + bandeauRetards();
   html += '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
       JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
@@ -2404,6 +2558,11 @@ function renderEquipe() {
     b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
   $('ong-equipe').querySelectorAll('[data-retard]').forEach(b =>
     b.addEventListener('click', () => ouvrirDetails(b.dataset.retard)));
+  $('ong-equipe').querySelectorAll('[data-dem]').forEach(b =>
+    b.addEventListener('click', () => {
+      const [emp, jour] = b.dataset.dem.split('|');
+      ouvrirJour(emp, jour);
+    }));
 }
 
 /* ---------- Revue détaillée d'un employé (back office) ---------- */
@@ -3003,6 +3162,12 @@ function init() {
   $('mj-save').addEventListener('click', sauverJour);
   $('mj-suppr').addEventListener('click', supprimerJour);
   $('mj-approuver').addEventListener('click', approuverJour);
+  $('mj-dem-ouvrir').addEventListener('click', () => {
+    $('mj-dem-form').hidden = false; $('mj-dem-ouvrir').hidden = true; $('mj-dem-motif').focus();
+  });
+  $('mj-dem-envoyer').addEventListener('click', envoyerDemande);
+  $('mj-dem-accorder').addEventListener('click', () => repondreDemande(true));
+  $('mj-dem-refuser').addEventListener('click', () => repondreDemande(false));
   $('me-annuler').addEventListener('click', () => $('voile-emp').classList.remove('ouvert'));
   $('me-save').addEventListener('click', sauverEmp);
   $('me-regen').addEventListener('click', async () => {

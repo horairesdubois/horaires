@@ -2354,3 +2354,68 @@ couvre les neuf formes d'affichage, y compris l'ancienne.
 Les trois helpers `_demi_txt`, `_demi_min` et `_ptg_resume` sont révoqués à
 `anon` dès leur création : une fonction en `public._%` ne s'appelle pas depuis
 Internet, et les nouvelles n'héritent pas de la révocation en boucle de 2026-09-07.
+
+## 48. Le guichet d'ouverture, et un journal qui sert au contrôle
+
+### 48.1 Une journée validée n'est plus un mur
+
+`_save_jour` refusait toute écriture d'un technicien sur une journée approuvée :
+« modification impossible », point final. Il ne restait que le téléphone, et
+rien n'en gardait trace. Le circuit est maintenant explicite :
+
+1. `demande_modification(token, jour, motif)` — le technicien seul, sur une
+   journée validée, avec un motif d'au moins cinq caractères ;
+2. `admin_repondre_demande(token, employe, jour, accorde, reponse)` — le back
+   office seul. **Accorder, c'est rouvrir** : `approuve` retombe à `false`, et
+   le flux normal reprend (il corrige, le back office revalide) ;
+3. la correction enregistrée solde la demande (`_save_jour` remet les colonnes
+   `demande_*` à zéro).
+
+Six colonnes portent l'état sur `pointages` (`demande_etat` ∈ `attente` /
+`accordee` / `refusee`, motif, réponse, horodatages, auteur de la réponse), et
+`_ptg_json` les expose — le technicien voit où en est sa demande, le back office
+la traite depuis la journée elle-même.
+
+Dix gardes vérifiées : demande sur un jour non validé, motif trop court,
+doublon en attente, technicien répondant à sa propre demande, fiduciaire des
+deux côtés, et journée qui **reste verrouillée après un refus**.
+
+### 48.2 Ce que le journal savait dire, et ce qui manquait
+
+Le journal disait *qui* et *quoi*. Pour contrôler, il manquait *quand par
+rapport au jour concerné*, *combien au-delà du normal*, et *d'où*. Chaque
+saisie, modification et confirmation porte désormais :
+
+- `retard` — l'écart en jours entre la journée et son enregistrement. Une
+  feuille tenue le soir même et une reconstitution de fin de mois ne se lisent
+  plus pareil : « le jour même » contre « 9 jours après » ;
+- `sup` — les minutes au-delà de la journée normale, calculées comme à l'écran
+  (4 h dues par demi-journée travaillée, rien un week-end ou un férié) ;
+- `appareil` — iPhone, Android ou ordinateur.
+
+S'y ajoutent la chaîne `demande_modification` → `deblocage_accorde` /
+`deblocage_refuse` (avec motif et réponse), le motif rappelé sur la
+modification qu'il a autorisée, et `connexion_echouee` : un code refusé ne
+laissait **aucune trace**, un essai de codes passait donc inaperçu. Il est noté
+sans jamais écrire le code essayé, et groupé par tranche de dix minutes pour
+qu'un martèlement ne noie pas le journal.
+
+### 48.3 Où l'on s'arrête
+
+L'adresse IP et la géolocalisation ont été écartées volontairement. Consigner
+les écritures d'une feuille de temps, c'est tenir un registre ; pister d'où
+quelqu'un se connecte, c'est un système de surveillance du comportement, que
+l'art. 26 OLT 3 interdit. L'appareil en catégorie large reste du côté du
+registre — et les collaborateurs doivent être informés de ce qui est consigné.
+
+### 48.4 À l'écran
+
+Côté technicien, le verrou devient un guichet à trois états : rien de demandé
+(bouton), demande en attente (le motif rappelé), refus (la réponse du back
+office, et le droit de redemander). Côté back office, un bandeau indigo en tête
+de la feuille de temps — distinct de l'ambre des « saisies en attente », car
+ici quelqu'un attend une réponse — mène droit à la journée, où l'encart
+`Accorder` / `Refuser` s'ouvre avec les heures sous les yeux.
+
+`tests/demande-deblocage.mjs` couvre les deux côtés et les cinq états ;
+`tests/journal-avant-apres.mjs` monte à quinze formes d'affichage.

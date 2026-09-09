@@ -52,6 +52,30 @@ const JR = [
     detail:{ employe:'Alen', avant:h('08:00–12:00','13:00–17:00',480) },
     jour:'lundi 7 septembre', heure:'19:55' },
 
+  // La chaîne complète d'une demande d'ouverture.
+  { id:10, acteur_nom:'Steve Carvalho', acteur_role:'employe', action:'demande_modification',
+    cible:'07.09.2026', detail:{ employe:'Steve', motif:'Oubli de 2h de dépannage le soir',
+      appareil:'iPhone', etat:h('08:00–12:00','13:00–17:00',480) },
+    jour:'lundi 7 septembre', heure:'20:05' },
+  { id:11, acteur_nom:'Back Office', acteur_role:'admin', action:'deblocage_accorde',
+    cible:'07.09.2026', detail:{ employe:'Steve', motif:'Oubli de 2h de dépannage le soir',
+      reponse:'D’accord, corrige et je revalide' }, jour:'lundi 7 septembre', heure:'20:06' },
+  { id:12, acteur_nom:'Back Office', acteur_role:'admin', action:'deblocage_refuse',
+    cible:'01.09.2026', detail:{ employe:'Alen', motif:'je me suis trompé',
+      reponse:'Mois déjà clôturé' }, jour:'lundi 7 septembre', heure:'20:07' },
+
+  // Une saisie tardive, avec heures en plus, depuis un téléphone.
+  { id:13, acteur_nom:'Alen Krasniqi', acteur_role:'employe', action:'saisie', cible:'28.08.2026',
+    detail:{ employe:'Alen', par:'technicien', horaire:'tapé',
+      apres:h('08:00–12:00','13:00–19:00',600), retard:9, sup:120, appareil:'Android' },
+    jour:'lundi 7 septembre', heure:'20:08' },
+  { id:14, acteur_nom:'Steve Carvalho', acteur_role:'employe', action:'saisie', cible:'09.09.2026',
+    detail:{ employe:'Steve', par:'technicien', horaire:'tapé',
+      apres:h('08:00–12:00','13:00–17:00',480), retard:0, sup:0, appareil:'iPhone' },
+    jour:'lundi 7 septembre', heure:'20:09' },
+  { id:15, acteur_nom:'inconnu', acteur_role:'', action:'connexion_echouee', cible:'',
+    detail:{ n:14, appareil:'ordinateur' }, jour:'lundi 7 septembre', heure:'20:10' },
+
   // Une vieille ligne, d'avant la migration : elle ne doit pas casser l'affichage.
   { id:9, acteur_nom:'Sami Ferjani', acteur_role:'employe', action:'modification', cible:'08.09.2026',
     detail:{ par:'technicien', employe:'Sami', horaire:'tapé' },
