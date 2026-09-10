@@ -10,6 +10,12 @@ alter table public.employes drop constraint if exists employes_cct_check;
 alter table public.employes add constraint employes_cct_check
   check (cct in ('ferblanterie', 'chauffage', 'vitrerie'));
 
+-- 1 bis. Le lien personnel. La colonne existait en production sans qu'aucune
+--    migration ne la crée : rejoué sur une base vide, le dépôt s'arrêtait ici,
+--    à la première fonction qui la lit. Elle est rattachée à la migration qui
+--    l'utilise en premier.
+alter table public.employes add column if not exists cle_acces text;
+
 -- 2. Nouveau rôle « compta » : la fiduciaire consulte et exporte, sans rien modifier.
 alter table public.employes drop constraint if exists employes_role_check;
 alter table public.employes add constraint employes_role_check
