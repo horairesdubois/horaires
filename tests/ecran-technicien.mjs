@@ -28,12 +28,12 @@ await pg.addInitScript(({ SAMI, PTG }) => {
     return rep({ ok: true });
   };
 }, { SAMI, PTG });
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(900);
 await pg.evaluate(() => { S.annee = 2026; S.mois = 9; S.auj = '2026-09-07'; renderEmp(); });
 await pg.waitForTimeout(400);
 
-const D = '/tmp/claude-0/-home-user-horaires/4c57d827-a9fc-5130-ad81-4346fd29ca84/scratchpad/';
+const D = new URL('../work/essais/', import.meta.url).pathname;
 await pg.screenshot({ path: D + 'tech-1.png' });
 const h = await pg.evaluate(() => ({
   page: document.documentElement.scrollHeight, fenetre: window.innerHeight,

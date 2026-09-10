@@ -19,9 +19,9 @@ await pg.addInitScript(({D,PTG})=>{
   if(n==='mes_pointages')return rep({ok:true,employe:D,pointages:PTG});
   if(n==='messages_lire')return rep({ok:true,messages:[],non_lus:0,fils:[],fil:null,autres_mois:[]});
   return rep({ok:true});};},{D,PTG});
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(1000);
-const R='/tmp/claude-0/-home-user-horaires/4c57d827-a9fc-5130-ad81-4346fd29ca84/scratchpad/';
+const R=new URL('../work/essais/', import.meta.url).pathname;
 for (const [jour,nom] of [['2026-09-02','etat-envoye'],['2026-09-01','etat-approuve'],['2026-09-04','etat-confirmer']]) {
   await pg.evaluate(j=>{S.annee=2026;S.mois=9;S.auj='2026-09-07';S.jourSel=j;renderEmp();},jour);
   await pg.waitForTimeout(300);

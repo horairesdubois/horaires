@@ -26,7 +26,7 @@ await pg.addInitScript(({D,PTG,MSG})=>{
   if(n==='mes_pointages')return rep({ok:true,employe:D,pointages:PTG});
   if(n==='messages_lire')return rep({ok:true,messages:MSG,non_lus:0,fils:[],fil:null,autres_mois:[]});
   return rep({ok:true});};},{D,PTG,MSG});
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(900);
 
 const poser = async () => { await pg.evaluate(()=>{
@@ -108,7 +108,9 @@ await poser();
 await pg.locator('#btn-modifier-jour').tap(); await pg.waitForTimeout(350);
 await dansModale('Annuler', '#mj-annuler');
 await poser();
-await pg.evaluate(()=>ouvrirJour(S.moi.id,'2026-09-02')); await pg.waitForTimeout(300);
+// Suppression d'une journée encore modifiable ; les journées confirmées sont
+// volontairement verrouillées, ce que vérifie circuit-approbation.mjs.
+await pg.evaluate(()=>ouvrirJour(S.moi.id,'2026-09-04')); await pg.waitForTimeout(300);
 await dansModale('Supprimer', '#mj-suppr');
 
 console.log('\nDÉCONNEXION');

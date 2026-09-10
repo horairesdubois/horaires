@@ -5,7 +5,7 @@ const E={id:'E1',prenom:'Sami',nom:'F',metier:'Ferblantier',role:'employe',actif
   matin_debut_def:'08:00',matin_fin_def:'12:00',apm_debut_def:'13:00',apm_fin_def:'17:00'};
 const PTG=[{id:'p',employe_id:'E1',jour:'2026-09-02',matin_type:'travail',matin_debut:'07:00',
   matin_fin:'12:00',apm_type:'travail',apm_debut:'13:00',apm_fin:'18:00',remarque:'',
-  approuve:false,confirme:true,saisi_par:'E1'}];
+  approuve:false,confirme:false,saisi_par:'E1'}];
 const nav=await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 // Hauteur réellement visible dans Safari sur iPhone 13 : barre d'adresse et
 // barre d'outils déduites.
@@ -18,7 +18,7 @@ await pg.addInitScript(({E,PTG})=>{
   if(n==='mes_pointages')return rep({ok:true,employe:E,pointages:PTG});
   if(n==='messages_lire')return rep({ok:true,messages:[],non_lus:0,fils:[],fil:null,autres_mois:[]});
   return rep({ok:true});};},{E,PTG});
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(1000);
 await pg.evaluate(()=>{S.annee=2026;S.mois=9;S.auj='2026-09-07';S.jourSel='2026-09-02';renderEmp();
   ouvrirJour(S.moi.id,'2026-09-02');});
@@ -39,9 +39,10 @@ const m = await pg.evaluate(() => {
 console.log('hauteur du contenu :', m.contenu, 'px · visible :', m.visible, 'px · fenêtre :', m.fenetre);
 console.log(m.doitDefiler > 0 ? '→ IL FAUT DÉFILER de ' + m.doitDefiler + ' px' : '→ tient sans défiler');
 console.log('\ndétail des blocs :'); m.parts.forEach(p=>console.log('  ' + p));
-await pg.screenshot({ path:'/tmp/claude-0/-home-user-horaires/4c57d827-a9fc-5130-ad81-4346fd29ca84/scratchpad/modale-apres.png' });
+await pg.screenshot({ path:new URL('../work/essais/modale-apres.png', import.meta.url).pathname });
 // Le cas le plus chargé : back office, journée à valider, question posée, alerte
 await pg.evaluate(()=>{S.moi.role='admin';S.employes=[S.moi,{id:'E1',prenom:'Sami',nom:'F',role:'employe',actif:true}];
+  S.pointages.forEach(p=>p.confirme=true);
   S.detEmp='E1';S.detMsgs=[{id:'M',role:'admin',jour:'2026-09-02',texte:'Peux-tu préciser la raison des 2h00 de plus ?',quand:'07.09.2026 08:00'}];
   ouvrirJour('E1','2026-09-02');});
 await pg.waitForTimeout(400);
@@ -51,5 +52,5 @@ const m2 = await pg.evaluate(()=>{const el=document.querySelector('#voile-jour .
 console.log('\ncas le plus chargé (back office + question + alerte) :');
 console.log('  fenêtre :', m2.c, 'px ·', m2.d>0?('déborde de '+m2.d+' px'):'tient',
             '| le corps défile de', m2.corps, 'px');
-await pg.screenshot({ path:'/tmp/claude-0/-home-user-horaires/4c57d827-a9fc-5130-ad81-4346fd29ca84/scratchpad/modale-charge.png' });
+await pg.screenshot({ path:new URL('../work/essais/modale-charge.png', import.meta.url).pathname });
 await nav.close();

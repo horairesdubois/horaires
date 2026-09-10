@@ -100,7 +100,7 @@ await pg.addInitScript(({ A, JR }) => {
     return rep({ ok:true });
   };
 }, { A, JR });
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(1100);
 await pg.evaluate(() => { S.annee = 2026; S.mois = 9; S.ongletAdmin = 'journal'; renderAdmin(); });
 await pg.waitForTimeout(600);
@@ -118,5 +118,5 @@ const barre = await pg.evaluate(() =>
   [...document.querySelectorAll('#ong-journal .jr-diff .av')].map(e =>
     getComputedStyle(e).textDecorationLine).join(','));
 console.log('l’état précédent est barré :', barre);
-await pg.screenshot({ path: '/tmp/claude-0/-home-user-horaires/4c57d827-a9fc-5130-ad81-4346fd29ca84/scratchpad/journal.png', fullPage: true });
+await pg.screenshot({ path: new URL('../work/essais/journal.png', import.meta.url).pathname, fullPage: true });
 await nav.close();

@@ -491,6 +491,46 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .centre{text-align:center}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-3px}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* Feuilles de temps : une lecture nette des étapes, au téléphone comme au bureau. */
+:root { --bleu:#013384; --bleu-f:#00245e; }
+#toast:empty { display:none; }
+#v-emp { max-width:560px; }
+.jour-sel { border-radius:16px; box-shadow:0 4px 18px #132b4608; }
+.jour-sel.fait { background:#f4faf7; }
+.jour-sel.afaire { background:#fff; border-color:#ccd8e5; }
+.js-tete { flex-wrap:wrap; gap:8px; }
+.js-etat { text-transform:none; letter-spacing:0; white-space:normal; }
+#btn-pointer { background:var(--bleu); }
+.js-lien { min-height:44px; color:var(--bleu); text-align:left; }
+.parcours-jour { margin:12px 0 4px; font-size:12px; line-height:1.55; color:var(--gris); }
+.parcours-jour strong { color:var(--texte); font-weight:600; }
+.statut-texte { display:block; margin-top:3px; font-size:11px; font-weight:600; line-height:1.4; color:#856014; }
+.statut-texte.ok { color:#08734d; }
+.statut-texte.vide { color:var(--gris); }
+.dj .h { min-width:0; }
+.dj .statut-texte { font-size:10px; white-space:normal; }
+#emp-etat { display:flex; flex-wrap:wrap; gap:6px 12px; width:100%; }
+#emp-etat .rappel { font-size:12px; }
+.confirmation-info { background:#edf3fa; color:var(--texte); padding:12px; border-radius:10px; font-size:12px; line-height:1.6; margin-top:12px; }
+.etapes-controle { display:flex; gap:8px 24px; flex-wrap:wrap; padding:14px 0 18px; font-size:12px; color:var(--gris); }
+.etapes-controle b { color:var(--texte); }
+.etapes-controle span { display:flex; align-items:center; gap:8px; }
+.etapes-controle i { width:24px; height:24px; border:1px solid #cad6e2; color:var(--bleu); border-radius:50%; display:grid; place-items:center; font-style:normal; font-weight:700; }
+.equipe-mobile { display:none; }
+.grille .attente-td { background:#edf3fa; }
+.val-jour.inactive { opacity:.35; cursor:default; }
+@media(max-width:680px) {
+  .equipe-tableau,.legende-tableau { display:none; }
+  .equipe-mobile { display:grid; gap:10px; }
+  .equipe-fiche { text-align:left; text-decoration:none; width:100%; padding:16px; border:1px solid var(--ligne); border-radius:14px; background:white; color:var(--texte); }
+  .ef-tete { display:flex; justify-content:space-between; gap:12px; font-size:16px; font-weight:700; }
+  .ef-metier { font-size:12px; color:var(--gris); margin-top:4px; }
+  .ef-etats { display:flex; gap:6px 12px; flex-wrap:wrap; margin-top:12px; font-size:12px; }
+  .ef-etats .ok { color:#08734d; }
+  .ef-etats .attente { color:#856014; }
+  .ef-action { display:block; border-top:1px solid var(--ligne); padding-top:10px; margin-top:12px; color:var(--bleu); font-size:12px; font-weight:600; }
+  .etapes-controle { gap:8px 14px; }
+}
 </style>
 </head>
 <body>
@@ -538,6 +578,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     </div>
     <div class="js-chiffre" id="js-chiffre" hidden></div>
     <div class="js-heures" id="js-heures"></div>
+    <div class="parcours-jour" id="js-parcours"></div>
     <button class="btn vert large" id="btn-pointer"></button>
     <button class="js-lien" id="btn-modifier-jour">Corriger l’horaire ou signaler une absence</button>
   </div>
@@ -664,6 +705,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
         </div>
       </div>
       <button class="btn vert large" id="mj-approuver" hidden style="margin-top:10px"></button>
+      <div class="confirmation-info" id="mj-confirmation-info" hidden></div>
     </div>
 
     <div class="mj-barre">
@@ -678,7 +720,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   <div class="modale">
     <h2 id="det-titre"></h2>
     <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
-    <div class="muet aide-det" id="det-aide"><b>✓</b> valide un jour · un second appui le déverrouille</div>
+    <div class="muet aide-det" id="det-aide">Contrôlez les horaires et remarques, puis <b>✓</b> approuve une journée confirmée. Une réouverture autorise l’employé à la corriger.</div>
     <div class="carte" style="padding:12px">
       <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
       <div class="chips" id="det-chips"></div>
@@ -1221,7 +1263,7 @@ const fmtJours = n => (n % 1 === 0 ? n : n.toFixed(1).replace('.', ',')) + ' j';
 
 /* ---------- Vue employé ---------- */
 function renderEmp() {
-  $('emp-nom').textContent = 'Bonjour ' + S.moi.prenom + ' 👋';
+  $('emp-nom').textContent = 'Bonjour ' + S.moi.prenom;
   $('emp-metier').textContent = S.moi.metier || '';
   $('emp-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
   const map = (ptgMap()[S.moi.id]) || {};
@@ -1260,15 +1302,14 @@ function etatJour(p, iso, js, auj) {
      gris  = à saisir
      ambre = à approuver
      vert  = approuvée
-   Une journée posée par le back office qu'il n'a pas encore confirmée tombe
-   dans « à approuver » : elle n'est pas approuvée, et c'est tout ce qu'il a
-   besoin de savoir — le bouton de la carte, lui, propose de la confirmer. */
-const MARQUE = { valide: 'ok', confirme: 'attente', attente: 'attente',
+   Une journée préparée par le back office attend encore la confirmation du
+   collaborateur ; elle se distingue des journées déjà envoyées au contrôle. */
+const MARQUE = { valide: 'ok', confirme: 'attente', attente: 'vide',
                  manquant: 'vide', aujourdhui: 'vide' };
 const ETAT_LIB = {
   valide:   ['Approuvée', 'ok'],
-  confirme: ['En attente', 'attente'],
-  attente:  ['En attente', 'attente'],
+  confirme: ['En attente d’approbation', 'attente'],
+  attente:  ['À confirmer', 'vide'],
   manquant: ['À saisir', 'vide'],
   aujourdhui: ['À saisir', 'vide'],
   ferie:    ['Jour férié', ''],
@@ -1315,6 +1356,11 @@ function renderJourSel(map, auj) {
   const [lib, ton] = ETAT_LIB[e];
   $('js-etat').textContent = lib;
   $('js-etat').className = 'js-etat ' + ton;
+  $('js-parcours').innerHTML = p && (p.confirme || p.approuve)
+    ? '<strong>✓ Votre confirmation</strong> · ' + (p.approuve ? '<strong>✓ Approbation du back office</strong>' : 'Contrôle du back office en attente') +
+      '<br>Journée verrouillée. Toute correction nécessite une autorisation.'
+    : (p && p.demande_etat === 'accordee' ? '<strong>Modification autorisée.</strong> Corrigez puis confirmez à nouveau votre journée.' :
+      'Enregistrer confirme votre journée et la verrouille jusqu’à l’autorisation du back office.');
   // La carte se teinte de l'état : vert quand c'est fait, ambre quand il reste
   // un geste. C'est la seule couleur de fond de l'écran, donc la seule chose
   // qu'on regarde en premier.
@@ -1354,7 +1400,7 @@ function renderJourSel(map, auj) {
   }
 
   const lien = $('btn-modifier-jour');
-  lien.textContent = p ? 'Corriger l’horaire ou signaler une absence'
+  lien.textContent = p && (p.confirme || p.approuve) ? 'Voir / demander une modification' : p ? 'Corriger l’horaire ou signaler une absence'
                        : (e === 'futur' ? 'Saisir cette journée à l’avance' : 'Saisir un autre horaire ou une absence');
   lien.onclick = () => ouvrirJour(S.moi.id, iso);
 }
@@ -1383,7 +1429,7 @@ function renderDerniers(jours, map, auj) {
       '<span class="d">' + JS_COURT[j.js] + ' ' + j.num + '</span>' +
       // L'amplitude de la journée plutôt que les deux demi-journées : la ligne
       // ne se coupe pas, et c'est l'information qu'on cherche d'un coup d'œil.
-      '<span class="h">' + (p ? amplitude(p) : ETAT_LIB[e][0]) + '</span>' +
+      '<span class="h">' + (p ? amplitude(p) : '—') + '<span class="statut-texte ' + ETAT_LIB[e][1] + '">' + ETAT_LIB[e][0] + '</span></span>' +
       '<span class="t">' + (min ? fmtMin(min) : '') +
         (sup ? '<span class="sup">+' + fmtMin(sup) + '</span>' : '') + '</span>' +
       '<span class="fl">›</span></button>';
@@ -1408,18 +1454,12 @@ function renderResumeMois(jours, map, auj, moisCourant) {
     const p = map[j.iso];
     return p && p.confirme && !p.approuve;
   }).length;
-  const moisCommence = jours[0].iso <= auj;
-
-  // Une ligne, pas une boîte : la carte du jour est déjà teintée, deux alertes
-  // de même force sur un écran, c'est aucune alerte.
-  $('emp-etat').innerHTML = manq > 0
-    ? '<span class="rappel att">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à saisir</span>'
-    : aConfirmer > 0
-      ? '<span class="rappel att">⚠ ' + aConfirmer + ' journée' + (aConfirmer > 1 ? 's' : '') + ' à confirmer</span>'
-      : aApprouver > 0
-        ? '<span class="rappel att">' + aApprouver + ' journée' + (aApprouver > 1 ? 's' : '') +
-          ' en attente d’approbation</span>'
-        : (moisCommence ? '<span class="rappel ok">✓ Tout est approuvé</span>' : '');
+  const approuves = jours.filter(j => map[j.iso] && map[j.iso].approuve).length;
+  // Les deux compteurs restent visibles ensemble, même s'il manque une saisie.
+  $('emp-etat').innerHTML = '<span class="rappel ok">' + approuves + ' journée' + (approuves > 1 ? 's' : '') + ' approuvée' + (approuves > 1 ? 's' : '') + '</span>' +
+    '<span class="rappel att">' + aApprouver + ' en attente d’approbation</span>' +
+    (aConfirmer ? '<span class="rappel att">' + aConfirmer + ' à confirmer</span>' : '') +
+    (manq ? '<span class="rappel att">' + manq + ' à saisir</span>' : '');
 
   let chips = '';
   if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">+' + fmtMin(supMois) + ' sup</span>';
@@ -1456,6 +1496,7 @@ function renderListeMois(jours, map, auj) {
       '<div class="contenu"><div class="heures-txt">' +
         (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
+      '<span class="statut-texte ' + ETAT_LIB[e][1] + '">' + ETAT_LIB[e][0] + '</span>' +
       '</div>' +
       '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') +
       (heuresSupJour(p, j.iso, j.js) ? ' <span class="delta-sup">+' + fmtMin(heuresSupJour(p, j.iso, j.js)) + '</span>' : '') +
@@ -1700,7 +1741,7 @@ async function remplirManquants() {
   if (!cibles.length) return;
   const lib = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
     ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
-  if (!confirm('Remplir ' + cibles.length + ' jour(s) ouvré(s) avec la journée type (' + lib + ') ?\nVous pourrez corriger chaque jour ensuite.')) return;
+  if (!confirm('Remplir ' + cibles.length + ' jour(s) ouvré(s) avec la journée type (' + lib + ') ?\nCes journées seront confirmées et verrouillées. Toute correction nécessitera l’autorisation du back office.')) return;
   const btn = $('btn-remplir');
   if (btn) { btn.disabled = true; btn.textContent = 'Remplissage en cours…'; }
   try {
@@ -1757,7 +1798,7 @@ async function enregistrerJourneeType(iso) {
 }
 
 /* ---------- Modale jour ---------- */
-const MJ = { empId: null, jour: null, matin: 'travail', apm: 'travail', existe: false, approuve: false, verrou: false };
+const MJ = { empId: null, jour: null, matin: 'travail', apm: 'travail', existe: false, approuve: false, confirme: false, verrou: false };
 // Les absences sont regroupées dans un menu « Statut » : par défaut, seule la
 // présence normale (les heures) est visible.
 function initStatuts() {
@@ -1839,7 +1880,8 @@ function ouvrirJour(empId, jour) {
   const admin = S.moi.role === 'admin';
   MJ.empId = empId; MJ.jour = jour; MJ.existe = !!p;
   MJ.approuve = !!(p && p.approuve);
-  MJ.verrou = MJ.approuve && !admin;
+  MJ.confirme = !!(p && p.confirme);
+  MJ.verrou = (MJ.approuve || MJ.confirme) && !admin;
   MJ.matin = p ? p.matin_type : 'travail';
   MJ.apm = p ? p.apm_type : 'travail';
   const [an, mo, jr] = jour.split('-').map(Number);
@@ -1875,7 +1917,13 @@ function ouvrirJour(empId, jour) {
   $('mj-defaut').hidden = MJ.verrou;
   $('mj-defaut').textContent = 'Journée type · ' + defPour('mj-md') + '–' + defPour('mj-af');
   $('mj-save').hidden = MJ.verrou;
+  $('mj-save').textContent = admin ? 'Enregistrer' : 'Enregistrer et confirmer';
+  $('mj-confirmation-info').hidden = admin || MJ.verrou;
+  $('mj-confirmation-info').textContent = p && p.demande_etat === 'accordee'
+    ? 'Modification autorisée. Enregistrer confirmera à nouveau cette journée et la soumettra au contrôle du back office.'
+    : 'Enregistrer confirme cette journée et la verrouille. Une correction nécessitera ensuite l’autorisation du back office.';
   $('mj-verrou').hidden = !MJ.verrou;
+  $('mj-verrou-txt').textContent = MJ.approuve ? 'Journée approuvée par le back office · verrouillée' : 'Journée confirmée par vous · en attente d’approbation · verrouillée';
   MJ.dem = p ? (p.demande_etat || null) : null;
   if (MJ.verrou) peindreGuichet(p);
   // Côté back office, une demande en attente se traite ici, sur la journée
@@ -1890,7 +1938,8 @@ function ouvrirJour(empId, jour) {
   const btnApp = $('mj-approuver');
   if (admin && p) {
     btnApp.hidden = false;
-    btnApp.textContent = MJ.approuve ? '🔓 Déverrouiller ce jour' : '✓ Valider ce jour (back office)';
+    btnApp.disabled = enAttente || (!MJ.approuve && !MJ.confirme);
+    btnApp.textContent = enAttente ? 'Traitez d’abord la demande de modification' : MJ.approuve ? 'Autoriser une correction' : MJ.confirme ? '✓ Approuver après contrôle' : 'Confirmation de l’employé attendue';
   } else { btnApp.hidden = true; }
   majStatuts();
   $('voile-jour').classList.add('ouvert');
@@ -1921,13 +1970,15 @@ async function envoyerDemande() {
   const motif = $('mj-dem-motif').value.trim();
   if (motif.length < 5) { alert('Expliquez en une phrase ce qu’il faut corriger.'); return; }
   const b = $('mj-dem-envoyer'); b.disabled = true; b.innerHTML = '<span class="spin"></span>';
-  const r = await rpc('demande_modification',
-    { p_token: S.token, p_jour: MJ.jour, p_motif: motif });
-  b.disabled = false; b.textContent = 'Envoyer la demande';
-  if (!r || !r.ok) { alert((r && r.erreur) || 'Envoi impossible'); return; }
-  fermerJour();
-  await charger();
-  alert('Demande envoyée au back office.');
+  try {
+    const r = await rpc('demande_modification',
+      { p_token: S.token, p_jour: MJ.jour, p_motif: motif });
+    if (!r || !r.ok) { alert((r && r.erreur) || 'Envoi impossible'); return; }
+    fermerJour();
+    await charger();
+    alert('Demande envoyée au back office.');
+  } catch (e) { toast(e.message); }
+  finally { b.disabled = false; b.textContent = 'Envoyer la demande'; }
 }
 async function repondreDemande(accorde) {
   const rep = $('mj-dem-rep').value.trim();
@@ -1976,6 +2027,8 @@ async function sauverJour() {
   finally { $('mj-save').disabled = false; }
 }
 async function approuverJour() {
+  if (!MJ.approuve && !confirm('Confirmer votre contrôle et approuver cette journée ? Elle restera verrouillée pour l’employé.')) return;
+  if (MJ.approuve && !confirm('Autoriser l’employé à corriger cette journée ? Sa confirmation et votre approbation seront retirées.')) return;
   try {
     const res = await rpc('admin_approuver', {
       p_token: S.token, p_employe: MJ.empId, p_annee: S.annee, p_mois: S.mois,
@@ -1987,6 +2040,7 @@ async function approuverJour() {
   } catch (e) { toast(e.message); }
 }
 async function supprimerJour() {
+  if (MJ.verrou) return;
   const admin = S.moi.role === 'admin';
   const args = admin ? { p_token: S.token, p_employe: MJ.empId, p_jour: MJ.jour } : { p_token: S.token, p_jour: MJ.jour };
   try {
@@ -2501,7 +2555,21 @@ function renderEquipe() {
   const lecture = S.lecture;
   // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
   let html = bandeauDemandes() + bandeauRetards();
-  html += '<div class="defile"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
+  html += '<div class="etapes-controle" id="etapes-controle"><span><i>1</i>Confirmation employé</span><span><i>2</i><b>Contrôle du back office</b></span><span><i>3</i>Approbation</span></div>';
+  html += '<div class="equipe-mobile">' + actifs.map(e => {
+    const lignes = Object.values(map[e.id] || {});
+    const approuves = lignes.filter(p => p.approuve).length;
+    const attente = lignes.filter(p => p.confirme && !p.approuve).length;
+    const brouillons = lignes.filter(p => !p.confirme && !p.approuve).length;
+    const manquants = joursManquants(jours, map[e.id] || {});
+    return '<button class="equipe-fiche emp-lien" data-emp="' + esc(e.id) + '">' +
+      '<span class="ef-tete"><span>' + esc(nomComplet(e)) + '</span><span>' + fmtMin(lignes.reduce((total, p) => total + jourMin(p), 0)) + '</span></span>' +
+      '<div class="ef-metier">' + esc(e.metier || 'Feuille de temps') + (e.actif ? '' : ' · désactivé') + '</div>' +
+      '<div class="ef-etats"><span class="ok">' + approuves + ' approuvée' + (approuves > 1 ? 's' : '') + '</span><span class="attente">' + attente + ' à approuver</span>' +
+      (brouillons ? '<span>' + brouillons + ' à confirmer</span>' : '') + (manquants ? '<span>' + manquants + ' à saisir</span>' : '') + '</div>' +
+      '<span class="ef-action">' + (lecture ? 'Consulter le mois' : 'Contrôler les journées') + ' →</span></button>';
+  }).join('') + '</div>';
+  html += '<div class="defile equipe-tableau"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
     jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
       JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
   for (const e of actifs) {
@@ -2540,17 +2608,17 @@ function renderEquipe() {
       }
       const pasconf = nonConfirme(e, p, j.iso);
       html += '<td class="cellule' + (we ? ' we-td' : '') + (j.iso === auj ? ' auj-td' : '') +
-        (p && p.approuve ? ' ok-td' : '') + (manque ? ' manque-td' : '') + (pasconf ? ' pasconf' : '') +
+        (p && p.approuve ? ' ok-td' : p && p.confirme ? ' attente-td' : '') + (manque ? ' manque-td' : '') + (pasconf ? ' pasconf' : '') +
         '" data-emp="' + e.id + '" data-jour="' + j.iso + '"' +
-        (pasconf ? ' title="Journée posée par le back office — le technicien ne l’a pas confirmée"' : '') +
+        ' title="' + (p ? (p.approuve ? 'Approuvée' : p.confirme ? 'Confirmée · en attente d’approbation' : 'À confirmer par l’employé') : 'Non saisie') + '"' +
         '>' + contenu + '</td>';
     }
     html += '</tr>';
   }
   html += '</table></div>';
   html += lecture
-    ? '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour voir son mois jour par jour. Fond vert = jour validé par le back office · fond jaune = jour ouvré non encore saisi. Cette page se met à jour automatiquement dès qu’une saisie est ajoutée.</div>'
-    : '<div class="muet" style="margin-top:8px">Touchez le <b>nom</b> d’un collaborateur pour examiner son mois et <b>valider jour par jour</b>. Cliquez sur une case pour saisir ou corriger une journée. Fond vert = jour validé (verrouillé pour l’employé) · fond jaune = jour ouvré non saisi · <b>coin orangé</b> = journée posée par le back office, que le technicien n’a pas confirmée. Sous chaque nom, la dernière ouverture de l’application.</div>';
+    ? '<div class="muet legende-tableau" style="margin-top:8px">Cliquez sur le nom pour consulter le détail. Vert : approuvé · bleu : confirmé, en attente d’approbation · jaune : à saisir.</div>'
+    : '<div class="muet legende-tableau" style="margin-top:8px">Cliquez sur le nom pour contrôler puis approuver chaque journée. Vert : approuvé · bleu : confirmé, en attente d’approbation · jaune : à saisir · coin orangé : confirmation de l’employé attendue. Une journée confirmée est déjà verrouillée.</div>';
   $('ong-equipe').innerHTML = html;
   if (!lecture) $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
     td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
@@ -2597,7 +2665,7 @@ async function demanderExplication(iso, sup) {
   if (!e) return;
   const texte = 'Bonjour ' + e.prenom + ', peux-tu préciser la raison des ' + fmtMin(sup) +
     ' de plus que l’horaire normal ce ' + libJour(iso) + ' ? ' +
-    'Ouvre la journée depuis ce message et écris-le dans la remarque, merci.';
+    'Réponds dans le fil des questions, merci. Si les horaires sont à corriger, demande l’autorisation depuis la journée.';
   if (!confirm('Envoyer cette question à ' + e.prenom + ' ?\n\n' + texte)) return;
   try {
     const res = await rpc('message_ecrire', {
@@ -2661,13 +2729,14 @@ function ouvrirDetails(empId) {
     if (semDebut === null) semDebut = j.num;
     semMin += min;
     semSup += sup;
-    const coche = p ? '<span class="val-jour' + (p.approuve ? ' on' : '') + '" data-jour="' + j.iso +
-      '" title="' + (p.approuve ? 'Déverrouiller ce jour' : 'Valider ce jour') + '">✓</span>' : '';
+    const coche = p ? '<span class="val-jour' + (p.approuve ? ' on' : '') + (p.demande_etat === 'attente' || (!p.confirme && !p.approuve) ? ' inactive' : '') + '" data-jour="' + j.iso +
+      '" title="' + (p.approuve ? 'Autoriser une correction' : p.confirme ? 'Approuver après contrôle' : 'Confirmation de l’employé attendue') + '">✓</span>' : '';
     htmlDet += '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
       (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
       (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') +
+      (p ? '<span class="statut-texte ' + (p.approuve ? 'ok' : 'attente') + '">' + (p.approuve ? 'Approuvée' : p.confirme ? 'En attente d’approbation' : 'À confirmer par l’employé') + '</span>' : '') +
       // Des heures en plus sans un mot : c'est exactement ce qu'on cherche à
       // comprendre plus tard, et qu'on ne retrouvera plus dans trois semaines.
       (sup && !(p && p.remarque) ? ligneSansMotif(j.iso, sup) : '') + '</div>' +
@@ -2688,6 +2757,7 @@ function ouvrirDetails(empId) {
     $('det-liste').querySelectorAll('.val-jour').forEach(s =>
       s.addEventListener('click', ev => {
         ev.stopPropagation();
+        if (s.classList.contains('inactive')) return;
         approuverJourRevue(empId, s.dataset.jour, !s.classList.contains('on'));
       }));
     // La demande vit à l'intérieur de la ligne du jour : sans cette coupure,
@@ -2702,6 +2772,8 @@ function ouvrirDetails(empId) {
 }
 function fermerDetails() { $('voile-det').classList.remove('ouvert'); }
 async function approuverJourRevue(empId, jour, approuve) {
+  if (approuve && !confirm('Confirmer votre contrôle et approuver cette journée ? Elle restera verrouillée pour l’employé.')) return;
+  if (!approuve && !confirm('Autoriser une correction ? L’employé devra confirmer à nouveau cette journée avant votre prochaine approbation.')) return;
   try {
     const res = await rpc('admin_approuver', {
       p_token: S.token, p_employe: empId, p_annee: S.annee, p_mois: S.mois,

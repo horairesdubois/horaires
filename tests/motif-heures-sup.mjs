@@ -32,7 +32,10 @@ async function ouvrir(role) {
       const rep = o => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
       if (nom === 'admin_donnees') return rep({ ok: true, entreprise: 'Essai', employes: [ADMIN, SAMI],
         pointages: PTG, msg_non_lus: 0, tracabilite_depuis: '2026-01-01', aujourdhui: '2026-09-07' });
-      if (nom === 'mes_pointages') return rep({ ok: true, employe: SAMI, pointages: PTG });
+      // Le technicien répond après autorisation de corriger ; une journée
+      // confirmée resterait à juste titre en lecture seule.
+      if (nom === 'mes_pointages') return rep({ ok: true, employe: SAMI,
+        pointages: PTG.map(p => ({ ...p, confirme: false, demande_etat: 'accordee' })) });
       if (nom === 'messages_lire') return rep({ ok: true, messages: window.__msgs || [], non_lus: 0,
         fils: [], fil: corps.p_employe || null, autres_mois: [] });
       if (nom === 'message_ecrire') {
@@ -46,7 +49,7 @@ async function ouvrir(role) {
       return rep({ ok: true });
     };
   }, { role, ADMIN, SAMI, PTG });
-  await pg.goto('file:///home/user/horaires/docs/index.html');
+  await pg.goto(new URL('../app/index.html', import.meta.url).href);
   await pg.waitForTimeout(1200);
   return { nav, pg };
 }

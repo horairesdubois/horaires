@@ -39,7 +39,7 @@ async function ecran(qui, ptg) {
       return rep({ ok:true });
     };
   }, { qui, A, E, ptg });
-  await pg.goto('file:///home/user/horaires/docs/index.html');
+  await pg.goto(new URL('../app/index.html', import.meta.url).href);
   await pg.waitForTimeout(1000);
   await pg.evaluate(() => { S.annee = 2026; S.mois = 9; S.auj = '2026-09-09'; });
   return pg;

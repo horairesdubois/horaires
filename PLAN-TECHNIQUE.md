@@ -2419,3 +2419,73 @@ ici quelqu'un attend une réponse — mène droit à la journée, où l'encart
 
 `tests/demande-deblocage.mjs` couvre les deux côtés et les cinq états ;
 `tests/journal-avant-apres.mjs` monte à quinze formes d'affichage.
+
+## 49. Confirmation de l’employé, contrôle et autorisation de correction
+
+Le 10 septembre 2026, après revue des propositions d’interface, le propriétaire
+autorise la modification de la feuille de temps. Il demande que l’employé soit
+bloqué dès sa propre confirmation, et qu’il voie les jours approuvés et ceux
+encore en attente d’approbation.
+
+### 49.1 Le cycle protégé
+
+Une saisie employé vaut confirmation (`saisi_par = employe_id`). Dès cet instant,
+ses heures, absences et remarques ne sont plus modifiables ni supprimables par
+l’employé, même avant l’approbation du back office. La protection est assurée
+dans les RPC SQL et répétée dans l’interface. Les écritures concurrentes d’un
+même collaborateur sont sérialisées pour empêcher une seconde sauvegarde de
+contourner la première confirmation.
+
+Une demande motivée ouvre le guichet existant. Le refus conserve les deux
+verrous. L’accord retire la confirmation et l’approbation ; l’employé corrige
+puis confirme à nouveau, avant un nouveau contrôle du back office. Le back
+office peut aussi autoriser explicitement une correction d’un jour approuvé.
+L’approbation exige la confirmation préalable de l’employé. Une demande en
+attente doit être traitée avant une approbation ou une réouverture directe.
+Une approbation de mois échoue entièrement si une journée attend encore une
+confirmation ou une réponse à sa demande.
+
+Les corrections ordinaires du back office conservent la confirmation et les
+demandes existantes. Elles restent tracées dans le journal. La migration ne
+réécrit aucune journée ni aucun événement historique. La fiduciaire conserve
+son accès en consultation ; les helpers SQL restent inaccessibles depuis
+l’API publique.
+
+### 49.2 Une interface adaptée aux deux usages
+
+Sur téléphone, l’employé voit « À confirmer », « En attente d’approbation » ou
+« Approuvée » dans la carte du jour, les jours récents et le détail du mois.
+Les compteurs approuvés et en attente restent visibles simultanément. Un jour
+verrouillé propose directement « Voir / demander une modification ».
+
+Sur téléphone, le back office dispose de fiches par employé avec total et
+compteurs. À partir de 681 pixels, le tableau mensuel reste disponible. Le
+parcours rappelle confirmation, contrôle et approbation ; chaque approbation
+ou réouverture demande une confirmation explicite. Une demande d’explication
+renvoie désormais vers le fil des questions, puisque la remarque est verrouillée.
+
+### 49.3 Vérifications
+
+Le scénario `tests/circuit-approbation.mjs` simule le serveur sans contacter la
+production et vérifie le cycle complet, les gardes sauvegarde/suppression,
+l’annulation d’une approbation, les statuts et les vues employé, back office et
+fiduciaire. Les treize essais navigateur passent avec Chrome 152. Les chemins
+des anciens essais sont rendus portables. Les scripts intégrés passent
+`node --check`, sans identifiant manquant ni fonction dupliquée.
+
+### 49.4 Suivi des déplacements : étude séparée
+
+Le propriétaire précise désormais un suivi par téléphone iPhone/Android,
+sans GPS de véhicule. Cette demande remplace l’exclusion fonctionnelle de la
+géolocalisation mentionnée en 48.3 pour l’étude des propositions. Aucune
+fonction de localisation n’est activée par cette livraison. Le navigateur
+ne garantit pas un suivi continu écran verrouillé. Google Maps déjà installé
+peut fournir un partage externe, mais aucune API publique documentée de ce
+partage personnel n’a été identifiée pour alimenter la carte Horaires.
+
+La migration `20260910181454_verrouillage_confirmation_employe.sql` a été
+appliquée au projet Supabase `horaires`. Le scénario SQL complet a également
+réussi sur ce projet dans une transaction annulée. Cinq courses entre connexions
+indépendantes ont été vérifiées localement : première confirmation en double,
+demande en double, réponses accord/refus concurrentes, insertion pendant une
+approbation mensuelle, et confirmation pendant une suppression.

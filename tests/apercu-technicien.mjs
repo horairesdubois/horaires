@@ -36,7 +36,7 @@ await bo.addInitScript(({ ADMIN }) => {
   localStorage.setItem('hor_token', 'tok-A1');
   localStorage.setItem('hor_moi', JSON.stringify(ADMIN));
 }, { ADMIN });
-await bo.goto('file:///home/user/horaires/docs/index.html');
+await bo.goto(new URL('../app/index.html', import.meta.url).href);
 await bo.waitForTimeout(900);
 console.log('1. back office ouvert            :', await bo.evaluate(() => S.moi && S.moi.prenom));
 
@@ -81,7 +81,7 @@ console.log('8. et il est toujours connecté   :', await bo.evaluate(() => S.moi
 // --- coller le lien dans un onglet neuf où traîne la session admin ---
 // 9. lien d'aperçu collé à la main : il s'annonce, donc aucune question
 const colle = await ctx.newPage();
-await colle.goto('file:///home/user/horaires/docs/index.html#c=' + DEMO.cle + '&apercu=1');
+await colle.goto(new URL('../app/index.html', import.meta.url).href + '#c=' + DEMO.cle + '&apercu=1');
 await colle.waitForTimeout(1200);
 console.log('9. lien d’aperçu collé → on obtient :', await colle.evaluate(() => S.moi && S.moi.prenom));
 console.log('   et le back office n’a pas bougé  :', (await ouEst(bo)).navigateur);
@@ -91,7 +91,7 @@ console.log('   et le back office n’a pas bougé  :', (await ouEst(bo)).naviga
 const vrai = await ctx.newPage();
 let question = null;
 vrai.on('dialog', d => { question = d.message(); d.dismiss(); });   // on refuse
-await vrai.goto('file:///home/user/horaires/docs/index.html#c=' + ADMIN.cle);
+await vrai.goto(new URL('../app/index.html', import.meta.url).href + '#c=' + ADMIN.cle);
 await vrai.waitForTimeout(1200);
 console.log('10. lien d’un vrai compte → question posée :', question ? JSON.stringify(question.replace(/\n+/g,' ')) : 'AUCUNE');
 console.log('    refusée → on reste sur             :', await vrai.evaluate(() => S.moi && S.moi.prenom));
