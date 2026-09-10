@@ -31,7 +31,7 @@ await pg.addInitScript(({A,E,PTG,MSG,JR})=>{
     manquants:3,dernier:'2026-09-02'}],aujourdhui:'2026-09-07'});
   if(n==='journal_lire')return rep({ok:true,lignes:JR,acteurs:[{id:'E1',nom:'Sami',nb:1}]});
   return rep({ok:true});};},{A,E,PTG,MSG,JR});
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(1100);
 
 const poser = async (ong) => { await pg.evaluate(o=>{

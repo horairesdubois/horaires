@@ -73,7 +73,7 @@ for (const [nomVue, moi] of [['TECHNICIEN', E], ['BACK OFFICE', A]]) {
       dernier:'2026-09-02'}],aujourdhui:'2026-09-07'});
     if(n==='journal_lire')return rep({ok:true,lignes:JR,acteurs:[{id:'E1',nom:'Sami',nb:4},{id:'A1',nom:'BO',nb:9}]});
     return rep({ok:true});};},{A,E,PTG,MSG,JR,moi});
-  await pg.goto('file:///home/user/horaires/docs/index.html');
+  await pg.goto(new URL('../app/index.html', import.meta.url).href);
   await pg.waitForTimeout(1200);
   console.log('\n' + nomVue);
   const ecrans = nomVue === 'TECHNICIEN'

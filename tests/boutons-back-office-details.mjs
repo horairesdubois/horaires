@@ -32,7 +32,7 @@ await pg.addInitScript(({A,E,PTG,JR,ACT})=>{
   if(n==='retards_saisie')return rep({ok:true,retards:[],aujourdhui:'2026-09-07'});
   if(n==='journal_lire')return rep({ok:true,lignes:JR,acteurs:ACT});
   return rep({ok:true});};},{A,E,PTG,JR,ACT});
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(1100);
 const poser = async (o) => { await pg.evaluate(x=>{
   ['voile-jour','voile-emp','voile-det'].forEach(v=>document.getElementById(v).classList.remove('ouvert'));

@@ -21,7 +21,7 @@ await pg.addInitScript(({ SAMI }) => {
     return rep({ ok: true });
   };
 }, { SAMI });
-await pg.goto('file:///home/user/horaires/docs/index.html');
+await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(900);
 
 await pg.evaluate(() => { S.annee = 2026; S.mois = 9; ouvrirJour('E1', '2026-09-02'); });
