@@ -491,6 +491,97 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .centre{text-align:center}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-3px}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* Espace employé : direction Essentiel, une semaine et une action à la fois. */
+#v-emp.vue { max-width:560px; padding:0 0 calc(88px + env(safe-area-inset-bottom)); min-height:100dvh; }
+#v-emp .emp-entete { display:flex; justify-content:space-between; align-items:center; gap:16px; min-height:76px; padding:15px 22px; background:#fff; border-bottom:1px solid var(--ligne); }
+#v-emp .emp-identite { min-width:0; display:flex; align-items:center; }
+#v-emp .emp-identite .logo-marque { width:82px; height:42px; max-width:100%; object-fit:contain; }
+#v-emp .emp-identite:has(.logo-marque:not([hidden])) .emp-marque-repli { display:none; }
+#v-emp .emp-marque-repli { font-size:19px; font-weight:750; color:var(--bleu); }
+#v-emp .emp-compte { display:flex; align-items:center; gap:9px; color:var(--gris); font-size:12px; }
+#v-emp .emp-avatar { width:40px; height:40px; flex:none; display:grid; place-items:center; border-radius:50%; background:#eaf0fb; color:var(--bleu); font-weight:700; font-size:14px; }
+#v-emp .emp-contenu { padding:20px 22px; }
+#v-emp .emp-salut { margin-bottom:13px; }
+#v-emp .emp-salut h1 { font-size:25px; letter-spacing:-.6px; line-height:1.2; margin:0 0 5px; font-weight:750; }
+#v-emp .emp-sous-titre { color:var(--gris); font-size:13px; line-height:1.45; }
+#v-emp #emp-metier:empty { display:none; }
+#v-emp .emp-semaine-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 -10px 2px; }
+#v-emp .emp-semaine-nav button { display:grid; place-items:center; flex:none; width:44px; height:44px; border-radius:8px; color:var(--bleu); }
+#v-emp .emp-semaine-nav button:active { background:#eaf0fb; }
+#v-emp #emp-semaine-lib { font-size:12px; font-weight:600; color:var(--gris); text-align:center; }
+#v-emp .bande-cadre { margin:0 0 17px; }
+#v-emp .bande-cadre::before,#v-emp .bande-cadre::after { display:none; }
+#v-emp .bande { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:0; overflow:visible; }
+#v-emp .bande button { width:auto; min-width:0; border:0; background:transparent; border-radius:10px; padding:8px 0 6px; gap:6px; box-shadow:none; min-height:61px; }
+#v-emp .bande .js { font-size:11px; font-weight:500; letter-spacing:0; text-transform:none; }
+#v-emp .bande .num { font-size:15px; font-weight:650; }
+#v-emp .bande .pt { height:4px; width:4px; }
+#v-emp .bande button.sel { background:var(--bleu); outline:none; }
+#v-emp .bande button.sel .js,#v-emp .bande button.sel .num { color:#fff; }
+#v-emp .bande button.auj:not(.sel) { outline:1px solid #bbcce6; outline-offset:-1px; }
+#v-emp .bande button.autre-mois .num { color:#8290a4; }
+#v-emp .jour-sel { border:1px solid #dee4ed; border-radius:14px; background:#fff; padding:17px; box-shadow:none; margin-bottom:18px; }
+#v-emp .jour-sel.fait,#v-emp .jour-sel.afaire { background:#fff; border-color:#dee4ed; }
+#v-emp .js-tete { display:flex; flex-wrap:nowrap; gap:10px; align-items:flex-start; }
+#v-emp .js-titre-total { flex:1; min-width:0; }
+#v-emp .js-date { font-size:15px; font-weight:700; color:var(--texte); letter-spacing:0; line-height:1.3; }
+#v-emp .js-etat { max-width:132px; padding:4px 7px; font-size:10px; font-weight:650; letter-spacing:0; line-height:1.35; text-transform:none; white-space:normal; border-radius:6px; background:#eaf0fb; color:var(--bleu); text-align:center; }
+#v-emp .js-etat.ok { background:#e9f5ed; color:#17734f; }
+#v-emp .js-etat.attente,#v-emp .js-etat.vide { background:#fff5df; color:#845710; }
+#v-emp .js-chiffre { font-size:30px; font-weight:750; letter-spacing:-1px; line-height:1.1; margin:9px 0 0; }
+#v-emp .js-chiffre .sup { display:block; font-size:11px; margin:4px 0 0; letter-spacing:0; color:#17734f; }
+#v-emp .js-total-precision { font-size:11px; color:var(--gris); font-weight:400; margin-top:3px; line-height:1.3; }
+#v-emp .js-heures { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:17px 0 16px; color:var(--texte); }
+#v-emp .emp-demi span { display:block; font-size:12px; color:var(--gris); margin-bottom:4px; }
+#v-emp .emp-demi strong { display:block; font-size:15px; font-weight:650; line-height:1.4; white-space:normal; font-variant-numeric:tabular-nums; }
+#v-emp #btn-pointer { padding:12px 9px; min-height:46px; border-radius:10px; font-size:14px; font-weight:650; background:var(--bleu); }
+#v-emp .js-lien { min-height:42px; padding:10px 0 0; text-align:left; font-size:12px; line-height:1.45; color:var(--bleu); }
+#v-emp .parcours-jour { color:var(--gris); margin:10px 0 0; font-size:11px; line-height:1.45; }
+#v-emp .emp-derniers-tete { display:flex; gap:10px; justify-content:space-between; align-items:center; margin-bottom:3px; }
+#v-emp .emp-derniers-tete h2 { font-size:15px; font-weight:700; }
+#v-emp .emp-derniers-tete button { color:var(--bleu); font-size:12px; min-height:44px; }
+#v-emp #derniers { border:0; border-radius:0; box-shadow:none; background:transparent; margin:0; padding:0; }
+#v-emp .dj { padding:12px 0; gap:9px; }
+#v-emp .dj .h { font-size:12px; }
+#v-emp .dj .statut-texte { font-size:10px; }
+#v-emp .dj .t { font-size:13px; }
+#v-emp .emp-nav-mois { margin:0 -10px 15px; }
+#v-emp .emp-nav-mois button { padding:8px 12px; min-width:44px; min-height:44px; }
+#v-emp .emp-nav-mois .lib { font-size:16px; }
+#v-emp .emp-resume-mois { display:flex; flex-wrap:wrap; gap:20px; padding:15px 0 18px; }
+#v-emp .emp-resume-mois strong { display:block; font-size:27px; font-weight:750; letter-spacing:-.7px; color:var(--texte); font-variant-numeric:tabular-nums; }
+#v-emp .emp-resume-mois span { display:block; font-size:12px; color:var(--gris); margin-top:3px; }
+#v-emp #carte-mois { margin:0 0 18px; gap:10px; }
+#v-emp #emp-etat { gap:5px 10px; }
+#v-emp #emp-remplir { width:100%; }
+#v-emp #emp-remplir .act { border-radius:9px; min-height:42px; padding:10px 12px; }
+#v-emp #emp-liste .jour-ligne { border-radius:10px; box-shadow:none; border:1px solid var(--ligne); padding:10px; gap:9px; }
+#v-emp #emp-liste .heures-txt { font-size:12px; white-space:normal; }
+#v-emp #emp-liste .tot { font-size:13px; }
+#v-emp #emp-liste .tot .delta-sup { display:block; text-align:right; margin-top:2px; }
+#v-emp .emp-questions-carte { padding:16px; border:1px solid var(--ligne); border-radius:14px; background:#fff; }
+#v-emp .emp-questions-carte h2 { font-size:16px; margin:0 0 8px; }
+#v-emp #q-corps { padding:0; border:0; }
+#v-emp #emp-msg-fil:empty { min-height:0; }
+#v-emp .emp-message-label { display:block; font-size:12px; color:var(--gris); margin:15px 0 6px; }
+#v-emp #emp-msg-texte { margin:0 0 10px; min-height:96px; font-size:16px; }
+#v-emp #emp-msg-envoyer { font-size:14px; min-height:46px; border-radius:10px; }
+#v-emp .emp-nav-bas { position:fixed; z-index:20; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:560px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:7px 10px calc(8px + env(safe-area-inset-bottom)); border-top:1px solid var(--ligne); background:#fff; }
+#v-emp .emp-nav-bas button { position:relative; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; min-height:49px; font-size:11px; color:var(--gris); padding:4px; border-radius:8px; }
+#v-emp .emp-nav-bas button[aria-pressed=true] { color:var(--bleu); font-weight:700; }
+#v-emp .emp-nav-ico { display:block; height:19px; }
+#v-emp .emp-nav-ico svg,#v-emp .emp-semaine-nav svg { width:19px; height:19px; }
+#v-emp .emp-nav-bas .pastille { position:absolute; top:0; left:calc(50% + 7px); margin:0; }
+#v-emp button:focus-visible { outline:3px solid #508deb; outline-offset:2px; }
+#v-emp .emp-nav-bas button:active,#v-emp .emp-avatar:active { background:#eaf0fb; }
+@media(max-width:359px) {
+  #v-emp .emp-contenu { padding:18px 16px; }
+  #v-emp .emp-entete { padding:13px 16px; }
+  #v-emp .jour-sel { padding:14px; }
+  #v-emp .emp-demi strong { font-size:13px; }
+  #v-emp .js-etat { max-width:116px; }
+}
+
 /* Feuilles de temps : une lecture nette des étapes, au téléphone comme au bureau. */
 :root { --bleu:#013384; --bleu-f:#00245e; }
 #toast:empty { display:none; }
@@ -531,6 +622,126 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   .ef-action { display:block; border-top:1px solid var(--ligne); padding-top:10px; margin-top:12px; color:var(--bleu); font-size:12px; font-weight:600; }
   .etapes-controle { gap:8px 14px; }
 }
+/* Maquette Essentiel : navigation et lecture des feuilles de temps. */
+:root { --fond:#f4f6f9; --texte:#192b43; --gris:#617086; --ligne:#dee4ed; --r:14px; }
+.icone-app { display:inline-block; width:18px; height:18px; flex:none; vertical-align:middle; }
+.sr-seul { position:absolute; top:0; left:0; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+#v-admin.vue { display:grid; grid-template-columns:210px minmax(0,1fr); max-width:1440px; min-height:100svh; padding:0; margin:0 auto; }
+#v-admin .adm-sidebar { display:flex; flex-direction:column; position:sticky; top:0; height:100svh; padding:26px 16px; background:#fff; border-right:1px solid var(--ligne); }
+#v-admin .adm-brand { display:flex; align-items:center; min-height:56px; padding:0 10px; margin-bottom:28px; color:var(--bleu); font-size:19px; font-weight:750; }
+#v-admin .adm-brand .logo-marque { height:48px; width:94px; max-width:100%; object-fit:contain; }
+#v-admin .adm-brand:has(.logo-marque:not([hidden])) #adm-marque-nom { display:none; }
+#v-admin .onglets { display:flex; flex-direction:column; gap:5px; padding:0; margin:0; overflow:visible; border:0; }
+#v-admin .onglets button { display:flex; align-items:center; gap:10px; min-height:46px; width:100%; padding:11px 12px; border:0; border-radius:9px; background:transparent; color:var(--gris); text-align:left; font-size:13px; font-weight:550; white-space:nowrap; }
+#v-admin .onglets button.actif { color:var(--bleu); background:#eaf0fb; font-weight:700; }
+#v-admin .onglets button:hover { background:#f0f3f8; }
+#v-admin .onglets button.actif:hover { background:#eaf0fb; }
+#v-admin .onglets .pastille { margin-left:auto; }
+#v-admin .adm-sidebar-pied { display:flex; flex-direction:column; gap:5px; margin-top:auto; padding:24px 12px 0; color:var(--gris); font-size:11px; line-height:1.5; }
+#v-admin .adm-espace { min-width:0; }
+#v-admin .adm-entete { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:105px; padding:23px 28px; background:#fff; border-bottom:1px solid var(--ligne); }
+#v-admin .adm-heading { min-width:0; }
+#v-admin .adm-heading h1 { margin:0 0 5px; font-size:25px; line-height:1.2; letter-spacing:-.6px; }
+#v-admin .adm-sous-titre { display:block; color:var(--gris); font-size:12px; line-height:1.5; }
+#v-admin .adm-compte { display:flex; align-items:center; gap:10px; flex:none; font-size:12px; color:var(--gris); }
+#v-admin .adm-avatar { display:grid; place-items:center; flex:none; width:36px; height:36px; border-radius:50%; background:#eaf0fb; color:var(--bleu); font-size:12px; font-weight:700; }
+#v-admin .adm-compte .ico { display:grid; place-items:center; width:44px; height:44px; }
+#v-admin #adm-menu { display:none; }
+#v-admin .adm-contenu { padding:22px 28px 36px; }
+#v-admin .adm-mois { justify-content:flex-start; gap:8px; width:max-content; max-width:100%; margin:0 0 14px; padding:0; background:transparent; }
+#v-admin .adm-mois .lib { font-size:14px; min-width:130px; text-align:center; }
+#v-admin .adm-mois button { width:44px; height:44px; border-radius:9px; border:1px solid var(--ligne); background:#fff; }
+#v-admin .equipe-commandes { display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 22px; }
+#v-admin .equipe-periode { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:650; }
+#v-admin .equipe-periode button { width:44px; height:44px; display:grid; place-items:center; border-radius:8px; color:var(--gris); }
+#v-admin .equipe-periode button:hover { background:#e9eef6; }
+#v-admin .choix-periode { display:flex; padding:4px; background:#e9edf4; border-radius:10px; }
+#v-admin .choix-periode button { padding:8px 15px; min-height:38px; font-size:12px; color:var(--gris); border-radius:7px; }
+#v-admin .choix-periode button[aria-pressed=true] { background:#fff; color:var(--bleu); box-shadow:0 1px 3px #142a4710; font-weight:650; }
+#v-admin .equipe-indicateurs { display:flex; gap:52px; padding:0 0 24px; margin:0 0 8px; }
+#v-admin .equipe-indicateurs>div { display:flex; flex-direction:column; gap:6px; }
+#v-admin .equipe-indicateurs strong { font-size:29px; line-height:1.15; font-weight:700; letter-spacing:-.7px; font-variant-numeric:tabular-nums; }
+#v-admin .equipe-indicateurs span { font-size:12px; color:var(--gris); }
+#v-admin .equipe-attention { display:flex; flex-wrap:wrap; align-items:center; gap:5px 18px; padding:14px 16px; margin:0 0 14px; background:#fff5df; border:1px solid #edddb7; border-left:3px solid #c18a26; border-radius:10px; color:#845710; font-size:12px; line-height:1.5; }
+#v-admin .etapes-controle { padding:5px 0 18px; gap:10px 22px; font-size:11px; }
+#v-admin .etapes-controle i { width:21px; height:21px; font-size:10px; background:#fff; }
+#v-admin .equipe-tableau { border:1px solid var(--ligne); border-radius:14px; background:#fff; }
+#v-admin table.grille { width:100%; border:0; border-radius:0; overflow:visible; font-size:12px; }
+#v-admin .grille th,#v-admin .grille td { border:0; border-bottom:1px solid var(--ligne); padding:17px 10px; text-align:center; background:#fff; background-image:none; }
+#v-admin .grille thead th { padding:14px 9px; background:#f8fafc; color:var(--gris); font-size:10px; font-weight:550; }
+#v-admin .grille th:first-child { text-align:left; padding-left:19px; min-width:140px; }
+#v-admin .grille tbody th:first-child { background:#fff; }
+#v-admin .grille tbody tr:last-child>* { border-bottom:0; }
+#v-admin .grille .emp-lien { min-height:30px; font-size:13px; font-weight:650; color:var(--texte); text-decoration:none; }
+#v-admin .grille .emp-lien:hover { color:var(--bleu); text-decoration:underline; }
+#v-admin .equipe-metier { display:block; margin:2px 0 0; color:var(--gris); font-size:10px; font-weight:400; line-height:1.5; }
+#v-admin .grille .cellule { min-width:64px; padding:10px 3px; cursor:pointer; }
+#v-admin .grille .cellule:hover { outline:0; background:#f5f8fc; }
+#v-admin .equipe-jour { display:grid; place-items:center; gap:4px; width:100%; min-height:44px; border-radius:7px; padding:4px 2px; }
+#v-admin .grille .we-th { color:#8490a0; }
+#v-admin .grille .auj-th { color:var(--bleu); background:#eaf0fb; font-weight:700; }
+#v-admin .heure-badge { display:inline-block; padding:6px 8px; border-radius:6px; font-size:11px; line-height:1.2; font-weight:600; font-variant-numeric:tabular-nums; }
+#v-admin .approuvee { background:#e9f5ed; color:#17734f; }
+#v-admin .attente { background:#fff5df; color:#845710; }
+#v-admin .a-confirmer { background:#edf0f5; color:#617086; }
+#v-admin .equipe-vide { color:#8a94a3; font-size:10px; }
+#v-admin .manque-td .equipe-vide { color:#98723a; }
+#v-admin .equipe-absence { font-size:9px; color:var(--gris); }
+#v-admin .grille .tot-cell { font-size:13px; font-weight:700; padding:12px; }
+#v-admin .equipe-sup { display:block; margin-top:5px; color:#17734f; font-size:10px; font-weight:500; }
+#v-admin .grille .equipe-examiner { display:flex; align-items:center; justify-content:center; gap:3px; min-height:44px; font-size:11px; color:var(--bleu); }
+#v-admin .equipe-examiner svg { width:14px; height:14px; }
+#v-admin .mode-mois table { min-width:2200px; }
+#v-admin .equipe-legende { display:flex; flex-wrap:wrap; gap:18px; margin-top:14px; color:var(--gris); font-size:11px; }
+#v-admin .equipe-legende>span { display:flex; align-items:center; gap:7px; }
+#v-admin .carre-legende { display:inline-block; width:11px; height:11px; border-radius:3px; border:1px solid #17314c0d; }
+#v-admin .equipe-vide-liste { padding:28px 0; text-align:center; color:var(--gris); }
+#v-admin button:focus-visible { outline:3px solid #508deb; outline-offset:2px; }
+@media(max-width:1050px) and (min-width:801px) {
+  #v-admin.vue { grid-template-columns:180px minmax(0,1fr); }
+  #v-admin .adm-sidebar { padding:24px 10px; }
+  #v-admin .adm-contenu { padding:20px; }
+  #v-admin .adm-entete { padding:23px 20px; }
+  #v-admin #adm-titre { display:none; }
+  #v-admin .equipe-indicateurs { gap:30px; }
+}
+@media(max-width:800px) {
+  #v-admin.vue { display:block; }
+  #v-admin .adm-sidebar { display:none; }
+  #v-admin.menu-ouvert .adm-sidebar { display:flex; position:fixed; z-index:35; top:88px; left:12px; right:12px; height:auto; max-height:calc(100svh - 105px); overflow:auto; padding:16px; border:1px solid var(--ligne); border-radius:14px; box-shadow:0 12px 40px #142a4726; }
+  #v-admin .adm-brand { min-height:44px; margin-bottom:14px; }
+  #v-admin .adm-sidebar-pied { padding-top:14px; }
+  #v-admin .adm-entete { gap:10px; padding:15px 16px; min-height:88px; }
+  #v-admin #adm-menu { display:grid; place-items:center; flex:none; width:44px; height:44px; }
+  #v-admin .adm-heading { flex:1; }
+  #v-admin .adm-heading h1 { font-size:19px; letter-spacing:-.4px; }
+  #v-admin .adm-sous-titre { font-size:10px; line-height:1.4; }
+  #v-admin .adm-compte { gap:3px; }
+  #v-admin #adm-titre { display:none; }
+  #v-admin .adm-avatar { width:32px; height:32px; font-size:11px; }
+  #v-admin .adm-compte .ico { width:32px; min-height:44px; }
+  #v-admin .adm-contenu { padding:16px 18px 28px; }
+  #v-admin .adm-mois { margin:0 0 12px; }
+  #v-admin .equipe-commandes { flex-wrap:wrap; gap:6px 12px; margin-bottom:22px; }
+  #v-admin .equipe-periode { gap:2px; font-size:12px; margin-left:-9px; }
+  #v-admin .equipe-periode button { width:36px; }
+  #v-admin .choix-periode button { padding:6px 11px; min-height:38px; }
+  #v-admin .equipe-indicateurs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding-bottom:18px; }
+  #v-admin .equipe-indicateurs strong { font-size:25px; }
+  #v-admin .equipe-indicateurs span { font-size:10px; line-height:1.5; }
+  #v-admin .etapes-controle { gap:8px 12px; font-size:10px; }
+  #v-admin .equipe-tableau,#v-admin .equipe-legende { display:none; }
+  #v-admin .equipe-mobile { display:grid; gap:12px; }
+  #v-admin .equipe-fiche { display:block; width:100%; text-align:left; padding:17px; border:1px solid var(--ligne); border-radius:14px; background:#fff; color:var(--texte); text-decoration:none; }
+  #v-admin .ef-tete { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:15px; font-weight:700; }
+  #v-admin .ef-personne { display:flex; align-items:center; gap:10px; }
+  #v-admin .ef-metier { margin:5px 0 0 42px; color:var(--gris); font-size:11px; }
+  #v-admin .ef-etats { display:flex; flex-wrap:wrap; gap:7px; margin-top:17px; font-size:11px; color:var(--gris); }
+  #v-admin .ef-etats>span { padding:5px 7px; border-radius:5px; background:#f1f3f7; }
+  #v-admin .ef-etats .ok { color:#17734f; background:#e9f5ed; }
+  #v-admin .ef-etats .attente { color:#845710; background:#fff5df; }
+  #v-admin .ef-action { display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:12px; border-top:1px solid var(--ligne); color:var(--bleu); font-size:12px; font-weight:650; }
+}
 </style>
 </head>
 <body>
@@ -549,100 +760,116 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 
 <!-- ============ EMPLOYÉ ============ -->
 <div id="v-emp" class="vue" hidden>
-  <div class="entete-emp">
-    <img id="emp-logo" class="logo-marque" alt="" hidden>
-    <div class="ident">
-      <div class="qui" id="emp-nom"></div>
-      <div class="sous-qui" id="emp-metier"></div>
+  <header class="emp-entete">
+    <div class="emp-identite">
+      <img id="emp-logo" class="logo-marque" alt="" hidden>
+      <span class="emp-marque-repli">Horaires</span>
     </div>
-    <button class="ico" id="btn-sortir-emp" title="Se déconnecter">🚪</button>
-  </div>
-  <div class="nav-mois">
-    <button id="emp-prev" aria-label="Mois précédent">‹</button>
-    <div class="lib" id="emp-mois-lib"></div>
-    <button id="emp-next" aria-label="Mois suivant">›</button>
-  </div>
-
-  <!-- La bande des jours : c'est ici qu'on voit tout le mois et qu'on s'y déplace. -->
-  <div class="bande-cadre"><div class="bande" id="emp-bande"></div></div>
-  <div class="legende">
-    <span><i class="pt vide"></i>à saisir</span>
-    <span><i class="pt attente"></i>en attente d’approbation</span>
-    <span><i class="pt ok"></i>approuvée</span>
-  </div>
-
-  <div class="carte jour-sel" id="carte-jour-sel">
-    <div class="js-tete">
-      <div class="js-date" id="js-date"></div>
-      <div class="js-etat" id="js-etat"></div>
+    <div class="emp-compte"><span>Mon espace</span>
+      <button class="emp-avatar" id="btn-sortir-emp" title="Se déconnecter" aria-label="Se déconnecter"></button>
     </div>
-    <div class="js-chiffre" id="js-chiffre" hidden></div>
-    <div class="js-heures" id="js-heures"></div>
-    <div class="parcours-jour" id="js-parcours"></div>
-    <button class="btn vert large" id="btn-pointer"></button>
-    <button class="js-lien" id="btn-modifier-jour">Corriger l’horaire ou signaler une absence</button>
-  </div>
-
-  <div class="resume" id="carte-mois">
-    <span id="emp-etat"></span>
-    <span id="emp-chips" class="chips" style="margin:0"></span>
-    <span id="emp-remplir"></span>
-  </div>
-
-  <div id="emp-autres-mois" hidden></div>
-
-  <div class="carte liste-fin" id="derniers" hidden>
-    <div class="lf-titre">Ces derniers jours</div>
-    <div id="derniers-liste"></div>
-  </div>
-
-  <div class="carte liste-fin">
-    <button class="ligne-fin" id="btn-tout-mois">
-      <span class="lf-ico">📅</span>
-      <span class="lf-lib" id="tout-mois-lib">Détail du mois, jour par jour</span>
-      <span class="lf-fl" id="tout-mois-fl">›</span>
-    </button>
-    <button class="ligne-fin" id="q-tete">
-      <span class="lf-ico">💬</span>
-      <span class="lf-lib">Questions<span class="pastille" id="emp-msg-pastille" hidden></span></span>
-      <span class="lf-fl" id="q-fleche">›</span>
-    </button>
-    <div id="q-corps" hidden>
-      <div class="muet" style="margin:2px 0 8px" id="emp-msg-aide"></div>
-      <div id="emp-msg-fil"></div>
-      <textarea id="emp-msg-texte" maxlength="2000" placeholder="Votre question au back office…"></textarea>
-      <button class="btn large" id="emp-msg-envoyer">Envoyer ma question</button>
+  </header>
+  <main class="emp-contenu">
+    <div class="emp-salut">
+      <h1 id="emp-nom"></h1>
+      <div class="emp-sous-titre" id="emp-date"></div>
+      <div class="emp-sous-titre" id="emp-metier" hidden></div>
     </div>
-  </div>
-  <div id="emp-liste" hidden></div>
+    <div class="nav-mois emp-nav-mois" id="emp-navigation-mois" hidden>
+      <button id="emp-prev" aria-label="Mois précédent">‹</button>
+      <div class="lib" id="emp-mois-lib"></div>
+      <button id="emp-next" aria-label="Mois suivant">›</button>
+    </div>
+    <div id="emp-autres-mois" hidden></div>
+
+    <section id="emp-vue-jour" aria-label="Ma journée">
+      <div class="emp-semaine-nav">
+        <button id="emp-semaine-prev" aria-label="Semaine précédente">‹</button>
+        <span id="emp-semaine-lib"></span>
+        <button id="emp-semaine-next" aria-label="Semaine suivante">›</button>
+      </div>
+      <div class="bande-cadre"><div class="bande" id="emp-bande" aria-label="Jours de la semaine"></div></div>
+      <div class="carte jour-sel" id="carte-jour-sel">
+        <div class="js-tete">
+          <div class="js-titre-total">
+            <h2 class="js-date" id="js-date">Ma journée</h2>
+            <div class="js-chiffre" id="js-chiffre" hidden></div>
+            <div class="js-total-precision" id="js-total-precision"></div>
+          </div>
+          <div class="js-etat" id="js-etat"></div>
+        </div>
+        <div class="js-heures" id="js-heures"></div>
+        <button class="btn large" id="btn-pointer"></button>
+        <button class="js-lien" id="btn-modifier-jour">Saisir un autre horaire ou une absence</button>
+        <div class="parcours-jour" id="js-parcours"></div>
+      </div>
+      <div class="carte liste-fin" id="derniers" hidden>
+        <div class="emp-derniers-tete"><h2>Mes derniers jours</h2><button id="emp-voir-mois">Voir le mois</button></div>
+        <div id="derniers-liste"></div>
+      </div>
+    </section>
+
+    <section id="emp-vue-mois" aria-label="Mon mois" hidden>
+      <div class="emp-resume-mois"><div><strong id="emp-mois-total"></strong><span>Heures enregistrées</span></div><div><strong id="emp-mois-a-confirmer"></strong><span>Journées à confirmer</span></div></div>
+      <div class="resume" id="carte-mois">
+        <span id="emp-etat"></span>
+        <span id="emp-chips" class="chips" style="margin:0"></span>
+        <span id="emp-remplir"></span>
+      </div>
+      <div id="emp-liste" hidden></div>
+    </section>
+
+    <section id="emp-vue-questions" aria-label="Questions au back office" hidden>
+      <div class="emp-questions-carte">
+        <h2>Une question sur mes heures ?</h2>
+        <div class="emp-sous-titre">Retrouvez vos échanges avec le Back Office.</div>
+        <div id="q-corps" hidden>
+          <div class="muet" style="margin:12px 0 8px" id="emp-msg-aide"></div>
+          <div id="emp-msg-fil"></div>
+          <label class="emp-message-label" for="emp-msg-texte">Votre message</label>
+          <textarea id="emp-msg-texte" maxlength="2000" placeholder="Écrire au Back Office…"></textarea>
+          <button class="btn large" id="emp-msg-envoyer">Envoyer ma question</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <nav class="emp-nav-bas" aria-label="Navigation employé">
+    <button id="emp-nav-aujourdhui" data-emp-vue="aujourdhui" aria-pressed="true"><span class="emp-nav-ico" data-emp-icone="clock" aria-hidden="true"></span><span>Aujourd’hui</span></button>
+    <button id="btn-tout-mois" data-emp-vue="mois" aria-pressed="false"><span class="emp-nav-ico" data-emp-icone="calendar" aria-hidden="true"></span><span id="tout-mois-lib">Mon mois</span><span id="tout-mois-fl" hidden></span></button>
+    <button id="q-tete" data-emp-vue="questions" aria-pressed="false"><span class="emp-nav-ico" data-emp-icone="message-circle" aria-hidden="true"></span><span>Questions</span><span class="pastille" id="emp-msg-pastille" hidden></span><span id="q-fleche" hidden></span></button>
+  </nav>
 </div>
 
 <!-- ============ ADMIN ============ -->
 <div id="v-admin" class="vue" hidden>
-  <div class="bandeau"><img id="adm-logo" class="logo-marque" alt="" hidden></div>
-  <div class="entete">
-    <div>
-      <div class="qui" id="adm-titre">Back Office</div>
-    </div>
-    <button class="ico" id="btn-sortir-adm" title="Se déconnecter">🚪</button>
+  <aside class="adm-sidebar" id="adm-sidebar">
+    <div class="adm-brand"><img id="adm-logo" class="logo-marque" alt="" hidden><span id="adm-marque-nom">Horaires</span></div>
+    <nav class="onglets" aria-label="Navigation du back office">
+      <button data-ong="equipe" class="actif"><span data-icone="calendar"></span>Feuilles de temps</button>
+      <button data-ong="employes"><span data-icone="users"></span>Employés</button>
+      <button data-ong="export"><span data-icone="download"></span>Exporter</button>
+      <button data-ong="messages" id="ong-btn-messages"><span data-icone="message-circle"></span>Questions</button>
+      <button data-ong="journal" id="ong-btn-journal"><span data-icone="list-check"></span>Logs</button>
+    </nav>
+    <div class="adm-sidebar-pied"><span id="adm-entreprise"></span><span id="adm-role-nav">Back Office</span></div>
+  </aside>
+  <div class="adm-espace">
+    <header class="adm-entete">
+      <button class="ico" id="adm-menu" aria-label="Ouvrir le menu" aria-controls="adm-sidebar" aria-expanded="false"><span data-icone="menu-2"></span></button>
+      <div class="adm-heading"><h1 id="adm-page-titre">Feuilles de temps</h1><span class="adm-sous-titre" id="adm-page-sous">Contrôle et approbation des journées</span></div>
+      <div class="adm-compte"><span id="adm-titre">Back Office</span><span class="adm-avatar" id="adm-avatar">BO</span><button class="ico" id="btn-sortir-adm" title="Se déconnecter" aria-label="Se déconnecter"><span data-icone="logout"></span></button></div>
+    </header>
+    <main class="adm-contenu">
+      <div class="nav-mois adm-mois">
+        <button id="adm-prev" aria-label="Mois précédent">‹</button><div class="lib" id="adm-mois-lib"></div><button id="adm-next" aria-label="Mois suivant">›</button>
+      </div>
+      <div id="ong-equipe"></div>
+      <div id="ong-employes" hidden></div>
+      <div id="ong-export" hidden></div>
+      <div id="ong-messages" hidden></div>
+      <div id="ong-journal" hidden></div>
+    </main>
   </div>
-  <div class="nav-mois">
-    <button id="adm-prev">‹</button>
-    <div class="lib" id="adm-mois-lib"></div>
-    <button id="adm-next">›</button>
-  </div>
-  <div class="onglets">
-    <button data-ong="equipe" class="actif">🗓️ Feuilles de temps</button>
-    <button data-ong="employes">👥 Employés</button>
-    <button data-ong="export">📤 Exporter</button>
-    <button data-ong="messages" id="ong-btn-messages">💬 Questions</button>
-    <button data-ong="journal" id="ong-btn-journal">🧾 Logs</button>
-  </div>
-  <div id="ong-equipe"></div>
-  <div id="ong-employes" hidden></div>
-  <div id="ong-export" hidden></div>
-  <div id="ong-messages" hidden></div>
-  <div id="ong-journal" hidden></div>
 </div>
 
 <!-- ============ MODALE JOUR ============ -->
@@ -782,6 +1009,10 @@ const CFG = { url: '__SUPABASE_URL__', key: '__ANON_KEY__' };
 
 /* ---------- Utilitaires ---------- */
 const $ = id => document.getElementById(id);
+// Icônes Tabler (MIT), intégrées localement sans dépendance réseau.
+const ICONES = {"calendar": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12\" /> <path d=\"M16 3v4\" /> <path d=\"M8 3v4\" /> <path d=\"M4 11h16\" /> <path d=\"M11 15h1\" /> <path d=\"M12 15v3\" /> </svg>", "chevron-left": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M15 6l-6 6l6 6\" /> </svg>", "chevron-right": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M9 6l6 6l-6 6\" /> </svg>", "clock": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\" /> <path d=\"M12 7v5l3 3\" /> </svg>", "download": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2\" /> <path d=\"M7 11l5 5l5 -5\" /> <path d=\"M12 4l0 12\" /> </svg>", "list-check": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M3.5 5.5l1.5 1.5l2.5 -2.5\" /> <path d=\"M3.5 11.5l1.5 1.5l2.5 -2.5\" /> <path d=\"M3.5 17.5l1.5 1.5l2.5 -2.5\" /> <path d=\"M11 6l9 0\" /> <path d=\"M11 12l9 0\" /> <path d=\"M11 18l9 0\" /> </svg>", "logout": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2\" /> <path d=\"M9 12h12l-3 -3\" /> <path d=\"M18 15l3 -3\" /> </svg>", "menu-2": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M4 6l16 0\" /> <path d=\"M4 12l16 0\" /> <path d=\"M4 18l16 0\" /> </svg>", "message-circle": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M3 20l1.3 -3.9c-2.324 -3.437 -1.426 -7.872 2.1 -10.374c3.526 -2.501 8.59 -2.296 11.845 .48c3.255 2.777 3.695 7.266 1.029 10.501c-2.666 3.235 -7.615 4.215 -11.574 2.293l-4.7 1\" /> </svg>", "users": "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icone-app\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"> <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\" /> <path d=\"M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\" /> <path d=\"M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2\" /> <path d=\"M16 3.13a4 4 0 0 1 0 7.75\" /> <path d=\"M21 21v-2a4 4 0 0 0 -3 -3.85\" /> </svg>"};
+function icone(nom) { return ICONES[nom] || ""; }
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const JS_COURT = ['dim','lun','mar','mer','jeu','ven','sam'];
@@ -1263,25 +1494,77 @@ const fmtJours = n => (n % 1 === 0 ? n : n.toFixed(1).replace('.', ',')) + ' j';
 
 /* ---------- Vue employé ---------- */
 function renderEmp() {
-  $('emp-nom').textContent = 'Bonjour ' + S.moi.prenom;
-  $('emp-metier').textContent = S.moi.metier || '';
-  $('emp-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
+  if (!['aujourdhui', 'mois', 'questions'].includes(S.vueEmp)) S.vueEmp = 'aujourdhui';
   const map = (ptgMap()[S.moi.id]) || {};
   const jours = joursDuMois(S.annee, S.mois);
   const auj = S.auj || aujourdhui();
-  const maintenant = new Date();
-  const moisCourant = maintenant.getFullYear() === S.annee && (maintenant.getMonth() + 1) === S.mois;
-
-  // Le jour choisi suit le mois : aujourd'hui si l'on y est, sinon le 1er.
+  const moisCourant = auj.slice(0, 7) === jours[0].iso.slice(0, 7);
   if (!S.jourSel || S.jourSel.slice(0, 7) !== jours[0].iso.slice(0, 7)) {
     S.jourSel = moisCourant ? auj : jours[0].iso;
   }
-
+  const estJour = S.vueEmp === 'aujourdhui';
+  const estMois = S.vueEmp === 'mois';
+  $('emp-nom').textContent = estJour ? 'Bonjour ' + S.moi.prenom : estMois ? 'Mon mois' : 'Questions';
+  $('emp-date').textContent = estJour ? empDateLongue(auj) : estMois ? 'Mes feuilles de temps' : 'Échanges avec le Back Office';
+  $('emp-metier').textContent = S.moi.metier || '';
+  $('btn-sortir-emp').textContent = ((S.moi.prenom || '').slice(0, 1) + (S.moi.nom || '').slice(0, 1)).toUpperCase() || 'ME';
+  $('emp-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
+  $('emp-navigation-mois').hidden = estJour;
+  $('emp-vue-jour').hidden = !estJour;
+  $('emp-vue-mois').hidden = !estMois;
+  $('emp-vue-questions').hidden = S.vueEmp !== 'questions';
+  S.moisDeplie = estMois;
+  document.querySelectorAll('#v-emp [data-emp-vue]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.empVue === S.vueEmp)));
+  if (typeof icone === 'function') {
+    document.querySelectorAll('#v-emp [data-emp-icone]').forEach(e => { e.innerHTML = icone(e.dataset.empIcone); });
+    $('emp-semaine-prev').innerHTML = icone('chevron-left');
+    $('emp-semaine-next').innerHTML = icone('chevron-right');
+  }
   renderBande(jours, map, auj);
   renderJourSel(map, auj);
   renderDerniers(jours, map, auj);
   renderResumeMois(jours, map, auj, moisCourant);
   renderListeMois(jours, map, auj);
+  // L'ancien bouton d'accordéon est désormais l'entrée permanente du mois.
+  $('tout-mois-lib').textContent = 'Mon mois';
+  $('emp-mois-total').textContent = fmtMin(S.pointages.reduce((total, p) => total + jourMin(p), 0));
+  $('emp-mois-a-confirmer').textContent = String(S.pointages.filter(p => !p.confirme && !p.approuve).length);
+  if (S.vueEmp === 'questions') { S.qOuvert = true; renderMsgEmp(); }
+}
+function empDateLongue(iso) {
+  const [a, m, j] = iso.split('-').map(Number);
+  const lib = JS_LONG[new Date(a, m - 1, j).getDay()] + ' ' + j + ' ' + MOIS[m - 1];
+  return lib.charAt(0).toUpperCase() + lib.slice(1);
+}
+function empDecalerDate(iso, delta) {
+  const [a, m, j] = iso.split('-').map(Number);
+  const d = new Date(a, m - 1, j + delta, 12);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function empChoisirJour(iso) {
+  if (iso < '2020-01-01' || iso > '2100-12-31') return;
+  const [annee, mois] = iso.split('-').map(Number);
+  const autreMois = annee !== S.annee || mois !== S.mois;
+  S.jourSel = iso;
+  if (autreMois) {
+    S.annee = annee; S.mois = mois;
+    S.messages = []; S.msgCharges = false; S.autresMois = [];
+    charger();
+  } else renderEmp();
+}
+function empSemaineNav(delta) {
+  empChoisirJour(empDecalerDate(S.jourSel || S.auj || aujourdhui(), delta * 7));
+}
+function empChangerVue(vue) {
+  if (!['aujourdhui', 'mois', 'questions'].includes(vue)) return;
+  S.vueEmp = vue;
+  S.qOuvert = vue === 'questions';
+  if (vue === 'aujourdhui') empChoisirJour(S.auj || aujourdhui());
+  else {
+    renderEmp();
+    if (vue === 'questions' && !S.msgCharges) chargerMsgEmp();
+  }
+  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 /* L'état d'une journée en un mot. La bande et la carte disent tous deux la même
@@ -1317,30 +1600,32 @@ const ETAT_LIB = {
   futur:    ['À venir', '']
 };
 
-/* Tout le mois sur une ligne. C'était l'objet d'une liste verticale qu'il
-   fallait faire défiler ; la bande la remplace et rend visible, d'un coup
-   d'œil, ce qui est confirmé et ce qui ne l'est pas. */
+/* Sept jours, du lundi au dimanche. Une date d'un autre mois reste accessible,
+   mais son état n'est pas inventé avant le chargement de sa feuille de temps. */
 function renderBande(jours, map, auj) {
+  const [a, m, j] = S.jourSel.split('-').map(Number);
+  const debut = empDecalerDate(S.jourSel, -((new Date(a, m - 1, j).getDay() + 6) % 7));
+  const fin = empDecalerDate(debut, 6);
+  const moisCharge = jours[0].iso.slice(0, 7);
+  const dateCourte = iso => Number(iso.slice(8)) + ' ' + MOIS[Number(iso.slice(5, 7)) - 1];
+  $('emp-semaine-lib').textContent = dateCourte(debut) + ' au ' + dateCourte(fin);
+  $('emp-semaine-prev').disabled = empDecalerDate(S.jourSel, -7) < '2020-01-01';
+  $('emp-semaine-next').disabled = empDecalerDate(S.jourSel, 7) > '2100-12-31';
   const b = $('emp-bande');
-  b.innerHTML = jours.map(j => {
-    const e = etatJour(map[j.iso], j.iso, j.js, auj);
-    const cls = [
-      j.iso === S.jourSel ? 'sel' : '',
-      j.iso === auj ? 'auj' : '',
-      (j.js === 0 || j.js === 6) ? 'we' : '',
-      j.iso > auj ? 'futur' : ''
-    ].filter(Boolean).join(' ');
-    return '<button class="' + cls + '" data-j="' + j.iso + '" aria-label="' +
-      j.num + ' ' + MOIS[S.mois - 1] + ' — ' + ETAT_LIB[e][0] + '">' +
-      '<span class="js">' + JS_COURT[j.js].slice(0, 2) + '</span>' +
-      '<span class="num">' + j.num + '</span>' +
-      '<i class="pt ' + (MARQUE[e] || '') + '"></i></button>';
+  b.innerHTML = Array.from({ length: 7 }, (_, index) => {
+    const iso = empDecalerDate(debut, index);
+    const js = (index + 1) % 7;
+    const charge = iso.slice(0, 7) === moisCharge;
+    const e = charge ? etatJour(map[iso], iso, js, auj) : null;
+    const cls = [iso === S.jourSel ? 'sel' : '', iso === auj ? 'auj' : '',
+      js === 0 || js === 6 ? 'we' : '', !charge ? 'autre-mois' : ''].filter(Boolean).join(' ');
+    return '<button class="' + cls + '" data-j="' + iso + '" aria-pressed="' + (iso === S.jourSel) +
+      '" aria-label="' + esc(empDateLongue(iso) + (e ? ', ' + ETAT_LIB[e][0] : ', afficher cette journée')) +
+      '"' + (iso < '2020-01-01' || iso > '2100-12-31' ? ' disabled' : '') + '>' +
+      '<span class="js">' + JS_COURT[js].slice(0, 3) + '</span><span class="num">' + Number(iso.slice(8)) +
+      '</span><i class="pt ' + (e ? MARQUE[e] || '' : '') + '"></i></button>';
   }).join('');
-  b.querySelectorAll('[data-j]').forEach(x =>
-    x.addEventListener('click', () => { S.jourSel = x.dataset.j; renderEmp(); }));
-  // Le jour choisi doit être sous les yeux, pas trois écrans plus loin.
-  const sel = b.querySelector('.sel');
-  if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
+  b.querySelectorAll('[data-j]').forEach(x => x.addEventListener('click', () => empChoisirJour(x.dataset.j)));
 }
 
 function renderJourSel(map, auj) {
@@ -1349,60 +1634,45 @@ function renderJourSel(map, auj) {
   const js = new Date(an, mo - 1, jr).getDay();
   const p = map[iso] || null;
   const e = etatJour(p, iso, js, auj);
-  const fer = ferieGE(iso);
-  const min = jourMin(p);
-
-  $('js-date').textContent = JS_LONG[js] + ' ' + jr + ' ' + MOIS[mo - 1];
+  const propose = !p && !ferieGE(iso) && js !== 0 && js !== 6;
+  const horaire = p || (propose ? {
+    matin_type: 'travail', matin_debut: S.moi.matin_debut_def || '08:00', matin_fin: S.moi.matin_fin_def || '12:00',
+    apm_type: 'travail', apm_debut: S.moi.apm_debut_def || '13:00', apm_fin: S.moi.apm_fin_def || '17:00'
+  } : null);
+  const min = jourMin(horaire);
+  const sup = p ? heuresSupJour(p, iso, js) : 0;
   const [lib, ton] = ETAT_LIB[e];
+  $('js-date').textContent = iso === auj ? 'Ma journée' : empDateLongue(iso);
   $('js-etat').textContent = lib;
   $('js-etat').className = 'js-etat ' + ton;
-  $('js-parcours').innerHTML = p && (p.confirme || p.approuve)
-    ? '<strong>✓ Votre confirmation</strong> · ' + (p.approuve ? '<strong>✓ Approbation du back office</strong>' : 'Contrôle du back office en attente') +
-      '<br>Journée verrouillée. Toute correction nécessite une autorisation.'
-    : (p && p.demande_etat === 'accordee' ? '<strong>Modification autorisée.</strong> Corrigez puis confirmez à nouveau votre journée.' :
-      'Enregistrer confirme votre journée et la verrouille jusqu’à l’autorisation du back office.');
-  // La carte se teinte de l'état : vert quand c'est fait, ambre quand il reste
-  // un geste. C'est la seule couleur de fond de l'écran, donc la seule chose
-  // qu'on regarde en premier.
-  // La carte ne se teinte que là où il a quelque chose à faire — vert quand
-  // c'est approuvé, ambre quand il doit saisir. Une journée envoyée qui attend
-  // le back office ne réclame rien : elle reste blanche.
-  $('carte-jour-sel').className = 'carte jour-sel ' +
-    (ton === 'ok' ? 'fait' : ton === 'vide' ? 'afaire' : '');
-
-  const type = (S.moi.matin_debut_def || '08:00') + '–' + (S.moi.matin_fin_def || '12:00') +
-    ' · ' + (S.moi.apm_debut_def || '13:00') + '–' + (S.moi.apm_fin_def || '17:00');
-  // Le chiffre est le héros quand il existe : des heures se lisent de loin.
-  const sup = heuresSupJour(p, iso, js);
-  $('js-chiffre').hidden = !min;
-  if (min) $('js-chiffre').innerHTML = fmtMin(min) +
-    (sup ? '<span class="sup">+' + fmtMin(sup) + ' sup</span>' : '');
-  $('js-heures').innerHTML = p
-    ? heuresTexte(p)
-    : (fer ? esc(fer) : (e === 'weekend' ? 'Rien à saisir un week-end' : 'Horaire normal : ' + type));
+  $('carte-jour-sel').className = 'carte jour-sel ' + (ton === 'ok' ? 'fait' : ton === 'vide' ? 'afaire' : '');
+  $('js-chiffre').hidden = !horaire;
+  $('js-chiffre').innerHTML = fmtMin(min) + (sup ? '<span class="sup">dont +' + fmtMin(sup) + ' supplémentaires</span>' : '');
+  $('js-total-precision').textContent = propose ? 'horaire normal proposé' : p ? 'heures enregistrées' : ferieGE(iso) || 'Aucun horaire enregistré';
+  const demi = (titre, type, debut, fin) => '<div class="emp-demi"><span>' + titre + '</span><strong>' +
+    esc(!horaire ? 'Non travaillé' : type !== 'travail' ? TYPES[type] || 'Absence' :
+      (debut || 'À saisir') + ' → ' + (fin || 'À saisir')) + '</strong></div>';
+  $('js-heures').innerHTML = demi('Matin', horaire && horaire.matin_type, horaire && horaire.matin_debut, horaire && horaire.matin_fin) +
+    demi('Après-midi', horaire && horaire.apm_type, horaire && horaire.apm_debut, horaire && horaire.apm_fin);
 
   const btn = $('btn-pointer');
-  btn.hidden = false;
+  btn.hidden = !['attente', 'manquant', 'aujourdhui'].includes(e);
   btn.disabled = false;
-  if (e === 'valide') {
-    btn.hidden = true;
-  } else if (e === 'confirme') {
-    btn.hidden = true;
-  } else if (e === 'attente') {
-    btn.innerHTML = '<span>Confirmer cette journée</span>' +
-      '<span class="btn-sous">' + heuresTexte(p).replace(/<[^>]+>/g, '') + (min ? ' · ' + fmtMin(min) : '') + '</span>';
-    btn.onclick = () => enregistrerJourneeType(iso);
-  } else if (e === 'manquant' || e === 'aujourdhui') {
-    btn.innerHTML = '<span>Enregistrer l’horaire normal</span><span class="btn-sous">' + type + '</span>';
-    btn.onclick = () => enregistrerJourneeType(iso);
-  } else {
-    btn.hidden = true;                            // férié, week-end, jour à venir
-  }
-
+  btn.textContent = e === 'attente' ? 'Confirmer cette journée' : 'Enregistrer l’horaire normal';
+  btn.onclick = () => enregistrerJourneeType(iso);
+  const verrou = p && (p.confirme || p.approuve);
+  const demande = p && p.demande_etat;
   const lien = $('btn-modifier-jour');
-  lien.textContent = p && (p.confirme || p.approuve) ? 'Voir / demander une modification' : p ? 'Corriger l’horaire ou signaler une absence'
-                       : (e === 'futur' ? 'Saisir cette journée à l’avance' : 'Saisir un autre horaire ou une absence');
+  lien.textContent = verrou ? (demande === 'attente' ? 'Voir ma demande de modification' : 'Voir / demander une modification') :
+    p ? 'Corriger l’horaire ou signaler une absence' :
+    e === 'futur' ? 'Saisir cette journée à l’avance' : 'Saisir un autre horaire ou une absence';
   lien.onclick = () => ouvrirJour(S.moi.id, iso);
+  $('js-parcours').textContent = demande === 'attente' ? 'Demande envoyée. Le Back Office doit autoriser la correction.' :
+    verrou ? (demande === 'refusee' ? 'Demande refusée. La journée reste verrouillée.' : p.approuve ?
+      'Journée approuvée. Toute correction nécessite l’accord du Back Office.' :
+      'Journée confirmée et verrouillée. Le Back Office doit encore l’approuver.') :
+    demande === 'accordee' ? 'Modification autorisée. Corrigez puis confirmez à nouveau.' :
+    horaire ? 'Enregistrer confirme et verrouille la journée. Une correction nécessitera un accord.' : '';
 }
 
 /* Ce qui vient de se passer, quatre lignes. Le détail du mois répond à « où en
@@ -1475,8 +1745,7 @@ function renderResumeMois(jours, map, auj, moisCourant) {
   $('carte-mois').hidden = !$('emp-etat').innerHTML && !chips && manq === 0;
 }
 
-/* Le détail du mois reste disponible, mais replié : c'est lui qui obligeait à
-   faire défiler alors qu'on vient surtout saisir la journée du jour. */
+/* Le détail du mois occupe sa propre vue, accessible depuis la navigation. */
 function renderListeMois(jours, map, auj) {
   const ouvert = !!S.moisDeplie;
   $('tout-mois-lib').textContent = ouvert ? 'Masquer le détail du mois' : 'Détail du mois, jour par jour';
@@ -2148,6 +2417,7 @@ function renderBandeauMois() {
   }).join('');
   b.querySelectorAll('[data-a]').forEach(btn => btn.addEventListener('click', () => {
     S.annee = Number(btn.dataset.a); S.mois = Number(btn.dataset.m);
+    S.vueEmp = 'questions';
     S.msgCharges = false;
     charger();
     // Le bandeau emmène au bon mois : le fil doit être ouvert et sous les yeux
@@ -2217,6 +2487,10 @@ async function envoyerMsgEmp() {
 function renderAdmin() {
   const compta = estCompta();
   $('adm-titre').textContent = compta ? 'Espace fiduciaire' : 'Back Office';
+  $('adm-avatar').textContent = compta ? 'FI' : 'BO';
+  $('adm-role-nav').textContent = compta ? 'Espace fiduciaire' : 'Back Office';
+  $('adm-entreprise').textContent = S.entreprise || '';
+  $('adm-marque-nom').textContent = S.entreprise || 'Horaires';
   $('adm-mois-lib').textContent = MOIS[S.mois - 1] + ' ' + S.annee;
   // La fiduciaire ne gère pas les comptes ; elle consulte, exporte et pose ses questions.
   document.querySelector('.onglets button[data-ong="employes"]').hidden = compta;
@@ -2224,7 +2498,7 @@ function renderAdmin() {
   // temps plutôt que sur un écran vide.
   if (!['equipe', 'employes', 'export', 'messages', 'journal'].includes(S.ongletAdmin)) S.ongletAdmin = 'equipe';
   if (compta && (S.ongletAdmin === 'employes' || S.ongletAdmin === 'journal')) S.ongletAdmin = 'equipe';
-  $('ong-btn-messages').innerHTML = '💬 Questions' +
+  $('ong-btn-messages').innerHTML = icone('message-circle') + 'Questions' +
     (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
   document.querySelectorAll('.onglets button').forEach(b => b.classList.toggle('actif', b.dataset.ong === S.ongletAdmin));
   $('ong-equipe').hidden = S.ongletAdmin !== 'equipe';
@@ -2234,6 +2508,11 @@ function renderAdmin() {
   $('ong-journal').hidden = S.ongletAdmin !== 'journal';
   // La fiduciaire n'a pas à savoir qu'on relève ses passages.
   $('ong-btn-journal').hidden = compta;
+  const titres = { equipe:'Feuilles de temps', employes:'Employés', export:'Exporter', messages:'Questions', journal:'Logs' };
+  const sousTitres = { equipe:compta ? 'Consulter les journées et leurs approbations' : 'Contrôle et approbation des journées', employes:'Les collaborateurs et leurs accès', export:'Les feuilles de temps du mois', messages:'Échanges avec les collaborateurs', journal:'Historique des actions' };
+  $('adm-page-titre').textContent = titres[S.ongletAdmin];
+  $('adm-page-sous').textContent = sousTitres[S.ongletAdmin];
+  document.querySelectorAll('.onglets button').forEach(b => b.setAttribute('aria-current', b.dataset.ong === S.ongletAdmin ? 'page' : 'false'));
   if (S.ongletAdmin === 'equipe') renderEquipe();
   if (S.ongletAdmin === 'employes') renderEmployes();
   if (S.ongletAdmin === 'export') renderExport();
@@ -2267,7 +2546,7 @@ async function chargerMessages() {
       }
     }
     if (S.ongletAdmin === 'messages') renderMessages();
-    $('ong-btn-messages').innerHTML = '💬 Questions' +
+    $('ong-btn-messages').innerHTML = icone('message-circle') + 'Questions' +
       (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
   } catch (e) { toast(e.message); }
 }
@@ -2296,7 +2575,7 @@ async function marquerFilLu() {
       { p_token: S.token, p_annee: S.annee, p_mois: S.mois, p_employe: S.filMsg });
     if (!r || !r.ok) return;
     S.msgNonLus = r.non_lus;
-    $('ong-btn-messages').innerHTML = '💬 Questions' +
+    $('ong-btn-messages').innerHTML = icone('message-circle') + 'Questions' +
       (S.msgNonLus ? '<span class="pastille">' + S.msgNonLus + '</span>' : '');
     renderMessages();
   } catch (e) { /* sans conséquence : le message reste non lu, on réessaiera */ }
@@ -2541,96 +2820,103 @@ function bandeauRetards() {
       '</span><span class="d">' + x.manquants + ' jour' + (x.manquants > 1 ? 's' : '') +
       ' ouvré' + (x.manquants > 1 ? 's' : '') + '</span></button>').join('') + '</div>';
 }
+/* La vue hebdomadaire n'utilise que le mois déjà chargé. Les journées d'un
+   mois voisin se consultent en changeant de période, jamais avec une ligne vide. */
+function joursEquipe(jours) {
+  if (S.vueEquipe === 'mois') return jours;
+  const auj = S.auj || aujourdhui();
+  const prefixe = jours[0].iso.slice(0, 7);
+  let cible = S.semaineEquipe;
+  if (!cible || !cible.startsWith(prefixe)) cible = auj.startsWith(prefixe) ? auj : jours[0].iso;
+  S.semaineEquipe = cible;
+  const [a,m,d] = cible.split('-').map(Number);
+  const date = new Date(a,m-1,d,12);
+  const lundi = d - ((date.getDay()+6)%7);
+  return jours.filter(j => j.num >= lundi && j.num < lundi + 7);
+}
+function equipeSemaine(delta) {
+  const affiches = joursEquipe(joursDuMois(S.annee,S.mois));
+  const cible = delta < 0 ? affiches[0].iso : affiches[affiches.length-1].iso;
+  const [a,m,d] = cible.split('-').map(Number);
+  const date = new Date(a,m-1,d + delta,12);
+  const an = date.getFullYear(), mois = date.getMonth()+1;
+  S.semaineEquipe = an + '-' + String(mois).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+  if (an !== S.annee || mois !== S.mois) moisNav((an-S.annee)*12 + mois-S.mois);
+  else renderEquipe();
+}
 function renderEquipe() {
   const map = ptgMap();
-  // Les employés désactivés qui ont des heures ce mois restent visibles :
-  // leurs pointages doivent pouvoir être contrôlés et exportés.
-  // Le Back Office (admin) n'a pas de feuille de temps : il valide, sauf si
-  // des heures ont été saisies sur son compte.
   const actifs = S.employes.filter(e =>
     (e.actif || Object.keys(map[e.id] || {}).length) && e.role !== 'compta' &&
     (e.role !== 'admin' || Object.keys(map[e.id] || {}).length));
-  const jours = joursDuMois(S.annee, S.mois);
-  const auj = S.auj || aujourdhui();   // date de Genève renvoyée par le serveur
-  const lecture = S.lecture;
-  // Feuille de temps façon Jibble : une ligne par employé, une colonne par jour.
-  let html = bandeauDemandes() + bandeauRetards();
+  const joursMois = joursDuMois(S.annee, S.mois);
+  const jours = joursEquipe(joursMois);
+  const visibles = new Set(jours.map(j => j.iso));
+  const auj = S.auj || aujourdhui();
+  const lecture = S.lecture, mensuel = S.vueEquipe === 'mois';
+  const periode = mensuel ? MOIS[S.mois-1] + ' ' + S.annee :
+    'Du ' + jours[0].num + ' au ' + jours[jours.length-1].num + ' ' + MOIS[S.mois-1];
+  const reels = new Set(actifs.filter(e => !e.demo).map(e => e.id));
+  const lignesReelles = S.pointages.filter(p => reels.has(p.employe_id) && visibles.has(p.jour));
+  const attente = lignesReelles.filter(p => p.confirme && !p.approuve).length;
+  const approuves = lignesReelles.filter(p => p.approuve).length;
+  const brouillons = lignesReelles.filter(p => !p.confirme && !p.approuve).length;
+  const supNonValidees = lignesReelles.filter(p => !p.approuve).reduce((total,p) => {
+    const j = jours.find(j => j.iso === p.jour);
+    return total + heuresSupJour(p,p.jour,j.js);
+  },0);
+  let html = '<div class="equipe-commandes"><div class="equipe-periode"><button id="equipe-prev" aria-label="Semaine précédente"' + (mensuel ? ' hidden' : '') + '>' + icone('chevron-left') + '</button><span id="equipe-periode">' + esc(periode) + '</span><button id="equipe-suiv" aria-label="Semaine suivante"' + (mensuel ? ' hidden' : '') + '>' + icone('chevron-right') + '</button></div>' +
+    '<div class="choix-periode" aria-label="Période des feuilles de temps"><button id="equipe-semaine" aria-pressed="' + !mensuel + '">Semaine</button><button id="equipe-mois" aria-pressed="' + mensuel + '">Mois</button></div></div>';
+  html += '<div class="equipe-indicateurs" id="equipe-indicateurs"><div><strong>' + actifs.filter(e => e.role === 'employe' && !e.demo).length + '</strong><span>Techniciens</span></div><div><strong>' + (lecture ? approuves : attente) + '</strong><span>' + (lecture ? 'Journées approuvées' : 'Journées à approuver') + '</span></div><div><strong>' + (lecture ? attente : fmtMin(supNonValidees)) + '</strong><span>' + (lecture ? 'En attente d’approbation' : 'Heures sup à examiner') + '</span></div></div>';
+  html += bandeauDemandes();
+  if (!lecture && (attente || brouillons)) html += '<div class="equipe-attention"><strong>À examiner sur cette période</strong><span>' + attente + ' journée' + (attente>1?'s':'') + ' en attente d’approbation' + (brouillons ? ' · ' + brouillons + ' à confirmer par l’employé' : '') + '</span></div>';
+  html += bandeauRetards();
   html += '<div class="etapes-controle" id="etapes-controle"><span><i>1</i>Confirmation employé</span><span><i>2</i><b>Contrôle du back office</b></span><span><i>3</i>Approbation</span></div>';
   html += '<div class="equipe-mobile">' + actifs.map(e => {
-    const lignes = Object.values(map[e.id] || {});
-    const approuves = lignes.filter(p => p.approuve).length;
-    const attente = lignes.filter(p => p.confirme && !p.approuve).length;
-    const brouillons = lignes.filter(p => !p.confirme && !p.approuve).length;
-    const manquants = joursManquants(jours, map[e.id] || {});
+    const lignes = Object.values(map[e.id] || {}).filter(p => visibles.has(p.jour));
+    const valides = lignes.filter(p => p.approuve).length;
+    const aValider = lignes.filter(p => p.confirme && !p.approuve).length;
+    const aConfirmer = lignes.filter(p => !p.confirme && !p.approuve).length;
+    const manquants = joursManquants(jours,map[e.id] || {});
     return '<button class="equipe-fiche emp-lien" data-emp="' + esc(e.id) + '">' +
-      '<span class="ef-tete"><span>' + esc(nomComplet(e)) + '</span><span>' + fmtMin(lignes.reduce((total, p) => total + jourMin(p), 0)) + '</span></span>' +
-      '<div class="ef-metier">' + esc(e.metier || 'Feuille de temps') + (e.actif ? '' : ' · désactivé') + '</div>' +
-      '<div class="ef-etats"><span class="ok">' + approuves + ' approuvée' + (approuves > 1 ? 's' : '') + '</span><span class="attente">' + attente + ' à approuver</span>' +
-      (brouillons ? '<span>' + brouillons + ' à confirmer</span>' : '') + (manquants ? '<span>' + manquants + ' à saisir</span>' : '') + '</div>' +
-      '<span class="ef-action">' + (lecture ? 'Consulter le mois' : 'Contrôler les journées') + ' →</span></button>';
+      '<span class="ef-tete"><span class="ef-personne"><span class="adm-avatar">' + esc(e.prenom.slice(0,1)) + '</span><span>' + esc(nomComplet(e)) + '</span></span><span>' + fmtMin(lignes.reduce((total,p)=>total+jourMin(p),0)) + '</span></span>' +
+      '<div class="ef-metier">' + esc(e.metier || 'Feuille de temps') + (e.demo?' · Démonstration':'') + (e.actif?'':' · désactivé') + '</div>' +
+      '<div class="ef-etats"><span class="ok">' + valides + ' approuvée' + (valides>1?'s':'') + '</span><span class="attente">' + aValider + ' à approuver</span>' + (aConfirmer?'<span>'+aConfirmer+' à confirmer</span>':'') + (manquants?'<span>'+manquants+' à saisir</span>':'') + '</div>' +
+      '<span class="ef-action">' + (lecture?'Consulter les journées':'Examiner les journées') + icone('chevron-right') + '</span></button>';
   }).join('') + '</div>';
-  html += '<div class="defile equipe-tableau"><table class="grille"><tr><th>Employé</th><th>Total</th><th>H. sup</th>' +
-    jours.map(j => '<th class="' + ((j.js === 0 || j.js === 6) ? 'we-th' : '') + (j.iso === auj ? ' auj-th' : '') + '">' +
-      JS_COURT[j.js].slice(0, 2) + '<br>' + j.num + '</th>').join('') + '</tr>';
+  html += '<div class="defile equipe-tableau' + (mensuel?' mode-mois':'') + '"><table class="grille" aria-label="Feuilles de temps ' + esc(periode) + '"><thead><tr><th scope="col">Employé</th>' +
+    jours.map(j=>'<th scope="col" class="'+((j.js===0||j.js===6)?'we-th':'')+(j.iso===auj?' auj-th':'')+'">'+JS_COURT[j.js]+'. '+j.num+'</th>').join('') + '<th scope="col">Total</th><th scope="col"><span class="sr-seul">Examiner</span></th></tr></thead><tbody>';
   for (const e of actifs) {
     const mapE = map[e.id] || {};
-    const lignes = Object.values(mapE);
-    let tot = 0;
-    for (const p of lignes) tot += jourMin(p);
-    const solde = tot - heuresDues(jours, mapE);
-    let supE = 0;
-    for (const p of lignes) {
-      const [aS, mS, dS] = p.jour.split('-').map(Number);
-      supE += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
-    }
-    html += '<tr><td><button class="emp-lien" data-emp="' + e.id + '" title="Voir le détail du mois">' +
-      esc(e.prenom) + (e.nom ? ' ' + esc(e.nom[0]) + '.' : '') + ' ›</button>' +
-      (e.actif ? '' : '<span class="muet">(désactivé)</span>') + htmlVu(e) + '</td>' +
-      '<td class="tot-cell">' + (tot ? fmtMin(tot) : '—') + '</td>' +
-      '<td class="tot-cell" style="color:#047857">' + (supE ? '+' + fmtMin(supE) : '—') + '</td>' +
-      '';
+    const total = jours.reduce((s,j)=>s+jourMin(mapE[j.iso]),0);
+    const sup = jours.reduce((s,j)=>s+heuresSupJour(mapE[j.iso],j.iso,j.js),0);
+    html += '<tr><th scope="row"><button class="emp-lien" data-emp="' + esc(e.id) + '">' + esc(nomComplet(e)) + '</button><span class="equipe-metier">' + esc(e.demo?'Démonstration':e.metier||'Équipe dépannage') + '</span>' + htmlVu(e) + '</th>';
     for (const j of jours) {
-      const p = mapE[j.iso];
-      const we = j.js === 0 || j.js === 6;
-      const min = jourMin(p);
-      const fer = ferieGE(j.iso);
-      const manque = !p && !we && j.iso < auj && !fer;
-      let contenu = '';
-      if (!p && fer) contenu = '<span class="fer-doux" title="' + esc(fer) + '">fér.</span>';
-      if (p) {
-        const morceaux = [];
-        if (min) morceaux.push(fmtMin(min));
-        for (const t of [p.matin_type, p.apm_type]) {
-          if (t !== 'travail') morceaux.push('<span class="badge" style="background:' + COULEURS[t] + '">' + BADGES[t] + '</span>');
-        }
-        contenu = morceaux.join('<br>');
-        if (!contenu && (p.matin_debut || p.apm_debut)) contenu = '<span class="muet">…</span>';
+      const p=mapE[j.iso], we=j.js===0||j.js===6, fer=ferieGE(j.iso);
+      const manque=!p&&!we&&j.iso<auj&&!fer;
+      const lib=p?(p.approuve?'Approuvée':p.confirme?'En attente d’approbation':'À confirmer par l’employé'):fer|| (manque?'À saisir':j.iso>auj?'À venir':we?'Week-end':'À saisir');
+      let contenu='<span class="equipe-vide">'+(fer?'Férié':manque?'À saisir':'·')+'</span>';
+      if(p){
+        const min=jourMin(p), ab=[...new Set([p.matin_type,p.apm_type].filter(t=>t!=='travail'))];
+        contenu='<span class="heure-badge '+(p.approuve?'approuvee':p.confirme?'attente':'a-confirmer')+'">'+(min?fmtMin(min):ab.map(t=>BADGES[t]||TYPES[t]).join(' / ')||'0h00')+'</span>';
+        if(min&&ab.length) contenu+='<small class="equipe-absence">'+ab.map(t=>esc(TYPES[t])).join(' / ')+'</small>';
       }
-      const pasconf = nonConfirme(e, p, j.iso);
-      html += '<td class="cellule' + (we ? ' we-td' : '') + (j.iso === auj ? ' auj-td' : '') +
-        (p && p.approuve ? ' ok-td' : p && p.confirme ? ' attente-td' : '') + (manque ? ' manque-td' : '') + (pasconf ? ' pasconf' : '') +
-        '" data-emp="' + e.id + '" data-jour="' + j.iso + '"' +
-        ' title="' + (p ? (p.approuve ? 'Approuvée' : p.confirme ? 'Confirmée · en attente d’approbation' : 'À confirmer par l’employé') : 'Non saisie') + '"' +
-        '>' + contenu + '</td>';
+      html += '<td class="cellule'+(we?' we-td':'')+(j.iso===auj?' auj-td':'')+(p&&p.approuve?' ok-td':p&&p.confirme?' attente-td':'')+(manque?' manque-td':'')+(nonConfirme(e,p,j.iso)?' pasconf':'')+'" data-emp="'+esc(e.id)+'" data-jour="'+j.iso+'" title="'+esc(lib)+'">'+
+        (lecture?contenu:'<button class="equipe-jour" aria-label="'+esc(e.prenom+' '+libJour(j.iso)+' : '+lib)+'">'+contenu+'</button>')+'</td>';
     }
-    html += '</tr>';
+    html += '<td class="tot-cell">'+fmtMin(total)+(sup?'<small class="equipe-sup">+'+fmtMin(sup)+' sup</small>':'')+'</td><td><button class="emp-lien equipe-examiner" data-emp="'+esc(e.id)+'">'+(lecture?'Voir':'Examiner')+icone('chevron-right')+'</button></td></tr>';
   }
-  html += '</table></div>';
-  html += lecture
-    ? '<div class="muet legende-tableau" style="margin-top:8px">Cliquez sur le nom pour consulter le détail. Vert : approuvé · bleu : confirmé, en attente d’approbation · jaune : à saisir.</div>'
-    : '<div class="muet legende-tableau" style="margin-top:8px">Cliquez sur le nom pour contrôler puis approuver chaque journée. Vert : approuvé · bleu : confirmé, en attente d’approbation · jaune : à saisir · coin orangé : confirmation de l’employé attendue. Une journée confirmée est déjà verrouillée.</div>';
-  $('ong-equipe').innerHTML = html;
-  if (!lecture) $('ong-equipe').querySelectorAll('.cellule').forEach(td =>
-    td.addEventListener('click', () => ouvrirJour(td.dataset.emp, td.dataset.jour)));
-  $('ong-equipe').querySelectorAll('.emp-lien').forEach(b =>
-    b.addEventListener('click', () => ouvrirDetails(b.dataset.emp)));
-  $('ong-equipe').querySelectorAll('[data-retard]').forEach(b =>
-    b.addEventListener('click', () => ouvrirDetails(b.dataset.retard)));
-  $('ong-equipe').querySelectorAll('[data-dem]').forEach(b =>
-    b.addEventListener('click', () => {
-      const [emp, jour] = b.dataset.dem.split('|');
-      ouvrirJour(emp, jour);
-    }));
+  html += '</tbody></table></div><div class="legende-tableau equipe-legende"><span><i class="carre-legende approuvee"></i>Approuvée</span><span><i class="carre-legende attente"></i>En attente d’approbation</span><span><i class="carre-legende a-confirmer"></i>À confirmer</span></div>';
+  if (!actifs.length) html += '<div class="equipe-vide-liste">Aucune feuille de temps pour cette période.</div>';
+  $('ong-equipe').innerHTML=html;
+  $('equipe-semaine').onclick=()=>{S.vueEquipe='semaine';renderEquipe();};
+  $('equipe-mois').onclick=()=>{S.vueEquipe='mois';renderEquipe();};
+  $('equipe-prev').onclick=()=>equipeSemaine(-1);
+  $('equipe-suiv').onclick=()=>equipeSemaine(1);
+  if(!lecture) $('ong-equipe').querySelectorAll('.cellule').forEach(td=>td.addEventListener('click',()=>ouvrirJour(td.dataset.emp,td.dataset.jour)));
+  $('ong-equipe').querySelectorAll('.emp-lien').forEach(b=>b.addEventListener('click',()=>ouvrirDetails(b.dataset.emp)));
+  $('ong-equipe').querySelectorAll('[data-retard]').forEach(b=>b.addEventListener('click',()=>ouvrirDetails(b.dataset.retard)));
+  $('ong-equipe').querySelectorAll('[data-dem]').forEach(b=>b.addEventListener('click',()=>{const [emp,jour]=b.dataset.dem.split('|');ouvrirJour(emp,jour);}));
 }
 
 /* ---------- Revue détaillée d'un employé (back office) ---------- */
@@ -2691,7 +2977,8 @@ function ouvrirDetails(empId) {
   $('det-titre').textContent = nomComplet(e);
   // Le back office sait qui est la personne et quel mois il regarde : il l'a
   // choisi lui-même deux clics plus tôt. Ne reste que ce qu'il ignore.
-  $('det-sous').textContent = txtVu(e).replace(/^\s*·\s*/, '');
+  $('det-sous').textContent = 'Revue du mois · ' + MOIS[S.mois - 1] + ' ' + S.annee +
+    ' · ' + txtVu(e).replace(/^\s*·\s*/, '');
   $('det-aide').hidden = S.lecture;
   let total = 0;
   for (const p of lignes) total += jourMin(p);
@@ -3214,6 +3501,7 @@ async function exporterExcel() {
 
 /* ---------- Initialisation ---------- */
 function init() {
+  document.querySelectorAll("[data-icone]").forEach(el => { el.innerHTML = icone(el.dataset.icone); });
   initLogin();
   initStatuts();
   $('mj-rem').addEventListener('input', majAlerteSup);   // écrire fait taire l'avertissement
@@ -3255,8 +3543,12 @@ function init() {
     } catch (e) { toast(e.message); }
   });
   $('det-fermer').addEventListener('click', fermerDetails);
-  $('btn-tout-mois').addEventListener('click', () => { S.moisDeplie = !S.moisDeplie; renderEmp(); });
-  $('q-tete').addEventListener('click', () => { S.qOuvert = !S.qOuvert; renderMsgEmp(); });
+  $('btn-tout-mois').addEventListener('click', () => empChangerVue('mois'));
+  $('emp-voir-mois').addEventListener('click', () => empChangerVue('mois'));
+  $('emp-nav-aujourdhui').addEventListener('click', () => empChangerVue('aujourdhui'));
+  $('emp-semaine-prev').addEventListener('click', () => empSemaineNav(-1));
+  $('emp-semaine-next').addEventListener('click', () => empSemaineNav(1));
+  $('q-tete').addEventListener('click', () => empChangerVue('questions'));
   $('emp-msg-envoyer').addEventListener('click', envoyerMsgEmp);
   $('btn-sortir-emp').addEventListener('click', deconnexion);
   $('btn-sortir-adm').addEventListener('click', deconnexion);
@@ -3264,6 +3556,11 @@ function init() {
   $('emp-next').addEventListener('click', () => moisNav(1));
   $('adm-prev').addEventListener('click', () => moisNav(-1));
   $('adm-next').addEventListener('click', () => moisNav(1));
+  $('adm-menu').addEventListener('click', () => {
+    const ouvert = $('v-admin').classList.toggle('menu-ouvert');
+    $('adm-menu').setAttribute('aria-expanded', String(ouvert));
+    $('adm-menu').setAttribute('aria-label', ouvert ? 'Fermer le menu' : 'Ouvrir le menu');
+  });
   $('me-role').addEventListener('change', () => {
     $('me-champs-emp').hidden = $('me-role').value === 'compta';
   });
@@ -3271,6 +3568,9 @@ function init() {
   document.querySelectorAll('.onglets button').forEach(b =>
     b.addEventListener('click', () => {
       S.ongletAdmin = b.dataset.ong;
+      $('v-admin').classList.remove('menu-ouvert');
+      $('adm-menu').setAttribute('aria-expanded', 'false');
+      $('adm-menu').setAttribute('aria-label', 'Ouvrir le menu');
       if (b.dataset.ong === 'messages') S.msgCharges = false;
       renderAdmin();
     }));
