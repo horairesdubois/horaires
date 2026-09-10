@@ -16,7 +16,7 @@ const PTG = [{ id: 'P1', employe_id: 'E1', jour: '2026-09-02',
 const appels = [];
 
 async function ouvrir(role) {
-  const nav = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const nav = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
   const ctx = await nav.newContext();
   const pg = await ctx.newPage();
   pg.on('dialog', d => { appels.push({ dialogue: d.message().slice(0, 90) }); d.accept(); });

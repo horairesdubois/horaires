@@ -82,7 +82,7 @@ const JR = [
     jour:'lundi 7 septembre', heure:'20:00' },
 ];
 
-const nav = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const nav = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ctx = await nav.newContext({ viewport:{ width:390, height:844 }, deviceScaleFactor:2,
   isMobile:true, hasTouch:true });
 const pg = await ctx.newPage();

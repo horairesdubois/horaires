@@ -9,7 +9,7 @@ const PTG=[
   P('2026-09-01','08:00','12:00','13:00','17:00',{app:true}),          // approuvée
   P('2026-09-02','08:00','12:00','13:00','17:30',{}),                  // envoyée, à approuver
   P('2026-09-04','07:00','12:00','13:00','18:00',{conf:false})];       // posée par le back office
-const nav=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+const nav=await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 const ctx=await nav.newContext({viewport:{width:390,height:844},deviceScaleFactor:2});
 const pg=await ctx.newPage();
 await pg.addInitScript(({D,PTG})=>{

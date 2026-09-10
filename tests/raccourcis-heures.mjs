@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 const SAMI = { id: 'E1', prenom: 'Sami', nom: 'F', role: 'employe', actif: true, demo: false,
   matin_debut_def: '08:00', matin_fin_def: '12:00', apm_debut_def: '13:00', apm_fin_def: '17:00' };
 
-const nav = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const nav = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ctx = await nav.newContext();
 const pg = await ctx.newPage();
 const dialogues = [];

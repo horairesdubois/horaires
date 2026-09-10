@@ -12,7 +12,7 @@ const JR=[{id:1,acteur_nom:'Sami',acteur_role:'employe',action:'saisie',cible:'0
   detail:{},jour:'lundi 7 septembre',heure:'08:12'}];
 const ACT=[{id:'E1',nom:'Sami',nb:4},{id:'A1',nom:'Back Office',nb:9}];
 
-const nav=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+const nav=await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 const ctx=await nav.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true,
   permissions:['clipboard-read','clipboard-write']});
 const pg=await ctx.newPage();

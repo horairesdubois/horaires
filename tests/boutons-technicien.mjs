@@ -12,7 +12,7 @@ const PTG=[P('2026-09-01','08:00','12:00','13:00','17:00',{app:true}),
 const MSG=[{id:'M1',auteur:'Back Office',auteur_id:'A1',role:'admin',texte:'Bonjour',jour:'2026-09-04',
   quand:'07.09.2026 08:00',modifie:false,automatique:false}];
 
-const nav=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+const nav=await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 const ctx=await nav.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true,
   userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'});
 const pg=await ctx.newPage();

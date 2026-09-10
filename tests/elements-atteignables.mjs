@@ -56,7 +56,7 @@ const SONDE = () => {
   return mauvais;
 };
 
-const nav=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+const nav=await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 for (const [nomVue, moi] of [['TECHNICIEN', E], ['BACK OFFICE', A]]) {
   const ctx=await nav.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
   const pg=await ctx.newPage();

@@ -6,7 +6,7 @@ const E={id:'E1',prenom:'Sami',nom:'F',metier:'Ferblantier',role:'employe',actif
 const PTG=[{id:'p',employe_id:'E1',jour:'2026-09-02',matin_type:'travail',matin_debut:'07:00',
   matin_fin:'12:00',apm_type:'travail',apm_debut:'13:00',apm_fin:'18:00',remarque:'',
   approuve:false,confirme:true,saisi_par:'E1'}];
-const nav=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+const nav=await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 // Hauteur réellement visible dans Safari sur iPhone 13 : barre d'adresse et
 // barre d'outils déduites.
 const ctx=await nav.newContext({viewport:{width:390,height:664},deviceScaleFactor:3,isMobile:true,hasTouch:true});

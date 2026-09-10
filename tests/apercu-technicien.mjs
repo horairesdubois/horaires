@@ -26,7 +26,7 @@ const stub = ({ ADMIN, DEMO }) => {
   };
 };
 
-const nav = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const nav = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ctx = await nav.newContext();
 await ctx.addInitScript(stub, { ADMIN, DEMO });
 

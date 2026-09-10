@@ -1,0 +1,15 @@
+{
+  "name": "horaires",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Feuilles de temps — PWA mono-fichier sur Supabase (entreprise de dépannage, Genève)",
+  "scripts": {
+    "build": "python3 scripts/publier_page.py",
+    "test": "node scripts/essais.mjs",
+    "navigateur": "playwright install chromium"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

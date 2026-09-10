@@ -15,7 +15,7 @@ const PTG = [
 ];
 // le 3 manque, le 7 (aujourd'hui) n'est pas saisi
 
-const nav = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const nav = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 const pg = await ctx.newPage();
 await pg.addInitScript(({ SAMI, PTG }) => {

@@ -15,7 +15,7 @@ const jour = (extra = {}) => Object.assign({
   approuve_le:'08.09.2026', confirme:true, demande_etat:null, demande_motif:null,
   demande_le:null, demande_reponse:null }, extra);
 
-const nav = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const nav = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
 async function ecran(qui, ptg) {
   const ctx = await nav.newContext({ viewport:{ width:390, height:844 }, deviceScaleFactor:2,

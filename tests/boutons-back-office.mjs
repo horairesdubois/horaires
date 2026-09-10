@@ -13,7 +13,7 @@ const MSG=[{id:'M1',auteur:'Sami',auteur_id:'E1',role:'employe',texte:'Une quest
 const JR=[{id:1,acteur_nom:'Sami Ferjani',acteur_role:'employe',action:'saisie',cible:'02.09.2026',
   detail:{par:'technicien',horaire:'tapé'},jour:'lundi 7 septembre',heure:'08:12'}];
 
-const nav=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+const nav=await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
 const ctx=await nav.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
 const pg=await ctx.newPage();
 pg.on('pageerror', e=>console.log('  !! ERREUR JS :', e.message));
