@@ -143,10 +143,11 @@ async function demander(page, motif) {
   await page.locator('#voile-jour.ouvert').waitFor({ state: 'hidden' });
 }
 async function etatJour(page, date, attendu) {
-  await page.evaluate(j => { S.jourSel = j; renderEmp(); }, date);
+  await page.evaluate(j => { S.vueEmp = 'aujourdhui'; S.jourSel = j; renderEmp(); }, date);
+  assert(await page.locator('#js-etat').isVisible(), 'La carte du jour est affichée');
   assert.match(await page.locator('#js-etat').innerText(), attendu, 'Statut lisible sur la carte du jour');
   assert.match(await page.locator('[data-j="' + date + '"]').getAttribute('aria-label'), attendu,
-    'Statut également accessible sur la bande du mois');
+    'Statut également accessible sur la bande de la semaine');
 }
 
 try {

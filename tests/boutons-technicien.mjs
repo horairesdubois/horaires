@@ -32,7 +32,7 @@ await pg.waitForTimeout(900);
 const poser = async () => { await pg.evaluate(()=>{
   ['voile-jour','voile-emp','voile-det'].forEach(v=>document.getElementById(v).classList.remove('ouvert'));
   S.annee=2026;S.mois=9;S.auj='2026-09-07';
-  S.jourSel='2026-09-07';S.moisDeplie=false;S.qOuvert=false;renderEmp();renderMsgEmp();});
+  S.jourSel='2026-09-07';S.vueEmp='aujourdhui';S.moisDeplie=false;S.qOuvert=false;renderEmp();renderMsgEmp();});
   await pg.waitForTimeout(250); };
 
 // Signature de l'écran : si rien ne change et qu'aucun appel ne part, le bouton est mort.
@@ -40,7 +40,7 @@ const empreinte = () => pg.evaluate(()=>({
   rpc: window.__rpc.length,
   html: document.getElementById('v-emp').innerHTML.length + '|' +
         document.getElementById('js-date').textContent + '|' + S.jourSel + '|' +
-        S.mois + '|' + S.moisDeplie + '|' + S.qOuvert,
+        S.mois + '|' + S.moisDeplie + '|' + S.qOuvert + '|' + S.vueEmp,
   modale: ['voile-jour','voile-emp','voile-det'].filter(v=>document.getElementById(v)
             .classList.contains('ouvert')).join(',') }));
 
@@ -63,16 +63,17 @@ async function tester(nom, sel, avant) {
 console.log('ÉCRAN TECHNICIEN');
 await poser(); await tester('Enregistrer l’horaire normal', '#btn-pointer');
 await poser(); await tester('Corriger l’horaire / absence', '#btn-modifier-jour');
-await poser(); await tester('Bande : toucher le 2', '[data-j="2026-09-02"]');
-await poser(); await tester('Mois précédent', '#emp-prev');
-await poser(); await tester('Mois suivant', '#emp-next');
-await poser(); await tester('Tout saisir', '#btn-remplir');
+await poser(); await tester('Bande : toucher le 2', '[data-j="2026-09-02"]',
+  () => pg.locator('#emp-semaine-prev').tap());
+await poser(); await tester('Semaine précédente', '#emp-semaine-prev');
+await poser(); await tester('Semaine suivante', '#emp-semaine-next');
+await poser(); await tester('Tout saisir', '#btn-remplir', () => pg.locator('#btn-tout-mois').tap());
 await poser(); await tester('Détail du mois', '#btn-tout-mois');
 await tester('Une ligne du détail', '.jour-ligne');
 await poser(); await tester('Ces derniers jours : une ligne', '.dj');
 await poser(); await tester('Questions (ouvrir)', '#q-tete');
 await tester('Envoyer ma question', '#emp-msg-envoyer', async () => {
-  await pg.evaluate(()=>{S.qOuvert=true;renderMsgEmp();});
+  await pg.evaluate(()=>empChangerVue('questions'));
   await pg.waitForTimeout(200);
   await pg.locator('#emp-msg-texte').fill('Essai');
 });

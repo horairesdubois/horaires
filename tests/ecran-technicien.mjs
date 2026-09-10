@@ -30,7 +30,8 @@ await pg.addInitScript(({ SAMI, PTG }) => {
 }, { SAMI, PTG });
 await pg.goto(new URL('../app/index.html', import.meta.url).href);
 await pg.waitForTimeout(900);
-await pg.evaluate(() => { S.annee = 2026; S.mois = 9; S.auj = '2026-09-07'; renderEmp(); });
+await pg.evaluate(() => { S.annee = 2026; S.mois = 9; S.auj = '2026-09-07';
+  S.jourSel = '2026-09-07'; S.vueEmp = 'aujourdhui'; renderEmp(); });
 await pg.waitForTimeout(400);
 
 const D = new URL('../work/essais/', import.meta.url).pathname;
@@ -44,7 +45,9 @@ console.log('hauteur page :', h.page, '· fenêtre :', h.fenetre,
             '→', h.page <= h.fenetre ? 'AUCUN DÉFILEMENT' : 'défile de ' + (h.page - h.fenetre) + 'px');
 console.log('jour choisi  :', h.date, '—', h.etat);
 
-// on touche le 4 (posée, à confirmer)
+// La navigation affiche maintenant une vraie semaine : on rejoint d'abord
+// la semaine précédente pour toucher le 4 (posée, à confirmer).
+await pg.locator('#emp-semaine-prev').click();
 await pg.locator('[data-j="2026-09-04"]').click();
 await pg.waitForTimeout(300);
 console.log('après appui sur le 4 :', await pg.evaluate(() => document.getElementById('js-date').textContent),

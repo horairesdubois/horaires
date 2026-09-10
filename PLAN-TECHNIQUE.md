@@ -2489,3 +2489,82 @@ réussi sur ce projet dans une transaction annulée. Cinq courses entre connexio
 indépendantes ont été vérifiées localement : première confirmation en double,
 demande en double, réponses accord/refus concurrentes, insertion pendant une
 approbation mensuelle, et confirmation pendant une suppression.
+
+
+## 50. Application effective de la maquette Essentiel
+
+Le propriétaire constate que la première livraison de septembre a clarifié
+les verrous mais ne reprend pas la maquette présentée. La comparaison du
+fichier servi par GitHub Pages et de `docs/index.html` confirme qu'il ne
+s'agit pas d'un cache : la navigation et les écrans n'avaient été repris
+que partiellement. Cette livraison applique la structure de la proposition
+Essentiel aux parcours existants.
+
+### 50.1 Téléphone des employés
+
+L'en-tête blanc reprend la marque de l'entreprise et les initiales du
+collaborateur. La bande du jour devient une vraie semaine de sept jours,
+avec passage aux semaines et mois voisins. La carte distingue matin,
+après-midi, total et état. Une barre fixe donne accès aux trois écrans
+Aujourd'hui, Mon mois et Questions ; le mois conserve toutes ses journées,
+ses totaux et ses actions de saisie.
+
+La confirmation et la demande d'autorisation gardent leurs fonctions
+existantes. Ni la navigation ni un changement de présentation ne modifient
+une journée. Les statuts approuvés, en attente d'approbation et à confirmer
+restent lisibles dans la carte, la semaine et le mois.
+
+### 50.2 Back office et fiduciaire
+
+Sur ordinateur, les cinq sections existantes prennent place dans une barre
+latérale. La feuille de temps commence par la semaine, avec un sélecteur
+Semaine / Mois et des indicateurs calculés sur la période affichée. La démo
+reste consultable par le back office mais n'entre pas dans les indicateurs
+d'équipe. La grille affiche les états dans des badges ; les heures
+supplémentaires restent visibles sous le total individuel.
+
+Jusqu'à 800 pixels, les feuilles se lisent dans des fiches par employé et le
+menu devient dépliant. Examiner ouvre toujours la revue complète du mois,
+désormais explicitement nommée dans la fenêtre. Les demandes de correction
+et alertes de retard gardent leur périmètre existant. La fiduciaire conserve
+ses restrictions et ses exports.
+
+Le serveur charge les données par mois. Une semaine chevauchant deux mois
+est donc présentée en deux segments, avec leurs dates exactes, pour ne pas
+présenter les données du mois voisin comme absentes. Les flèches permettent
+de consulter tous les segments sans sauter de journée.
+
+Les icônes Tabler sous licence MIT sont intégrées au fichier ; aucune
+bibliothèque supplémentaire n'est chargée sur le téléphone. La licence
+est conservée dans `LICENSES/tabler-icons.txt`.
+
+### 50.3 Vérification de la présentation
+
+`tests/navigation-maquette.mjs` vérifie la structure et les vrais parcours :
+les trois vues employé, les sept jours, le mois complet, la barre latérale,
+le menu mobile, le choix de période, les restrictions fiduciaire et le
+verrou d'une journée confirmée. Les anciens essais suivent la nouvelle
+navigation. Les captures utilisent une marque locale fidèle à la maquette
+et des pointages fictifs ; les appels réseau externes y sont bloqués.
+
+Les essais supplémentaires aux largeurs 320, 800 et 801 pixels ont révélé
+puis vérifié la correction d’un libellé accessible qui élargissait la page
+hors du tableau défilant. Les frontières de mois et le titre de la revue
+mensuelle sont également vérifiés.
+
+Les quatorze essais navigateur passent, y compris le circuit complet de
+confirmation, demande de correction et nouvelle approbation. Les scripts
+intégrés passent le contrôle de syntaxe sans identifiant manquant ni fonction
+dupliquée. Les captures employé et back office ont été relues visuellement
+sur téléphone et ordinateur. La vérification de publication doit comparer la page servie
+au fichier généré, puis recharger la session réelle pour constater le nouveau
+menu et la vue hebdomadaire.
+
+### 50.4 Traccar reste une intégration à construire
+
+L'API Traccar peut fournir à Horaires les positions déjà reçues d'un
+collecteur. Elle ne relève pas elle-même la position d'un téléphone à partir
+de son lien personnel. Le navigateur permet des relevés ponctuels ou des
+mises à jour quand la page est visible et active ; pour travailler écran
+verrouillé, il faut un collecteur mobile tel que Traccar Client, avec ses
+permissions système. Cette livraison n'active aucun suivi de position.

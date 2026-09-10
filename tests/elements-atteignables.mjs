@@ -77,9 +77,9 @@ for (const [nomVue, moi] of [['TECHNICIEN', E], ['BACK OFFICE', A]]) {
   await pg.waitForTimeout(1200);
   console.log('\n' + nomVue);
   const ecrans = nomVue === 'TECHNICIEN'
-    ? [['écran principal', ()=>{S.annee=2026;S.mois=9;S.auj='2026-09-07';S.jourSel='2026-09-07';S.moisDeplie=false;S.qOuvert=false;renderEmp();renderMsgEmp();}],
-       ['détail du mois déplié', ()=>{S.moisDeplie=true;renderEmp();}],
-       ['questions ouvertes', ()=>{S.moisDeplie=false;S.qOuvert=true;renderEmp();renderMsgEmp();}],
+    ? [['écran principal', ()=>{S.annee=2026;S.mois=9;S.auj='2026-09-07';S.jourSel='2026-09-07';empChangerVue('aujourdhui');}],
+       ['vue Mon mois', ()=>empChangerVue('mois')],
+       ['vue Questions', ()=>empChangerVue('questions')],
        ['fenêtre de saisie', ()=>{ouvrirJour(S.moi.id,'2026-09-02');}]]
     : [['feuilles de temps', ()=>{S.annee=2026;S.mois=9;S.auj='2026-09-07';S.ongletAdmin='equipe';renderAdmin();}],
        ['revue d’un collaborateur', ()=>{ouvrirDetails('E1');}],

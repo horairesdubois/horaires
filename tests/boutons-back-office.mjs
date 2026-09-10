@@ -44,9 +44,14 @@ const emp = () => pg.evaluate(()=>({rpc:window.__rpc.length,
     .classList.contains('ouvert')).join(',')}));
 async function t(nom, sel, ong) {
   if (ong !== undefined) await poser(ong);
+  // Sur téléphone les sections sont réunies dans un vrai menu latéral.
+  if (sel.startsWith('[data-ong=') && await pg.locator('#adm-menu').isVisible() &&
+      await pg.locator('#adm-menu').getAttribute('aria-expanded') === 'false') {
+    await pg.locator('#adm-menu').tap();
+  }
   const a = await emp();
   if (!(await pg.locator(sel).count())) return console.log('  ⊘', nom.padEnd(32), 'absent');
-  try { await pg.locator(sel).first().tap({timeout:2500}); }
+  try { await pg.locator(sel).filter({visible:true}).first().tap({timeout:2500}); }
   catch(e){ return console.log('  ✗', nom.padEnd(32), 'INTAPABLE : '+e.message.split('\n')[0].slice(0,50)); }
   await pg.waitForTimeout(450);
   const b = await emp();
@@ -69,11 +74,11 @@ await t('Encart « qui a décroché »','[data-retard]','equipe');
 await poser('equipe');
 await t('Nom d’un collaborateur','.emp-lien');
 await poser('equipe');
-await t('Une case du calendrier','.cellule');
+await t('Examiner depuis une fiche mobile','.equipe-fiche');
 
 console.log('\nRevue d’un collaborateur');
 await poser('equipe');
-await pg.locator('.emp-lien').first().tap(); await pg.waitForTimeout(500);
+await pg.locator('.emp-lien').filter({visible:true}).first().tap(); await pg.waitForTimeout(500);
 const dansDet = async (nom, sel) => {
   const a = await emp();
   if(!(await pg.locator(sel).count())) return console.log('  ⊘', nom.padEnd(32),'absent');
