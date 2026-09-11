@@ -2578,3 +2578,14 @@ La vue ordinateur réduit les espaces de l'en-tête, des indicateurs et du table
 La semaine des trois techniciens tient sans défilement vertical à 1280×720,
 1366×768 et 1440×900 dans les essais locaux. Les historiques longs et le tableau
 mensuel conservent leur défilement pour ne pas masquer les données.
+
+## 52. Demander des explications avant approbation (11 septembre 2026)
+
+Dans « Examiner », toute journée non approuvée avec des heures supplémentaires
+présente une action explicite pour demander des explications, même si une
+remarque existe déjà. La même action apparaît dans la fenêtre de la journée.
+Elle réutilise le message rattaché au jour et montre le texte avant l'envoi.
+L'employé répond dans Questions ; aucun horaire n'est approuvé, enregistré ou
+déverrouillé par cette action. Une question antérieure reste signalée et une
+demande complémentaire reste possible. Le destinataire est capturé à l'ouverture
+de la journée pour éviter de dépendre du dernier employé examiné.
