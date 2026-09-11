@@ -242,10 +242,7 @@ try {
   await rafraichir(bureau);
   assert(await bureau.locator('#ong-equipe .equipe-mobile').isVisible(), 'Fiches d’équipe visibles sur téléphone');
   assert(!(await bureau.locator('#ong-equipe .grille').isVisible()), 'Le tableau large est replié sur téléphone');
-  const etapes = await bureau.locator('#ong-equipe .etapes-controle').innerText();
-  assert.match(etapes, /confirm/i, 'Étape de confirmation du technicien expliquée');
-  assert.match(etapes, /contrôl/i, 'Étape de contrôle du bureau expliquée');
-  assert.match(etapes, /approuv|approbation/i, 'Étape d’approbation du bureau expliquée');
+  assert.equal(await bureau.locator('#ong-equipe .etapes-controle').count(), 0);
   assert(await bureau.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
     'Le bureau mobile ne déborde pas horizontalement');
   await bureau.locator('#ong-equipe .equipe-fiche').first().click();
