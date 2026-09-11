@@ -1,5 +1,6 @@
 // Essai d’écran, sans toucher à la production : le serveur est simulé.
 // Lancer : npm i playwright && node tests/motif-heures-sup.mjs
+import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const ADMIN = { id: 'A1', prenom: 'Back Office', nom: '', role: 'admin', actif: true,
@@ -79,6 +80,21 @@ async function ouvrir(role) {
   console.log('3. la ligne devient    :', JSON.stringify(apres.replace(/\s+/g, ' ')));
   const modaleOuverte = await pg.locator('#voile-jour.ouvert').count();
   console.log('4. la journée ne s’est PAS ouverte par mégarde :', modaleOuverte === 0 ? 'correct' : 'ÉCHEC');
+  // Une remarque existante ne doit pas empêcher une demande complémentaire.
+  await pg.evaluate(() => { S.pointages[0].remarque = 'Chantier'; ouvrirDetails('E1'); });
+  assert(await pg.locator('[data-demande]').first().isVisible());
+  await pg.setViewportSize({width:390,height:664});
+  await pg.screenshot({path:'work/essais/explications-revue-mobile.png'});
+  await pg.evaluate(() => { fermerDetails(); ouvrirJour('E1', '2026-09-02'); });
+  assert(await pg.locator('#mj-explication').isVisible());
+  const avant = await pg.evaluate(() => window.__appels.filter(a => a.nom === 'message_ecrire').length);
+  await pg.locator('#mj-explication').click();
+  await pg.waitForFunction(n => window.__appels.filter(a => a.nom === 'message_ecrire').length > n, avant);
+  assert.equal(await pg.evaluate(() => window.__appels.filter(a => ['admin_approuver','enregistrer_jour','admin_repondre_demande'].includes(a.nom)).length), 0, 'La question ne modifie ni ne valide les horaires');
+  assert.equal(await pg.evaluate(() => S.pointages[0].approuve), false);
+  assert.equal(await pg.evaluate(() => S.pointages[0].confirme), true);
+  await pg.evaluate(() => { S.pointages[0].approuve = true; ouvrirJour('E1', '2026-09-02'); });
+  assert(await pg.locator('#mj-explication').isHidden());
   await nav.close();
 }
 

@@ -366,10 +366,17 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-meta-p.gris{color:var(--gris);background:var(--fond);font-weight:500}
 .rem.sansmotif{color:#8a6116;background:#fef7e6;border-radius:6px;padding:3px 8px;
   display:block;max-width:100%;white-space:normal;margin-top:3px}
-.rem.sansmotif .demander{display:inline-block;margin-left:6px;padding:2px 0;font-weight:700;
-  text-decoration:underline;white-space:nowrap}
+.rem .demander{display:block;width:fit-content;margin-top:6px;padding:10px 12px;border:1px solid #cad6e2;border-radius:8px;background:#fff;font-weight:700;
+  text-decoration:none;white-space:normal}
 .rem.demandee{color:#334155;background:#eef2f5;border-radius:6px;padding:3px 8px;
   display:block;max-width:100%;white-space:normal;margin-top:3px}
+@media(max-width:600px) {
+  #det-liste .jour-ligne:has([data-demande]) { display:grid; grid-template-columns:46px 1fr auto; }
+  #det-liste .jour-ligne:has([data-demande]) .date { grid-column:1; grid-row:1; }
+  #det-liste .jour-ligne:has([data-demande]) .tot { grid-column:2; grid-row:1; text-align:right; }
+  #det-liste .jour-ligne:has([data-demande]) .val-jour { grid-column:3; grid-row:1; }
+  #det-liste .jour-ligne:has([data-demande]) .contenu { grid-column:1 / -1; grid-row:2; }
+}
 .mj-demande{background:#fef7e6;border:1px solid #f0dcb0;border-radius:10px;padding:10px 12px;
   margin:0 0 8px;font-size:13.5px;color:#5b4412;line-height:1.45}
 .mj-demande b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.3px;
@@ -946,6 +953,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
           <button class="btn rouge" id="mj-dem-refuser">Refuser</button>
         </div>
       </div>
+      <button class="btn sec large" id="mj-explication" hidden style="margin-top:10px">Demander des explications sur les heures sup</button>
       <button class="btn vert large" id="mj-approuver" hidden style="margin-top:10px"></button>
       <div class="confirmation-info" id="mj-confirmation-info" hidden></div>
     </div>
@@ -2219,6 +2227,9 @@ function ouvrirJour(empId, jour) {
       '<div class="muet" style="margin-top:4px">demandé le ' + esc(p.demande_le || '') + '</div>';
     $('mj-dem-rep').value = '';
   }
+  const supEnregistre = heuresSupJour(p, jour, js);
+  $('mj-explication').hidden = !admin || !p || p.approuve || supEnregistre <= 0;
+  $('mj-explication').onclick = () => demanderExplication(jour, supEnregistre, empId);
   const btnApp = $('mj-approuver');
   if (admin && p) {
     btnApp.hidden = false;
@@ -2950,15 +2961,17 @@ async function chargerMsgDetail(empId, forcer) {
     if ($('voile-det').classList.contains('ouvert')) ouvrirDetails(empId);
   } catch (e) { S.detCharge = null; }             // on réessaiera à la prochaine ouverture
 }
-function ligneSansMotif(iso, sup) {
+function ligneSansMotif(iso, sup, remarque = '') {
   const dem = demandePourJour(DET.empId, iso);
-  if (dem) return '<div class="rem demandee">Explication demandée · ' + esc(dem.quand.slice(0, 10)) + '</div>';
-  if (S.lecture) return '<div class="rem sansmotif">Heures en plus, sans explication</div>';
-  return '<div class="rem sansmotif">Heures en plus, sans explication' +
-    '<span class="demander" data-demande="' + iso + '" data-sup="' + sup + '">· Demander ›</span></div>';
+  const etat = dem ? 'Question déjà envoyée · ' + esc(dem.quand.slice(0, 10)) :
+    remarque ? 'Heures supplémentaires à examiner' : 'Heures en plus, sans explication';
+  if (S.lecture) return '<div class="rem sansmotif">' + etat + '</div>';
+  return '<div class="rem ' + (dem ? 'demandee' : 'sansmotif') + '">' + etat +
+    '<span class="demander" role="button" tabindex="0" data-demande="' + iso + '" data-sup="' + sup + '">Demander des explications sur les heures sup</span></div>';
 }
-async function demanderExplication(iso, sup) {
-  const e = S.employes.find(x => x.id === DET.empId);
+async function demanderExplication(iso, sup, empId = DET.empId) {
+  if (S.moi.role !== 'admin') return;
+  const e = S.employes.find(x => x.id === empId);
   if (!e) return;
   const texte = 'Bonjour ' + e.prenom + ', peux-tu préciser la raison des ' + fmtMin(sup) +
     ' de plus que l’horaire normal ce ' + libJour(iso) + ' ? ' +
@@ -2967,10 +2980,10 @@ async function demanderExplication(iso, sup) {
   try {
     const res = await rpc('message_ecrire', {
       p_token: S.token, p_annee: S.annee, p_mois: S.mois,
-      p_texte: texte, p_employe: DET.empId, p_jour: iso });
+      p_texte: texte, p_employe: empId, p_jour: iso });
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
-    toast('✓ Question envoyée à ' + e.prenom);
-    await chargerMsgDetail(DET.empId, true);
+    toast('✓ Question envoyée à ' + e.prenom + ' · horaires non approuvés');
+    await chargerMsgDetail(empId, true);
     chargerMessages();                            // la pastille de l'onglet suit
   } catch (err) { toast(err.message); }
 }
@@ -3037,7 +3050,7 @@ function ouvrirDetails(empId) {
       (p ? '<span class="statut-texte ' + (p.approuve ? 'ok' : 'attente') + '">' + (p.approuve ? 'Approuvée' : p.confirme ? 'En attente d’approbation' : 'À confirmer par l’employé') + '</span>' : '') +
       // Des heures en plus sans un mot : c'est exactement ce qu'on cherche à
       // comprendre plus tard, et qu'on ne retrouvera plus dans trois semaines.
-      (sup && !(p && p.remarque) ? ligneSansMotif(j.iso, sup) : '') + '</div>' +
+      (sup && p && !p.approuve ? ligneSansMotif(j.iso, sup, p.remarque) : '') + '</div>' +
       '<div class="tot">' + (min ? fmtMin(min) : '') +
       (sup ? ' <span class="delta-sup">+' + fmtMin(sup) + '</span>' : '') + '</div>' + coche + '</button>';
     if (j.js === 0 || j.num === jours.length) { // fin de semaine (dimanche) ou fin de mois
@@ -3063,8 +3076,11 @@ function ouvrirDetails(empId) {
     $('det-liste').querySelectorAll('[data-demande]').forEach(s =>
       s.addEventListener('click', ev => {
         ev.stopPropagation();
-        demanderExplication(s.dataset.demande, Number(s.dataset.sup));
+        demanderExplication(s.dataset.demande, Number(s.dataset.sup), empId);
       }));
+    $('det-liste').querySelectorAll('[data-demande]').forEach(s => s.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.stopPropagation(); s.click(); }
+    }));
   }
   $('voile-det').classList.add('ouvert');
 }
