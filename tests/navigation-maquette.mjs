@@ -156,6 +156,12 @@ try {
   console.log('✓ Employé : navigation basse atteignable, trois vraies vues, semaine navigable et mois complet, verrou conservé');
 
   const bureau = await ecran('admin', 1440);
+  for (const [width,height] of [[1366,768],[1440,900],[1280,720]]) {
+    await bureau.setViewportSize({width,height});
+    assert(await bureau.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), 'Semaine sans défilement vertical sur ' + width + '×' + height);
+  }
+  await bureau.setViewportSize({width:1440,height:900});
+
   assert(await bureau.locator('#adm-sidebar').isVisible(), 'Barre latérale visible sur ordinateur');
   assert(await bureau.evaluate(() => document.getElementById('adm-sidebar').getBoundingClientRect().right <=
     document.querySelector('.adm-espace').getBoundingClientRect().left + 1), 'Le menu occupe bien une colonne latérale');

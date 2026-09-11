@@ -2568,3 +2568,13 @@ de son lien personnel. Le navigateur permet des relevés ponctuels ou des
 mises à jour quand la page est visible et active ; pour travailler écran
 verrouillé, il faut un collecteur mobile tel que Traccar Client, avec ses
 permissions système. Cette livraison n'active aucun suivi de position.
+
+## 51. Back office compact (11 septembre 2026)
+
+À la demande du propriétaire, suppression des encarts « À examiner sur cette
+période », « Saisies en attente » et de la frise des trois étapes sur la vue
+équipe. Les demandes de correction et les statuts des journées restent accessibles.
+La vue ordinateur réduit les espaces de l'en-tête, des indicateurs et du tableau.
+La semaine des trois techniciens tient sans défilement vertical à 1280×720,
+1366×768 et 1440×900 dans les essais locaux. Les historiques longs et le tableau
+mensuel conservent leur défilement pour ne pas masquer les données.

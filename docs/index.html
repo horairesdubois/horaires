@@ -705,6 +705,21 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   #v-admin #adm-titre { display:none; }
   #v-admin .equipe-indicateurs { gap:30px; }
 }
+/* Vue bureau compacte : garder la semaine et ses actions dans un écran. */
+@media(min-width:801px) {
+  #v-admin .adm-entete { min-height:76px; padding:14px 20px; }
+  #v-admin .adm-heading h1 { font-size:23px; }
+  #v-admin .adm-contenu { padding:14px 20px 18px; }
+  #v-admin .adm-mois { margin-bottom:6px; }
+  #v-admin .equipe-commandes { margin-bottom:12px; }
+  #v-admin .equipe-indicateurs { padding-bottom:12px; margin-bottom:8px; gap:36px; }
+  #v-admin .equipe-indicateurs strong { font-size:25px; }
+  #v-admin .equipe-indicateurs>div { gap:3px; }
+  #v-admin .grille th,#v-admin .grille td { padding-top:9px; padding-bottom:9px; }
+  #v-admin .grille thead th { padding-top:10px; padding-bottom:10px; }
+  #v-admin .grille .cellule { padding-top:5px; padding-bottom:5px; }
+  #v-admin .equipe-legende { margin-top:10px; }
+}
 @media(max-width:800px) {
   #v-admin.vue { display:block; }
   #v-admin .adm-sidebar { display:none; }
@@ -2860,7 +2875,6 @@ function renderEquipe() {
   const lignesReelles = S.pointages.filter(p => reels.has(p.employe_id) && visibles.has(p.jour));
   const attente = lignesReelles.filter(p => p.confirme && !p.approuve).length;
   const approuves = lignesReelles.filter(p => p.approuve).length;
-  const brouillons = lignesReelles.filter(p => !p.confirme && !p.approuve).length;
   const supNonValidees = lignesReelles.filter(p => !p.approuve).reduce((total,p) => {
     const j = jours.find(j => j.iso === p.jour);
     return total + heuresSupJour(p,p.jour,j.js);
@@ -2869,9 +2883,6 @@ function renderEquipe() {
     '<div class="choix-periode" aria-label="Période des feuilles de temps"><button id="equipe-semaine" aria-pressed="' + !mensuel + '">Semaine</button><button id="equipe-mois" aria-pressed="' + mensuel + '">Mois</button></div></div>';
   html += '<div class="equipe-indicateurs" id="equipe-indicateurs"><div><strong>' + actifs.filter(e => e.role === 'employe' && !e.demo).length + '</strong><span>Techniciens</span></div><div><strong>' + (lecture ? approuves : attente) + '</strong><span>' + (lecture ? 'Journées approuvées' : 'Journées à approuver') + '</span></div><div><strong>' + (lecture ? attente : fmtMin(supNonValidees)) + '</strong><span>' + (lecture ? 'En attente d’approbation' : 'Heures sup à examiner') + '</span></div></div>';
   html += bandeauDemandes();
-  if (!lecture && (attente || brouillons)) html += '<div class="equipe-attention"><strong>À examiner sur cette période</strong><span>' + attente + ' journée' + (attente>1?'s':'') + ' en attente d’approbation' + (brouillons ? ' · ' + brouillons + ' à confirmer par l’employé' : '') + '</span></div>';
-  html += bandeauRetards();
-  html += '<div class="etapes-controle" id="etapes-controle"><span><i>1</i>Confirmation employé</span><span><i>2</i><b>Contrôle du back office</b></span><span><i>3</i>Approbation</span></div>';
   html += '<div class="equipe-mobile">' + actifs.map(e => {
     const lignes = Object.values(map[e.id] || {}).filter(p => visibles.has(p.jour));
     const valides = lignes.filter(p => p.approuve).length;
