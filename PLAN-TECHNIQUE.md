@@ -2589,3 +2589,18 @@ L'employé répond dans Questions ; aucun horaire n'est approuvé, enregistré o
 déverrouillé par cette action. Une question antérieure reste signalée et une
 demande complémentaire reste possible. Le destinataire est capturé à l'ouverture
 de la journée pour éviter de dépendre du dernier employé examiné.
+
+## 53. Approbation partielle (15 septembre 2026)
+
+Après validation de l’aperçu, publication autorisée par le propriétaire. Le back
+office décide de la durée approuvée, à la minute près, avec refus du solde et
+motif facultatif. Les heures saisies restent conservées, la journée est traitée
+et verrouillée, et les deux durées sont visibles côté employé et dans l’export.
+Une version de ligne évite d’écraser une décision concurrente. Les refus sont
+journalisés ; une approbation mensuelle ne les efface pas.
+
+La migration ajoute seulement des champs et fonctions : aucune réécriture des
+journées existantes. Une empreinte vérifiée dans la transaction impose cette
+conservation. En production : 201 journées, 88 approuvées, empreinte identique
+après migration et tests synthétiques annulés. La suite d’écran, les calculs
+et les scénarios SQL sont validés. Voir docs-techniques/approbation-partielle.md.

@@ -12,7 +12,7 @@ const COMPTA = { id: 'C1', prenom: 'Fiduciaire', nom: '', role: 'compta', actif:
 const creerJour = (jour, extra = {}) => ({ id: jour, employe_id: EMPLOYE.id, jour,
   matin_type: 'travail', matin_debut: '08:00', matin_fin: '12:00',
   apm_type: 'travail', apm_debut: '13:00', apm_fin: '17:00', remarque: '',
-  approuve: false, confirme: true, saisi_par: EMPLOYE.id,
+  approuve: false, confirme: true, saisi_par: EMPLOYE.id, minutes_refusees: 0, version_decision: 'essai-1',
   demande_etat: null, demande_motif: null, demande_reponse: null, ...extra });
 const serveur = {
   pointages: [creerJour('2026-09-01', { approuve: true, approuve_le: '02.09.2026' }),
@@ -65,6 +65,18 @@ async function repondre(nom, args) {
       Object.assign(cible, { confirme: true, approuve: false, demande_etat: null, saisi_par: EMPLOYE.id });
       if (!p) serveur.pointages.push(cible);
       return { ok: true };
+    }
+    case 'admin_decider_heures': {
+      assert.equal(args.p_token,'tok-admin');
+      assert.equal(args.p_version,p.version_decision);
+      assert(p.confirme || p.approuve);
+      assert.notEqual(p.demande_etat,'attente');
+      const min=t=>Number(t.slice(0,2))*60+Number(t.slice(3));
+      const total=min(p.matin_fin)-min(p.matin_debut)+min(p.apm_fin)-min(p.apm_debut);
+      assert(args.p_minutes_approuvees>=0 && args.p_minutes_approuvees<=total);
+      Object.assign(p,{approuve:true,minutes_refusees:total-args.p_minutes_approuvees,
+        motif_refus:total>args.p_minutes_approuvees?args.p_motif:null,approuve_le:'10.09.2026',version_decision:p.version_decision+'n'});
+      return {ok:true};
     }
     case 'admin_approuver':
       assert.equal(args.p_token, 'tok-admin');
@@ -225,10 +237,10 @@ try {
   assert(await bureau.locator('#mj-approuver').isDisabled() || !(await bureau.locator('#mj-approuver').isVisible()),
     'Le bureau ne valide pas une journée encore non confirmée par le technicien');
   await ouvrir(bureau, '2026-09-02');
-  const nbApprobations = appels('admin_approuver').length;
+  const nbApprobations = appels('admin_decider_heures').length;
   acceptation = false;
   await bureau.locator('#mj-approuver').click();
-  assert.equal(appels('admin_approuver').length, nbApprobations, 'Annuler le contrôle ne valide rien');
+  assert.equal(appels('admin_decider_heures').length, nbApprobations, 'Annuler le contrôle ne valide rien');
   acceptation = true;
   await bureau.locator('#mj-approuver').click();
   await bureau.locator('#voile-jour.ouvert').waitFor({ state: 'hidden' });
@@ -238,6 +250,28 @@ try {
   await ouvrir(employe, '2026-09-02');
   await verrouille(employe, 'Correction approuvée par le bureau');
   console.log('✓ Approbation réservée aux jours confirmés, confirmation annulable, résultat visible chez l’employé');
+  await ouvrir(bureau,'2026-09-02');
+  await bureau.locator('#mj-decision-h').fill('8');
+  await bureau.locator('#mj-decision-m').fill('0');
+  await bureau.locator('#mj-decision-motif').fill('');
+  await bureau.locator('#mj-decision-save').click();
+  await bureau.locator('#voile-jour.ouvert').waitFor({state:'hidden'});
+  assert.equal(jour('2026-09-02').minutes_refusees,30);
+  assert.equal(jour('2026-09-02').approuve,true);
+  await rafraichir(employe);
+  await ouvrir(employe,'2026-09-02');
+  assert.match(await employe.locator('#mj-decision-lue').innerText(),/8h00 approuvées.*0h30 refusées/);
+  assert.match(await employe.locator('#mj-decision-lue').innerText(),/Sans motif/);
+  await verrouille(employe,'Approbation partielle');
+  await ouvrir(bureau,'2026-09-02');
+  await bureau.locator('#mj-decision-motif').fill('<img src=x onerror=alert(1)>');
+  await bureau.locator('#mj-decision-save').click();
+  await bureau.locator('#voile-jour.ouvert').waitFor({state:'hidden'});
+  await rafraichir(employe);await ouvrir(employe,'2026-09-02');
+  assert.equal(await employe.locator('#mj-decision-lue img').count(),0);
+  assert.match(await employe.locator('#mj-decision-lue').innerText(),/onerror/);
+  console.log('✓ Refus partiel sans motif, motif échappé, décision visible et journée verrouillée');
+
 
   await rafraichir(bureau);
   assert(await bureau.locator('#ong-equipe .equipe-mobile').isVisible(), 'Fiches d’équipe visibles sur téléphone');
