@@ -764,6 +764,16 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   #v-admin .ef-etats .attente { color:#845710; background:#fff5df; }
   #v-admin .ef-action { display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:12px; border-top:1px solid var(--ligne); color:var(--bleu); font-size:12px; font-weight:650; }
 }
+/* Décision distincte de la saisie d’origine. */
+.decision-heures { margin-top:12px; padding:12px; border:1px solid #cbd8e8; border-radius:10px; background:#f6f8fc; }
+.decision-heures legend { font-weight:700; padding:0 5px; }
+.decision-duree { display:flex; gap:12px; margin:10px 0; }
+.decision-duree label { display:grid; gap:4px; font-size:12px; }
+.decision-duree input { width:85px; min-height:44px; padding:8px; font-size:16px; }
+.decision-heures textarea { display:block; width:100%; padding:10px; font:inherit; margin-top:6px; }
+.decision-resume { display:block; color:#81581b; font-size:12px; line-height:1.5; margin:6px 0; white-space:normal; }
+.decision-resume small { display:block; font-size:12px; }
+.decision-heures [role="status"] { font-size:13px; line-height:1.5; margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -832,7 +842,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
     </section>
 
     <section id="emp-vue-mois" aria-label="Mon mois" hidden>
-      <div class="emp-resume-mois"><div><strong id="emp-mois-total"></strong><span>Heures enregistrées</span></div><div><strong id="emp-mois-a-confirmer"></strong><span>Journées à confirmer</span></div></div>
+      <div id="emp-decisions-mois" class="chips"></div><div class="emp-resume-mois"><div><strong id="emp-mois-total"></strong><span>Heures enregistrées</span></div><div><strong id="emp-mois-a-confirmer"></strong><span>Journées à confirmer</span></div></div>
       <div class="resume" id="carte-mois">
         <span id="emp-etat"></span>
         <span id="emp-chips" class="chips" style="margin:0"></span>
@@ -954,6 +964,19 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
         </div>
       </div>
       <button class="btn sec large" id="mj-explication" hidden style="margin-top:10px">Demander des explications sur les heures sup</button>
+      <div id="mj-decision-lue"></div>
+      <fieldset class="decision-heures" id="mj-decision" hidden>
+        <legend>Heures approuvées</legend>
+        <div id="mj-decision-saisie"></div>
+        <div class="decision-duree">
+          <label>Heures<input id="mj-decision-h" type="number" min="0" max="24" step="1" inputmode="numeric"></label>
+          <label>Minutes<input id="mj-decision-m" type="number" min="0" max="59" step="1" inputmode="numeric"></label>
+        </div>
+        <div id="mj-decision-total" role="status" aria-live="polite"></div>
+        <label for="mj-decision-motif">Motif du refus (facultatif)</label>
+        <textarea id="mj-decision-motif" rows="2" maxlength="500" placeholder="Vous pouvez laisser ce champ vide."></textarea>
+        <button class="btn vert large" id="mj-decision-save" type="button" hidden>Enregistrer la décision révisée</button>
+      </fieldset>
       <button class="btn vert large" id="mj-approuver" hidden style="margin-top:10px"></button>
       <div class="confirmation-info" id="mj-confirmation-info" hidden></div>
     </div>
@@ -1056,6 +1079,21 @@ function demiMin(type, deb, fin) {
   if (type !== 'travail') return 0;
   const d = parseT(deb), f = parseT(fin);
   return (d != null && f != null && f > d) ? f - d : 0;
+}
+function minutesRefusees(p) { return p && p.approuve ? Number(p.minutes_refusees || 0) : 0; }
+function minutesApprouvees(p) { return p && p.approuve ? jourMin(p) - minutesRefusees(p) : 0; }
+function libDecisionHeures(p) {
+  if (!p || !p.approuve) return p && p.confirme ? 'En attente d’approbation' : 'À confirmer par l’employé';
+  return minutesRefusees(p) ? (minutesApprouvees(p) ? 'Approuvée avec heures refusées' : 'Traitée · toutes les heures refusées') : 'Approuvée';
+}
+function htmlDecisionHeures(p) {
+  if (!minutesRefusees(p)) return '';
+  return '<span class="decision-resume">✓ ' + fmtMin(minutesApprouvees(p)) + ' approuvées · ' + fmtMin(minutesRefusees(p)) + ' refusées' +
+    '<small>' + (p.motif_refus ? 'Motif : ' + esc(p.motif_refus) : 'Sans motif indiqué') + '</small></span>';
+}
+function bilanDecisionHeures(lignes) {
+  return '<span>Approuvées : ' + fmtMin(lignes.reduce((n,p)=>n+minutesApprouvees(p),0)) + '</span>' +
+    '<span>Refusées : ' + fmtMin(lignes.reduce((n,p)=>n+minutesRefusees(p),0)) + '</span>';
 }
 function jourMin(p) {
   if (!p) return 0;
@@ -1550,6 +1588,7 @@ function renderEmp() {
   renderListeMois(jours, map, auj);
   // L'ancien bouton d'accordéon est désormais l'entrée permanente du mois.
   $('tout-mois-lib').textContent = 'Mon mois';
+  $('emp-decisions-mois').innerHTML = bilanDecisionHeures(S.pointages);
   $('emp-mois-total').textContent = fmtMin(S.pointages.reduce((total, p) => total + jourMin(p), 0));
   $('emp-mois-a-confirmer').textContent = String(S.pointages.filter(p => !p.confirme && !p.approuve).length);
   if (S.vueEmp === 'questions') { S.qOuvert = true; renderMsgEmp(); }
@@ -1593,6 +1632,7 @@ function empChangerVue(vue) {
 /* L'état d'une journée en un mot. La bande et la carte disent tous deux la même
    chose : sans cela, un point de couleur reste une devinette. */
 function etatJour(p, iso, js, auj) {
+  if (p && p.approuve && minutesRefusees(p)) return 'partiel';
   if (p && p.approuve) return 'valide';
   if (p && p.confirme) return 'confirme';
   if (p) return 'attente';                       // posée, pas encore confirmée par lui
@@ -1610,9 +1650,10 @@ function etatJour(p, iso, js, auj) {
      vert  = approuvée
    Une journée préparée par le back office attend encore la confirmation du
    collaborateur ; elle se distingue des journées déjà envoyées au contrôle. */
-const MARQUE = { valide: 'ok', confirme: 'attente', attente: 'vide',
+const MARQUE = { partiel:'ok', valide: 'ok', confirme: 'attente', attente: 'vide',
                  manquant: 'vide', aujourdhui: 'vide' };
 const ETAT_LIB = {
+  partiel: ['Approuvée avec heures refusées', 'ok'],
   valide:   ['Approuvée', 'ok'],
   confirme: ['En attente d’approbation', 'attente'],
   attente:  ['À confirmer', 'vide'],
@@ -1666,7 +1707,7 @@ function renderJourSel(map, auj) {
   const sup = p ? heuresSupJour(p, iso, js) : 0;
   const [lib, ton] = ETAT_LIB[e];
   $('js-date').textContent = iso === auj ? 'Ma journée' : empDateLongue(iso);
-  $('js-etat').textContent = lib;
+  $('js-etat').textContent = p && p.approuve ? libDecisionHeures(p) : lib;
   $('js-etat').className = 'js-etat ' + ton;
   $('carte-jour-sel').className = 'carte jour-sel ' + (ton === 'ok' ? 'fait' : ton === 'vide' ? 'afaire' : '');
   $('js-chiffre').hidden = !horaire;
@@ -1678,6 +1719,7 @@ function renderJourSel(map, auj) {
   $('js-heures').innerHTML = demi('Matin', horaire && horaire.matin_type, horaire && horaire.matin_debut, horaire && horaire.matin_fin) +
     demi('Après-midi', horaire && horaire.apm_type, horaire && horaire.apm_debut, horaire && horaire.apm_fin);
 
+  $('js-heures').insertAdjacentHTML('beforeend', htmlDecisionHeures(p));
   const btn = $('btn-pointer');
   btn.hidden = !['attente', 'manquant', 'aujourdhui'].includes(e);
   btn.disabled = false;
@@ -1787,7 +1829,7 @@ function renderListeMois(jours, map, auj) {
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' +
         (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
-      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
+      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + htmlDecisionHeures(p) +
       '<span class="statut-texte ' + ETAT_LIB[e][1] + '">' + ETAT_LIB[e][0] + '</span>' +
       '</div>' +
       '<div class="tot">' + (p && p.approuve ? '<span class="okv">✓</span> ' : '') + (min ? fmtMin(min) : '') +
@@ -1827,6 +1869,7 @@ const JR = {
     ((e.detail || {}).n ? ' — ' + e.detail.n + ' collaborateur' + (e.detail.n > 1 ? 's' : '') : '')],
   saisie:         [e => jrIcone(e), e => jrPose(e, 'a saisi')],
   modification:   ['✏️',             e => jrPose(e, 'a modifié')],
+  decision_heures: ['✓', e => 'a revu les heures du ' + e.cible + jrQui(e)],
   confirmation:   ['✅', e => 'a confirmé le ' + e.cible + jrQui(e)],
   demande_modification: ['🙋', e => 'demande à modifier le ' + e.cible],
   deblocage_accorde:    ['🔓', e => 'a rouvert le ' + e.cible + jrQui(e)],
@@ -1956,6 +1999,7 @@ function jrMeta(e) {
       : n > 1 ? n + ' jours après' : Math.abs(n) + ' jours à l’avance';
     p.push('<span class="jr-meta-p' + (n >= 3 ? ' tard' : '') + '">' + esc(lib) + '</span>');
   }
+  if (d.minutes_refusees !== undefined) p.push('<span class="jr-meta-p">Refus : ' + fmtMin(Number(d.refus_avant || 0)) + ' → ' + fmtMin(Number(d.minutes_refusees)) + ' · ' + (d.motif ? esc(d.motif) : 'sans motif') + (d.motif_avant ? ' · Motif précédent : ' + esc(d.motif_avant) : '') + '</span>');
   if (Number(d.sup) > 0) p.push('<span class="jr-meta-p sup">+' + fmtMin(Number(d.sup)) + ' au-delà</span>');
   if (d.appareil) p.push('<span class="jr-meta-p gris">' + esc(d.appareil) + '</span>');
   return p.length ? '<div class="jr-meta">' + p.join('') + '</div>' : '';
@@ -2172,6 +2216,7 @@ function ouvrirJour(empId, jour) {
   const admin = S.moi.role === 'admin';
   MJ.empId = empId; MJ.jour = jour; MJ.existe = !!p;
   MJ.approuve = !!(p && p.approuve);
+  MJ.pointage = p ? structuredClone(p) : null;
   MJ.confirme = !!(p && p.confirme);
   MJ.verrou = (MJ.approuve || MJ.confirme) && !admin;
   MJ.matin = p ? p.matin_type : 'travail';
@@ -2209,7 +2254,7 @@ function ouvrirJour(empId, jour) {
   $('mj-defaut').hidden = MJ.verrou;
   $('mj-defaut').textContent = 'Journée type · ' + defPour('mj-md') + '–' + defPour('mj-af');
   $('mj-save').hidden = MJ.verrou;
-  $('mj-save').textContent = admin ? 'Enregistrer' : 'Enregistrer et confirmer';
+  $('mj-save').textContent = admin ? 'Enregistrer l’horaire' : 'Enregistrer et confirmer';
   $('mj-confirmation-info').hidden = admin || MJ.verrou;
   $('mj-confirmation-info').textContent = p && p.demande_etat === 'accordee'
     ? 'Modification autorisée. Enregistrer confirmera à nouveau cette journée et la soumettra au contrôle du back office.'
@@ -2236,6 +2281,7 @@ function ouvrirJour(empId, jour) {
     btnApp.disabled = enAttente || (!MJ.approuve && !MJ.confirme);
     btnApp.textContent = enAttente ? 'Traitez d’abord la demande de modification' : MJ.approuve ? 'Autoriser une correction' : MJ.confirme ? '✓ Approuver après contrôle' : 'Confirmation de l’employé attendue';
   } else { btnApp.hidden = true; }
+  preparerDecisionHeures(p, admin, enAttente);
   majStatuts();
   $('voile-jour').classList.add('ouvert');
 }
@@ -2321,8 +2367,60 @@ async function sauverJour() {
   } catch (e) { toast(e.message); }
   finally { $('mj-save').disabled = false; }
 }
+
+function preparerDecisionHeures(p, admin, enAttente) {
+  $('mj-decision-lue').innerHTML = htmlDecisionHeures(p);
+  $('mj-decision').hidden = !admin || !p || (!p.confirme && !p.approuve) || enAttente;
+  const min = p && p.approuve ? minutesApprouvees(p) : jourMin(p);
+  $('mj-decision-h').value = Math.floor(min / 60);
+  $('mj-decision-m').value = min % 60;
+  $('mj-decision-motif').value = p && p.motif_refus || '';
+  $('mj-decision-saisie').textContent = fmtMin(jourMin(p)) + ' saisies. Choisissez la durée à approuver ; le reste sera refusé.';
+  $('mj-decision-save').hidden = !p || !p.approuve;
+  majDecisionHeures();
+}
+function dureeDecisionHeures() {
+  const h = $('mj-decision-h'), m = $('mj-decision-m');
+  if (h.value === '' || m.value === '' || !h.checkValidity() || !m.checkValidity()) return null;
+  const total = Number(h.value) * 60 + Number(m.value);
+  return Number.isInteger(total) && total >= 0 && total <= jourMin(MJ.pointage) ? total : null;
+}
+function majDecisionHeures() {
+  const minutes = dureeDecisionHeures();
+  $('mj-decision-total').textContent = minutes === null ? 'Indiquez une durée entre 0h00 et ' + fmtMin(jourMin(MJ.pointage)) + '.' :
+    fmtMin(minutes) + ' approuvées · ' + fmtMin(jourMin(MJ.pointage) - minutes) + ' refusées';
+  $('mj-decision-save').disabled = minutes === null;
+  if (S.moi && S.moi.role === 'admin' && MJ.pointage && !MJ.approuve && MJ.confirme && MJ.pointage.demande_etat !== 'attente') {
+    $('mj-approuver').disabled = minutes === null;
+    $('mj-approuver').textContent = '✓ Valider cette décision';
+  }
+}
+async function enregistrerDecisionHeures() {
+  if (!S.moi || S.moi.role !== 'admin' || !MJ.pointage || (!MJ.confirme && !MJ.approuve) || MJ.pointage.demande_etat === 'attente') return;
+  const p = MJ.pointage;
+  const modifie = MJ.matin !== p.matin_type || MJ.apm !== p.apm_type ||
+    [['mj-md','matin_debut'],['mj-mf','matin_fin'],['mj-ad','apm_debut'],['mj-af','apm_fin'],['mj-rem','remarque']].some(([id,k])=>$(id).value.trim() !== (p[k] || ''));
+  if (modifie) { toast('Enregistrez ou annulez vos changements d’horaire avant de décider.',4500); return; }
+  const minutes = dureeDecisionHeures();
+  if (minutes === null) { toast('Durée approuvée invalide'); return; }
+  if (!p.version_decision) { toast('Cette fonction nécessite la mise à jour de la base. Rechargez ensuite la journée.',5000); return; }
+  const refus = jourMin(p) - minutes;
+  if (!confirm('Valider ' + fmtMin(minutes) + ' et refuser ' + fmtMin(refus) + ' pour cette journée ?' +
+      (refus && !$('mj-decision-motif').value.trim() ? '\nSans motif indiqué.' : '') + '\nLa journée restera verrouillée.')) return;
+  $('mj-approuver').disabled = true; $('mj-decision-save').disabled = true;
+  try {
+    const res = await rpc('admin_decider_heures', {p_token:S.token,p_employe:MJ.empId,p_jour:MJ.jour,
+      p_minutes_approuvees:minutes,p_motif:$('mj-decision-motif').value.trim(),p_version:p.version_decision});
+    if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur,4500); return; }
+    fermerJour(); toast('✓ ' + fmtMin(minutes) + ' approuvées · ' + fmtMin(refus) + ' refusées'); await charger();
+  } catch (e) { toast(e.message); }
+  finally { $('mj-approuver').disabled = false; majDecisionHeures(); }
+}
+['mj-decision-h','mj-decision-m'].forEach(id=>$(id).addEventListener('input',majDecisionHeures));
+$('mj-decision-save').addEventListener('click',enregistrerDecisionHeures);
+
 async function approuverJour() {
-  if (!MJ.approuve && !confirm('Confirmer votre contrôle et approuver cette journée ? Elle restera verrouillée pour l’employé.')) return;
+  if (!MJ.approuve) return enregistrerDecisionHeures();
   if (MJ.approuve && !confirm('Autoriser l’employé à corriger cette journée ? Sa confirmation et votre approbation seront retirées.')) return;
   try {
     const res = await rpc('admin_approuver', {
@@ -2903,7 +3001,7 @@ function renderEquipe() {
     return '<button class="equipe-fiche emp-lien" data-emp="' + esc(e.id) + '">' +
       '<span class="ef-tete"><span class="ef-personne"><span class="adm-avatar">' + esc(e.prenom.slice(0,1)) + '</span><span>' + esc(nomComplet(e)) + '</span></span><span>' + fmtMin(lignes.reduce((total,p)=>total+jourMin(p),0)) + '</span></span>' +
       '<div class="ef-metier">' + esc(e.metier || 'Feuille de temps') + (e.demo?' · Démonstration':'') + (e.actif?'':' · désactivé') + '</div>' +
-      '<div class="ef-etats"><span class="ok">' + valides + ' approuvée' + (valides>1?'s':'') + '</span><span class="attente">' + aValider + ' à approuver</span>' + (aConfirmer?'<span>'+aConfirmer+' à confirmer</span>':'') + (manquants?'<span>'+manquants+' à saisir</span>':'') + '</div>' +
+      '<div class="ef-etats">' + bilanDecisionHeures(lignes) + '<span class="ok">' + valides + ' approuvée' + (valides>1?'s':'') + '</span><span class="attente">' + aValider + ' à approuver</span>' + (aConfirmer?'<span>'+aConfirmer+' à confirmer</span>':'') + (manquants?'<span>'+manquants+' à saisir</span>':'') + '</div>' +
       '<span class="ef-action">' + (lecture?'Consulter les journées':'Examiner les journées') + icone('chevron-right') + '</span></button>';
   }).join('') + '</div>';
   html += '<div class="defile equipe-tableau' + (mensuel?' mode-mois':'') + '"><table class="grille" aria-label="Feuilles de temps ' + esc(periode) + '"><thead><tr><th scope="col">Employé</th>' +
@@ -2916,11 +3014,12 @@ function renderEquipe() {
     for (const j of jours) {
       const p=mapE[j.iso], we=j.js===0||j.js===6, fer=ferieGE(j.iso);
       const manque=!p&&!we&&j.iso<auj&&!fer;
-      const lib=p?(p.approuve?'Approuvée':p.confirme?'En attente d’approbation':'À confirmer par l’employé'):fer|| (manque?'À saisir':j.iso>auj?'À venir':we?'Week-end':'À saisir');
+      const lib=p?libDecisionHeures(p):fer|| (manque?'À saisir':j.iso>auj?'À venir':we?'Week-end':'À saisir');
       let contenu='<span class="equipe-vide">'+(fer?'Férié':manque?'À saisir':'·')+'</span>';
       if(p){
         const min=jourMin(p), ab=[...new Set([p.matin_type,p.apm_type].filter(t=>t!=='travail'))];
         contenu='<span class="heure-badge '+(p.approuve?'approuvee':p.confirme?'attente':'a-confirmer')+'">'+(min?fmtMin(min):ab.map(t=>BADGES[t]||TYPES[t]).join(' / ')||'0h00')+'</span>';
+        if(minutesRefusees(p)) contenu+='<small class="decision-resume">'+fmtMin(minutesApprouvees(p))+' ✓<br>'+fmtMin(minutesRefusees(p))+' refusées</small>';
         if(min&&ab.length) contenu+='<small class="equipe-absence">'+ab.map(t=>esc(TYPES[t])).join(' / ')+'</small>';
       }
       html += '<td class="cellule'+(we?' we-td':'')+(j.iso===auj?' auj-td':'')+(p&&p.approuve?' ok-td':p&&p.confirme?' attente-td':'')+(manque?' manque-td':'')+(nonConfirme(e,p,j.iso)?' pasconf':'')+'" data-emp="'+esc(e.id)+'" data-jour="'+j.iso+'" title="'+esc(lib)+'">'+
@@ -3027,6 +3126,7 @@ function ouvrirDetails(empId) {
     ' jour' + (nonConf > 1 ? 's' : '') + ' posé' + (nonConf > 1 ? 's' : '') + ' par le back office</span>';
   const tous = lignes.length > 0 && lignes.every(p => p.approuve);
   if (tous) chips += '<span style="background:#ecfdf5;color:#065f46">✓ Mois validé</span>';
+  chips += bilanDecisionHeures(lignes);
   $('det-chips').innerHTML = chips;
   // Fiches horaires façon Jibble : jours + sous-total à la fin de chaque semaine.
   let htmlDet = '', semMin = 0, semSup = 0, semDebut = null;
@@ -3045,9 +3145,9 @@ function ouvrirDetails(empId) {
     htmlDet += '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
-      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') +
+      (p && p.remarque ? '<div class="rem">' + esc(p.remarque) + '</div>' : '') + htmlDecisionHeures(p) +
       (nonConfirme(e, p, j.iso) ? '<div class="rem posee">Posée par le back office, non confirmée</div>' : '') +
-      (p ? '<span class="statut-texte ' + (p.approuve ? 'ok' : 'attente') + '">' + (p.approuve ? 'Approuvée' : p.confirme ? 'En attente d’approbation' : 'À confirmer par l’employé') + '</span>' : '') +
+      (p ? '<span class="statut-texte ' + (p.approuve ? 'ok' : 'attente') + '">' + libDecisionHeures(p) + '</span>' : '') +
       // Des heures en plus sans un mot : c'est exactement ce qu'on cherche à
       // comprendre plus tard, et qu'on ne retrouvera plus dans trois semaines.
       (sup && p && !p.approuve ? ligneSansMotif(j.iso, sup, p.remarque) : '') + '</div>' +
@@ -3086,7 +3186,7 @@ function ouvrirDetails(empId) {
 }
 function fermerDetails() { $('voile-det').classList.remove('ouvert'); }
 async function approuverJourRevue(empId, jour, approuve) {
-  if (approuve && !confirm('Confirmer votre contrôle et approuver cette journée ? Elle restera verrouillée pour l’employé.')) return;
+  if (approuve) { fermerDetails(); ouvrirJour(empId, jour); return; }
   if (!approuve && !confirm('Autoriser une correction ? L’employé devra confirmer à nouveau cette journée avant votre prochaine approbation.')) return;
   try {
     const res = await rpc('admin_approuver', {
@@ -3233,6 +3333,19 @@ async function sauverEmp() {
 }
 
 /* ---------- Export Excel ---------- */
+function ajouterFeuilleDecisions(wb, ids, map, jours) {
+  const lignes = [['Employé','Date','État du contrôle','Heures saisies','Heures approuvées','Heures refusées','Motif du refus']];
+  for (const id of ids) {
+    const emp = S.employes.find(e=>e.id===id);
+    for (const j of jours) {
+      const p = (map[id] || {})[j.iso];
+      if (p) lignes.push([nomComplet(emp),j.iso,libDecisionHeures(p),fmtHM(jourMin(p)),p.approuve?fmtHM(minutesApprouvees(p)):'',p.approuve?fmtHM(minutesRefusees(p)):'',p.motif_refus || '']);
+    }
+  }
+  const ws = XLSX.utils.aoa_to_sheet(lignes);
+  ws['!cols'] = [24,13,37,18,20,18,55].map(wch=>({wch}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Décisions sur les heures');
+}
 function chargerXLSX() {
   if (window.XLSX) return Promise.resolve();
   return new Promise((res, rej) => {
@@ -3438,7 +3551,9 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     .map(d => d.h + ' +' + pourcent(d.t) + ' : ' + fmtHM(totMaj[d.k]));
   aoa.push([cel('Heures majorées selon la CCT — ' + (detailMaj.length ? detailMaj.join('   ·   ') : 'aucune ce mois'), STY.sous)]);
   const valide = present > 0 && nApp === present;
-  aoa.push([cel(valide ? '✓ Validé par le back office' + (dateVal ? ' le ' + dateVal : '')
+  const refusees = Object.values(map).reduce((n,p)=>n+minutesRefusees(p),0);
+  aoa.push([cel('Heures approuvées : ' + fmtHM(Object.values(map).reduce((n,p)=>n+minutesApprouvees(p),0)) + ' · Heures refusées : ' + fmtHM(refusees) + ' · Détail et motifs dans l’onglet Décisions sur les heures', STY.sous)]);
+  aoa.push([cel(valide ? (refusees ? '✓ Contrôle terminé avec heures refusées' : '✓ Validé par le back office') + (dateVal ? ' le ' + dateVal : '')
                        : 'En attente de validation par le back office',
     valide ? { font: { bold: true, sz: 11, color: { rgb: '065F46' } } }
            : { font: { italic: true, sz: 11, color: { rgb: '92400E' } } })]);
@@ -3464,16 +3579,16 @@ async function exporterExcel() {
     const jours = joursDuMois(S.annee, S.mois);
     const titreMois = MOIS[S.mois - 1] + ' ' + S.annee;
     const wb = XLSX.utils.book_new();
-    const enTetesR = ['Employé', 'Métier', 'CCT applicable', 'Heures travaillées', 'Heures créditées',
+    const enTetesR = ['Employé', 'Métier', 'CCT applicable', 'Heures saisies', 'Heures créditées',
       'Heures dues', 'Heures en +', 'Heures en −', 'Solde', 'Jours travaillés',
       'Maj. avant plage', 'Maj. après plage', 'Maj. nuit', 'Maj. samedi', 'Maj. dimanche', 'Maj. jour férié',
-      'Vacances', 'Maladie', 'Accident', 'Autres absences', 'Validé'];
-    const minisR = [24, 14, 26, 18, 17, 13, 12, 12, 10, 16, 17, 17, 11, 13, 14, 16, 11, 10, 11, 16, 9];
+      'Vacances', 'Maladie', 'Accident', 'Autres absences', 'Contrôle', 'Heures approuvées', 'Heures refusées'];
+    const minisR = [24, 14, 26, 18, 17, 13, 12, 12, 10, 16, 17, 17, 11, 13, 14, 16, 11, 10, 11, 16, 38, 20, 18];
     const nColR = enTetesR.length;
     const recap = [];
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
     recap.push([cel(titreMois.toUpperCase(), STY.mois)]);
-    recap.push([cel('Récapitulatif des heures de l’équipe   ·   Base contractuelle : 42 h/semaine — 8:00 dues par jour ouvré écoulé, plus 2:00 le premier jour ouvré de chaque semaine   ·   Majorations selon la CCT de chaque branche (détail dans l’onglet de chaque collaborateur)', STY.sous)]);
+    recap.push([cel('Heures saisies ; les refus figurent séparément dans les colonnes de contrôle et l’onglet Décisions   ·   Base contractuelle : 42 h/semaine — 8:00 dues par jour ouvré écoulé, plus 2:00 le premier jour ouvré de chaque semaine   ·   Majorations selon la CCT de chaque branche (détail dans l’onglet de chaque collaborateur)', STY.sous)]);
     recap.push([]);
     recap.push(enTetesR.map(h => cel(h, STY.th)));
     const feuilles = [];
@@ -3499,7 +3614,9 @@ async function exporterExcel() {
         cel(f.absCnt.maladie ? fmtJours(f.absCnt.maladie) : '', STY.c),
         cel(f.absCnt.accident ? fmtJours(f.absCnt.accident) : '', STY.c),
         cel(autres ? fmtJours(autres) : '', STY.c),
-        cel(f.valide ? 'OUI' : (f.nApp > 0 ? 'Partiel' : 'Non'), STY.c)
+        cel(Object.values(map[id] || {}).some(p=>minutesRefusees(p)>0) ? 'Avec heures refusées — voir Décisions' : f.valide ? 'OUI' : (f.nApp > 0 ? 'Partiel' : 'Non'), STY.c),
+        cel(fmtHM(Object.values(map[id] || {}).reduce((n,p)=>n+minutesApprouvees(p),0)),STY.c),
+        cel(fmtHM(Object.values(map[id] || {}).reduce((n,p)=>n+minutesRefusees(p),0)),STY.c)
       ]);
     }
     const wsr = XLSX.utils.aoa_to_sheet(recap);
@@ -3513,6 +3630,7 @@ async function exporterExcel() {
       while (wb.SheetNames.includes(n)) { n = nomF.slice(0, 28) + ' ' + (i++); }
       XLSX.utils.book_append_sheet(wb, f.ws, n);
     }
+    ajouterFeuilleDecisions(wb, ids, map, jours);
     const nomFichier = 'Horaires_' + S.annee + '-' + String(S.mois).padStart(2, '0') +
       (S.entreprise ? '_' + S.entreprise.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') : '') + '.xlsx';
     XLSX.writeFile(wb, nomFichier);
