@@ -1508,7 +1508,10 @@ async function charger() {
         { p_token: S.token, p_annee: S.annee, p_mois: S.mois });
       if (seq !== chargeSeq) return;
       if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
-      S.employes = res.employes; S.pointages = res.pointages; S.entreprise = res.entreprise || '';
+      // Le compte de simulation retiré ne figure plus dans les écrans métier.
+      S.employes = res.employes.filter(e => !e.demo);
+      const idsDemo = new Set(res.employes.filter(e => e.demo).map(e => e.id));
+      S.pointages = res.pointages.filter(p => !idsDemo.has(p.employe_id)); S.entreprise = res.entreprise || '';
       S.lecture = compta;
       S.msgNonLus = res.msg_non_lus || 0;
       // Date de Genève renvoyée par le serveur : « vu aujourd'hui » ne doit pas
@@ -3212,32 +3215,20 @@ async function copierLien(cle, prenom) {
 function renderEmployes() {
   // Les deux accès non techniciens portent déjà leur rôle comme nom :
   // « Back Office » et « Fiduciaire ». Pas d'étiquette qui répète le nom.
-  const etiquette = e => e.demo ? '<span class="demo-lbl">démonstration</span>' : '';
   const sousTitre = e => e.role === 'compta' ? 'Accès en consultation et export'
     : e.role === 'admin' ? 'Accès complet · validation des heures'
-    : e.demo ? 'Pour essayer l’écran technicien — rien n’est inscrit au journal, ' +
-               'et ce compte est exclu de l’export et de la vue fiduciaire'
     : (e.metier || '') + ' · CCT ' + cctDe(e).nom;
   $('ong-employes').innerHTML = S.employes.map(e =>
     '<div class="carte emp-carte ' + (e.actif ? '' : 'inactif') + '">' +
-    '<div><div class="nom">' + esc(nomComplet(e)) + etiquette(e) + '</div>' +
+    '<div><div class="nom">' + esc(nomComplet(e)) + '</div>' +
     '<div class="muet">' + esc(sousTitre(e)) + (e.actif ? '' : ' · désactivé') + '</div></div>' +
     '<div style="display:flex;gap:6px;flex:none">' +
-    (e.demo && e.cle && e.actif
-      ? '<button class="btn" data-essai="' + e.id + '">👁 Ouvrir</button>' : '') +
     (e.cle && e.actif ? '<button class="btn sec" data-lien="' + e.id + '">🔗 Lien</button>' : '') +
     '<button class="btn sec" data-id="' + e.id + '">Modifier</button></div></div>').join('') +
     '<button class="btn large" id="btn-ajout-emp">+ Ajouter un accès (employé ou fiduciaire)</button>' +
     '<div class="muet centre" style="margin-top:8px">« 🔗 Lien » copie le lien personnel de connexion sans code — à envoyer à l’employé ou à la fiduciaire.</div>';
   $('ong-employes').querySelectorAll('button[data-id]').forEach(b =>
     b.addEventListener('click', () => ouvrirEmp(b.dataset.id)));
-  // L'aperçu s'ouvre à côté : sa session ne vit que dans son onglet, celle du
-  // back office reste intacte dans celui-ci.
-  $('ong-employes').querySelectorAll('button[data-essai]').forEach(b =>
-    b.addEventListener('click', () => {
-      const e = S.employes.find(x => x.id === b.dataset.essai);
-      if (e && e.cle) window.open(lienPersonnel(e.cle) + '&apercu=1', '_blank', 'noopener');
-    }));
   $('ong-employes').querySelectorAll('button[data-lien]').forEach(b =>
     b.addEventListener('click', () => {
       const e = S.employes.find(x => x.id === b.dataset.lien);
