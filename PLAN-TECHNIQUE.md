@@ -2604,3 +2604,11 @@ journées existantes. Une empreinte vérifiée dans la transaction impose cette
 conservation. En production : 201 journées, 88 approuvées, empreinte identique
 après migration et tests synthétiques annulés. La suite d’écran, les calculs
 et les scénarios SQL sont validés. Voir docs-techniques/approbation-partielle.md.
+
+## 54. Retrait de la simulation (18 septembre 2026)
+
+À la demande du propriétaire, désactivation du compte demo et expiration de
+ses sessions uniquement (scripts/retirer-demonstration.sql). Les données
+synthétiques restent archivées sans accès, les vrais comptes et horaires
+restent intacts. La fiche et le bouton d’ouverture de simulation sont retirés
+du back office. Le test d’aperçu vérifie désormais cette absence.
