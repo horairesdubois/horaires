@@ -925,6 +925,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
           <div class="champ-h"><label>Début</label><input type="time" id="mj-md"><button class="now" data-cible="mj-md" title="Maintenant">⏱</button></div>
           <div class="champ-h"><label>Fin</label><input type="time" id="mj-mf"><button class="now" data-cible="mj-mf" title="Maintenant">⏱</button></div>
         </div>
+        <button type="button" class="lien-mj" style="min-height:44px" id="mj-zero-m">Aucune heure le matin · 0h00</button>
         <div class="demi-l sep">
           <span class="titre-demi">Après-midi</span>
           <select id="mj-statut-a" class="statut"></select>
@@ -933,6 +934,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
           <div class="champ-h"><label>Début</label><input type="time" id="mj-ad"><button class="now" data-cible="mj-ad" title="Maintenant">⏱</button></div>
           <div class="champ-h"><label>Fin</label><input type="time" id="mj-af"><button class="now" data-cible="mj-af" title="Maintenant">⏱</button></div>
         </div>
+        <button type="button" class="lien-mj" style="min-height:44px" id="mj-zero-a">Aucune heure l’après-midi · 0h00</button>
       </div>
 
       <div class="mj-liens">
@@ -2148,11 +2150,20 @@ function initStatuts() {
   $('mj-statut-m').addEventListener('change', () => { if (MJ.verrou) return; MJ.matin = $('mj-statut-m').value; majStatuts(); });
   $('mj-statut-a').addEventListener('change', () => { if (MJ.verrou) return; MJ.apm = $('mj-statut-a').value; majStatuts(); });
 }
+function aucuneHeure(demi) {
+  if (MJ.verrou) return;
+  if (demi === 'm') MJ.matin = 'travail'; else MJ.apm = 'travail';
+  $(demi === 'm' ? 'mj-md' : 'mj-ad').value = '';
+  $(demi === 'm' ? 'mj-mf' : 'mj-af').value = '';
+  majStatuts();
+}
 function majStatuts() {
   $('mj-statut-m').value = MJ.matin;
   $('mj-statut-a').value = MJ.apm;
   $('mj-heures-m').style.display = MJ.matin === 'travail' ? '' : 'none';
   $('mj-heures-a').style.display = MJ.apm === 'travail' ? '' : 'none';
+  $('mj-zero-m').hidden = MJ.verrou;
+  $('mj-zero-a').hidden = MJ.verrou;
   majRallonges();
   majTotalApercu();
 }
@@ -2181,7 +2192,7 @@ function majRallonges() {
 }
 function majTotalApercu() {
   const min = demiMin(MJ.matin, $('mj-md').value, $('mj-mf').value) + demiMin(MJ.apm, $('mj-ad').value, $('mj-af').value);
-  $('mj-total').textContent = min ? fmtMin(min) : '';
+  $('mj-total').textContent = fmtMin(min);
   majAlerteSup();
 }
 // Ce que la journée en cours de saisie dépasse la journée type. Calculé sur ce
@@ -2257,7 +2268,7 @@ function ouvrirJour(empId, jour) {
   $('mj-defaut').hidden = MJ.verrou;
   $('mj-defaut').textContent = 'Journée type · ' + defPour('mj-md') + '–' + defPour('mj-af');
   $('mj-save').hidden = MJ.verrou;
-  $('mj-save').textContent = admin ? 'Enregistrer l’horaire' : 'Enregistrer et confirmer';
+  $('mj-save').textContent = admin ? 'Enregistrer puis contrôler' : 'Enregistrer et confirmer';
   $('mj-confirmation-info').hidden = admin || MJ.verrou;
   $('mj-confirmation-info').textContent = p && p.demande_etat === 'accordee'
     ? 'Modification autorisée. Enregistrer confirmera à nouveau cette journée et la soumettra au contrôle du back office.'
@@ -2281,8 +2292,8 @@ function ouvrirJour(empId, jour) {
   const btnApp = $('mj-approuver');
   if (admin && p) {
     btnApp.hidden = false;
-    btnApp.disabled = enAttente || (!MJ.approuve && !MJ.confirme);
-    btnApp.textContent = enAttente ? 'Traitez d’abord la demande de modification' : MJ.approuve ? 'Autoriser une correction' : MJ.confirme ? '✓ Approuver après contrôle' : 'Confirmation de l’employé attendue';
+    btnApp.disabled = enAttente;
+    btnApp.textContent = enAttente ? 'Traitez d’abord la demande de modification' : MJ.approuve ? 'Autoriser une correction' : '✓ Approuver après contrôle';
   } else { btnApp.hidden = true; }
   preparerDecisionHeures(p, admin, enAttente);
   majStatuts();
@@ -2365,15 +2376,17 @@ async function sauverJour() {
   try {
     const res = await rpc(admin ? 'admin_enregistrer_jour' : 'enregistrer_jour', args);
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
-    fermerJour(); toast('✓ Enregistré');
+    const employe = MJ.empId, jour = MJ.jour;
+    fermerJour(); toast(admin ? '✓ Enregistré — vous pouvez approuver directement' : '✓ Enregistré');
     await charger();
+    if (admin) ouvrirJour(employe, jour);
   } catch (e) { toast(e.message); }
   finally { $('mj-save').disabled = false; }
 }
 
 function preparerDecisionHeures(p, admin, enAttente) {
   $('mj-decision-lue').innerHTML = htmlDecisionHeures(p);
-  $('mj-decision').hidden = !admin || !p || (!p.confirme && !p.approuve) || enAttente;
+  $('mj-decision').hidden = !admin || !p || enAttente;
   const min = p && p.approuve ? minutesApprouvees(p) : jourMin(p);
   $('mj-decision-h').value = Math.floor(min / 60);
   $('mj-decision-m').value = min % 60;
@@ -2393,13 +2406,13 @@ function majDecisionHeures() {
   $('mj-decision-total').textContent = minutes === null ? 'Indiquez une durée entre 0h00 et ' + fmtMin(jourMin(MJ.pointage)) + '.' :
     fmtMin(minutes) + ' approuvées · ' + fmtMin(jourMin(MJ.pointage) - minutes) + ' refusées';
   $('mj-decision-save').disabled = minutes === null;
-  if (S.moi && S.moi.role === 'admin' && MJ.pointage && !MJ.approuve && MJ.confirme && MJ.pointage.demande_etat !== 'attente') {
+  if (S.moi && S.moi.role === 'admin' && MJ.pointage && !MJ.approuve && MJ.pointage.demande_etat !== 'attente') {
     $('mj-approuver').disabled = minutes === null;
     $('mj-approuver').textContent = '✓ Valider cette décision';
   }
 }
 async function enregistrerDecisionHeures() {
-  if (!S.moi || S.moi.role !== 'admin' || !MJ.pointage || (!MJ.confirme && !MJ.approuve) || MJ.pointage.demande_etat === 'attente') return;
+  if (!S.moi || S.moi.role !== 'admin' || !MJ.pointage || MJ.pointage.demande_etat === 'attente') return;
   const p = MJ.pointage;
   const modifie = MJ.matin !== p.matin_type || MJ.apm !== p.apm_type ||
     [['mj-md','matin_debut'],['mj-mf','matin_fin'],['mj-ad','apm_debut'],['mj-af','apm_fin'],['mj-rem','remarque']].some(([id,k])=>$(id).value.trim() !== (p[k] || ''));
@@ -3143,8 +3156,8 @@ function ouvrirDetails(empId) {
     if (semDebut === null) semDebut = j.num;
     semMin += min;
     semSup += sup;
-    const coche = p ? '<span class="val-jour' + (p.approuve ? ' on' : '') + (p.demande_etat === 'attente' || (!p.confirme && !p.approuve) ? ' inactive' : '') + '" data-jour="' + j.iso +
-      '" title="' + (p.approuve ? 'Autoriser une correction' : p.confirme ? 'Approuver après contrôle' : 'Confirmation de l’employé attendue') + '">✓</span>' : '';
+    const coche = p ? '<span class="val-jour' + (p.approuve ? ' on' : '') + (p.demande_etat === 'attente' ? ' inactive' : '') + '" data-jour="' + j.iso +
+      '" title="' + (p.approuve ? 'Autoriser une correction' : 'Approuver après contrôle') + '">✓</span>' : '';
     htmlDet += '<button class="jour-ligne ' + (we ? 'we' : '') + (j.iso === auj ? ' auj' : '') + (manque ? ' manque' : '') + '" data-jour="' + j.iso + '">' +
       '<div class="date"><div class="js">' + JS_COURT[j.js] + '</div><div class="num">' + j.num + '</div></div>' +
       '<div class="contenu"><div class="heures-txt">' + (p ? heuresTexte(p) : (fer ? badgeFerie(fer) : '<span class="vide">—</span>')) + '</div>' +
@@ -3190,7 +3203,7 @@ function ouvrirDetails(empId) {
 function fermerDetails() { $('voile-det').classList.remove('ouvert'); }
 async function approuverJourRevue(empId, jour, approuve) {
   if (approuve) { fermerDetails(); ouvrirJour(empId, jour); return; }
-  if (!approuve && !confirm('Autoriser une correction ? L’employé devra confirmer à nouveau cette journée avant votre prochaine approbation.')) return;
+  if (!approuve && !confirm('Autoriser une correction ? L’employé pourra corriger cette journée. Le back office pourra aussi la modifier et l’approuver directement.')) return;
   try {
     const res = await rpc('admin_approuver', {
       p_token: S.token, p_employe: empId, p_annee: S.annee, p_mois: S.mois,
@@ -3655,6 +3668,8 @@ function init() {
     b.addEventListener('click', () => { if (MJ.verrou) return; $(b.dataset.cible).value = maintenantHM(); majTotalApercu(); }));
   $('mj-defaut').addEventListener('click', journeeType);
   $('mj-annuler').addEventListener('click', fermerJour);
+  $('mj-zero-m').addEventListener('click', () => aucuneHeure('m'));
+  $('mj-zero-a').addEventListener('click', () => aucuneHeure('a'));
   $('mj-save').addEventListener('click', sauverJour);
   $('mj-suppr').addEventListener('click', supprimerJour);
   $('mj-approuver').addEventListener('click', approuverJour);

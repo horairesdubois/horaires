@@ -56,22 +56,24 @@ async function repondre(nom, args) {
         demande_reponse: args.p_reponse });
       if (args.p_accorde) Object.assign(p, { approuve: false, confirme: false, approuve_le: null });
       return { ok: true };
+    case 'admin_enregistrer_jour':
     case 'enregistrer_jour': {
-      if (p && (p.confirme || p.approuve)) return { ok: false, erreur: 'Journée verrouillée' };
+      const admin = nom === 'admin_enregistrer_jour';
+      assert.equal(args.p_token, admin ? 'tok-admin' : 'tok-employe');
+      if (!admin && p && (p.confirme || p.approuve)) return { ok: false, erreur: 'Journée verrouillée' };
       const cible = p || creerJour(args.p_jour);
       for (const champ of ['matin_type', 'matin_debut', 'matin_fin', 'apm_type', 'apm_debut', 'apm_fin', 'remarque']) {
         cible[champ] = args['p_' + champ];
       }
-      Object.assign(cible, { confirme: true, approuve: false, demande_etat: null, saisi_par: EMPLOYE.id });
+      Object.assign(cible, { confirme: !admin, approuve: false, demande_etat: null, saisi_par: admin ? ADMIN.id : EMPLOYE.id, version_decision: cible.version_decision + 's' });
       if (!p) serveur.pointages.push(cible);
       return { ok: true };
     }
     case 'admin_decider_heures': {
       assert.equal(args.p_token,'tok-admin');
       assert.equal(args.p_version,p.version_decision);
-      assert(p.confirme || p.approuve);
       assert.notEqual(p.demande_etat,'attente');
-      const min=t=>Number(t.slice(0,2))*60+Number(t.slice(3));
+      const min=t=>t ? Number(t.slice(0,2))*60+Number(t.slice(3)) : 0;
       const total=min(p.matin_fin)-min(p.matin_debut)+min(p.apm_fin)-min(p.apm_debut);
       assert(args.p_minutes_approuvees>=0 && args.p_minutes_approuvees<=total);
       Object.assign(p,{approuve:true,minutes_refusees:total-args.p_minutes_approuvees,
@@ -80,7 +82,7 @@ async function repondre(nom, args) {
     }
     case 'admin_approuver':
       assert.equal(args.p_token, 'tok-admin');
-      if (args.p_approuve && (!p?.confirme || p.demande_etat === 'attente')) {
+      if (args.p_approuve && p.demande_etat === 'attente') {
         return { ok: false, erreur: 'Confirmation du technicien requise' };
       }
       if (p) Object.assign(p, { approuve: args.p_approuve,
@@ -234,8 +236,13 @@ try {
 
   await rafraichir(bureau);
   await ouvrir(bureau, '2026-09-03');
-  assert(await bureau.locator('#mj-approuver').isDisabled() || !(await bureau.locator('#mj-approuver').isVisible()),
-    'Le bureau ne valide pas une journée encore non confirmée par le technicien');
+  assert(await bureau.locator('#mj-approuver').isEnabled(), 'BO décide sans confirmation employé');
+  await bureau.locator('#mj-approuver').click();
+  await bureau.locator('#voile-jour.ouvert').waitFor({state:'hidden'});
+  assert.equal(jour('2026-09-03').approuve, true);
+  assert.equal(jour('2026-09-03').confirme, false, 'Ne simule pas une confirmation employé');
+  await rafraichir(employe); await ouvrir(employe, '2026-09-03');
+  await verrouille(employe, 'Approbation directe BO');
   await ouvrir(bureau, '2026-09-02');
   const nbApprobations = appels('admin_decider_heures').length;
   acceptation = false;
@@ -249,7 +256,7 @@ try {
   await etatJour(employe, '2026-09-02', /approuvée/i);
   await ouvrir(employe, '2026-09-02');
   await verrouille(employe, 'Correction approuvée par le bureau');
-  console.log('✓ Approbation réservée aux jours confirmés, confirmation annulable, résultat visible chez l’employé');
+  console.log('✓ Approbation directe du back office, confirmation annulable, résultat visible chez l’employé');
   await ouvrir(bureau,'2026-09-02');
   await bureau.locator('#mj-decision-h').fill('8');
   await bureau.locator('#mj-decision-m').fill('0');
@@ -290,6 +297,42 @@ try {
   assert(!(await bureauOrdi.locator('#ong-equipe .equipe-mobile').isVisible()), 'Les fiches mobiles sont repliées sur ordinateur');
   await bureauOrdi.screenshot({ path: new URL('../work/essais/approbation-bureau-ordinateur.png', import.meta.url).pathname,
     fullPage: true });
+  for (const [date, demi, total] of [['2026-09-04','m','4h00'],['2026-09-05','a','4h00'],['2026-09-06','deux','0h00']]) {
+    await ouvrir(employe, date);
+    await employe.locator('#mj-defaut').click();
+    if (demi !== 'a') await employe.locator('#mj-zero-m').click();
+    if (demi !== 'm') await employe.locator('#mj-zero-a').click();
+    assert.equal(await employe.locator('#mj-total').innerText(), total);
+    assert(await employe.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    await employe.locator('#mj-save').click();
+    await employe.locator('#voile-jour.ouvert').waitFor({state:'hidden'});
+    await ouvrir(employe, date);
+    if (demi !== 'a') assert.equal(await employe.locator('#mj-md').inputValue(), '');
+    if (demi !== 'm') assert.equal(await employe.locator('#mj-ad').inputValue(), '');
+    await verrouille(employe, 'Zéro confirmé');
+  }
+  await ouvrir(bureau, '2026-09-07');
+  await bureau.locator('#mj-zero-m').click();
+  await bureau.locator('#mj-zero-a').click();
+  await bureau.locator('#mj-save').click();
+  await bureau.waitForFunction(() => MJ.existe && MJ.jour === '2026-09-07' && !document.getElementById('mj-save').disabled);
+  assert(await bureau.locator('#mj-approuver').isEnabled(), 'Décision disponible immédiatement après saisie BO');
+  await bureau.locator('#mj-approuver').click();
+  await bureau.locator('#voile-jour.ouvert').waitFor({state:'hidden'});
+  assert.equal(jour('2026-09-07').approuve, true);
+  await ouvrir(bureau, '2026-09-07');
+  await bureau.locator('#mj-ad').fill('13:00');
+  await bureau.locator('#mj-af').fill('17:00');
+  await bureau.locator('#mj-save').click();
+  await bureau.waitForFunction(() => !MJ.approuve && MJ.pointage.apm_fin === '17:00' && !document.getElementById('mj-save').disabled);
+  await bureau.locator('#mj-approuver').click();
+  await bureau.locator('#voile-jour.ouvert').waitFor({state:'hidden'});
+  assert.equal(jour('2026-09-07').approuve, true, 'Correction BO approuvée sans retour employé');
+  await ouvrir(bureau, '2026-09-08');
+  await bureau.locator('#mj-zero-m').click();
+  await bureau.screenshot({path: new URL('../work/essais/zero-matin-mobile.png', import.meta.url).pathname});
+  await bureau.locator('#mj-annuler').click();
+  console.log('✓ Matin, après-midi et journée à zéro sauvegardés sur téléphone');
   const compta = await ecran('compta', 1440);
   assert(!(await compta.locator('#mj-approuver').isVisible()), 'La fiduciaire reste en lecture seule');
   assert.deepEqual(erreursJS, [], 'Aucune erreur JavaScript');

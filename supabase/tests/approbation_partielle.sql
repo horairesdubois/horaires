@@ -61,7 +61,7 @@ begin
  r:=public.admin_decider_heures(a,ti,j,480,null,public._ptg_json(p)->>'version_decision');
  r:=public.admin_enregistrer_jour(a,ti,j,'travail','08:00','12:00','travail','13:00','18:00','');
  select * into p from public.pointages where employe_id=ti and jour=j;
- assert not p.approuve and p.saisi_par is null and p.minutes_refusees=0,'Changer l’horaire impose une nouvelle confirmation';
+ assert not p.approuve and p.saisi_par is null and p.minutes_refusees=0,'Changer l’horaire impose une nouvelle décision BO';
  assert not has_table_privilege('anon','public.pointages','update'),'Aucun accès direct';
  assert not has_function_privilege('anon','public._trg_preparer_decision_heures()','execute'),'Helper privé';
  raise notice 'Approbation partielle : rôles, montants, verrouillage, conflit, révision, lot et journal OK';

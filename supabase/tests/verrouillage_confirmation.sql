@@ -32,7 +32,9 @@ begin
   r := public.admin_enregistrer_jour(a,ti,j,'travail','08:00','12:00','travail','13:00','17:00','');
   assert (r->>'ok')::boolean, 'BO peut préparer une journée';
   r := public.admin_approuver(a,ti,null,null,j,true);
-  assert r->>'code' = 'confirmation_requise', 'Approbation interdite avant confirmation';
+  assert (r->>'ok')::boolean, 'BO approuve sans confirmation';
+  r := public.admin_approuver(a,ti,null,null,j,false);
+  assert (r->>'ok')::boolean, 'Réouverture pour poursuivre le cycle employé';
   r := public.enregistrer_jour(t,j,'travail','08:00','12:00','travail','13:00','17:00','');
   assert (r->>'ok')::boolean, 'Première confirmation employé';
   select * into p from public.pointages where employe_id=ti and jour=j;
@@ -100,7 +102,8 @@ begin
   assert p.approuve_par is null and p.approuve_le is null, 'Métadonnées approbation réinitialisées';
   assert p.matin_debut='08:00'::time and p.apm_fin='17:00'::time, 'Déblocage ne change pas les heures';
   r := public.admin_approuver(a,ti,null,null,j,true);
-  assert r->>'code'='confirmation_requise', 'Nouvelle confirmation nécessaire';
+  assert (r->>'ok')::boolean, 'BO peut décider sans reconfirmation';
+  r := public.admin_approuver(a,ti,null,null,j,false);
   r := public.enregistrer_jour(t,j,'travail','08:00','12:00','travail','13:00','18:00','Dépannage prolongé');
   assert (r->>'ok')::boolean, 'Correction autorisée après accord';
   select * into p from public.pointages where employe_id=ti and jour=j;
@@ -139,12 +142,9 @@ begin
   insert into public.pointages (employe_id,jour,approuve,approuve_par,approuve_le)
   values (ti,j+2,true,ai,now());
   r := public.admin_approuver(a,ti,2099,11,null,true);
-  assert r->>'code'='confirmation_requise', 'Lot incomplet refusé';
-  assert not (select approuve from public.pointages where employe_id=ti and jour=j), 'Aucune approbation partielle';
+  assert (r->>'ok')::boolean and (r->>'nombre')::int=2, 'Lot approuvé sans confirmation préalable';
+  assert (select saisi_par from public.pointages where employe_id=ti and jour=j+1)=ai, 'Ne simule pas une confirmation employé';
   assert (select approuve from public.pointages where employe_id=ti and jour=j+2), 'Historique préservé';
-  r := public.enregistrer_jour(t,j+1,'travail','08:00','12:00','travail','13:00','17:00','');
-  r := public.admin_approuver(a,ti,2099,11,null,true);
-  assert (r->>'ok')::boolean and (r->>'nombre')::int=2, 'Lot confirmé approuvé';
   r := public.admin_approuver(a,ti,2099,11,null,false);
   assert (r->>'ok')::boolean and (r->>'nombre')::int=3, 'Réouverture mensuelle';
   assert not exists(select 1 from public.pointages where employe_id=ti and (approuve or saisi_par=ti)),
@@ -159,6 +159,30 @@ begin
   r := public.admin_repondre_demande(a,di,j,true,'Accord test');
   select count(*) into n2 from public.journal;
   assert n=n2, 'Aucune trace démonstration côté employé ou BO';
+
+  -- Demi-journées et journée entièrement à zéro, enregistrées explicitement.
+  r := public.enregistrer_jour(t,j+10,'travail',null,null,'travail','13:00','17:00','');
+  assert (r->>'ok')::boolean, 'Matin à zéro accepté';
+  select * into p from public.pointages where employe_id=ti and jour=j+10;
+  assert p.matin_debut is null and p.matin_fin is null and p.apm_fin='17:00'::time, 'Matin vide préservé';
+  r := public.enregistrer_jour(t,j+11,'travail','08:00','12:00','travail',null,null,'');
+  assert (r->>'ok')::boolean, 'Après-midi à zéro accepté';
+  r := public.enregistrer_jour(t,j+12,'travail',null,null,'travail',null,null,'');
+  assert (r->>'ok')::boolean, 'Journée zéro acceptée';
+  select * into p from public.pointages where employe_id=ti and jour=j+12;
+  assert p.id is not null and p.saisi_par=ti, 'Journée zéro conservée et confirmée';
+  r := public.admin_enregistrer_jour(a,ti,j+13,'travail',null,null,'travail',null,null,'');
+  assert (r->>'ok')::boolean, 'BO crée sans proposition employé';
+  select * into p from public.pointages where employe_id=ti and jour=j+13;
+  r := public.admin_decider_heures(a,ti,j+13,0,null,public._ptg_json(p)->>'version_decision');
+  assert (r->>'ok')::boolean, 'BO approuve zéro sans confirmation';
+  r := public.enregistrer_jour(t,j+13,'travail','08:00','12:00','travail',null,null,'');
+  assert r->>'code'='jour_verrouille', 'Décision BO verrouille aussi une journée zéro';
+  r := public.admin_enregistrer_jour(a,ti,j+13,'travail',null,null,'travail','13:00','17:00','Correction BO');
+  assert (r->>'ok')::boolean, 'BO corrige une journée approuvée';
+  select * into p from public.pointages where employe_id=ti and jour=j+13;
+  r := public.admin_decider_heures(a,ti,j+13,180,'Une heure refusée',public._ptg_json(p)->>'version_decision');
+  assert (r->>'ok')::boolean and (r->>'minutes_refusees')::int=60, 'Décision partielle sans reconfirmation';
 
   r := public.journal_lire(t,7,null);
   assert not (r->>'ok')::boolean, 'Employé ne voit pas le journal';
