@@ -2612,3 +2612,7 @@ ses sessions uniquement (scripts/retirer-demonstration.sql). Les données
 synthétiques restent archivées sans accès, les vrais comptes et horaires
 restent intacts. La fiche et le bouton d’ouverture de simulation sont retirés
 du back office. Le test d’aperçu vérifie désormais cette absence.
+
+## 21 septembre 2026 — contrôle direct du back office et zéro heure
+
+Le BO peut saisir un jour puis décider (y compris un refus partiel) sans confirmation employé préalable. Après enregistrement, la fiche reste ouverte sur le contrôle. Les verrous des employés, demandes en attente, versions de décision et journaux restent actifs. Deux boutons explicites effacent ensemble début et fin du matin ou de l’après-midi ; une journée à zéro reste enregistrée et peut être approuvée. La migration ne modifie aucun pointage existant et vérifie leur empreinte dans sa transaction. Régressions : circuit mobile, approbation directe, zéro heure et SQL sur comptes synthétiques annulés.
