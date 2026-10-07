@@ -3445,18 +3445,18 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   for (const d of majDefs) totMaj[d.k] = 0;
   const enTetes = ['Date', 'Jour', 'Type de jour', 'Matin début', 'Matin fin', 'Après-midi début',
     'Après-midi fin', 'Heures travaillées', 'Absence', 'Heures créditées', 'Heures dues',
-    'Heures en +', 'Heures en −']
+    'Heures sup saisies (application)', 'Écart contractuel en −']
     .concat(majDefs.map(d => d.h + ' +' + pourcent(d.t)))
-    .concat(['Remarque']);
+    .concat(['Remarque', 'État du contrôle', 'Heures approuvées', 'Heures refusées']);
   const minis = [12, 7, 22, 12, 11, 17, 16, 18, 13, 17, 13, 12, 12]
-    .concat(majDefs.map(() => 13)).concat([26]);
+    .concat(majDefs.map(() => 13)).concat([26, 32, 20, 18]);
   const nCol = enTetes.length;
   aoa.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
   aoa.push([cel(titreMois.toUpperCase(), STY.mois)]);
   aoa.push([cel('Relevé d’heures de ' + nomComplet(emp) + (emp.metier ? ' — ' + emp.metier : ''), STY.titre)]);
   aoa.push([cel('Durée contractuelle : 42 h/semaine — 8:00 dues par jour ouvré écoulé, plus 2:00 le premier jour ouvré de chaque semaine   ·   CCT : ' + cct.nom +
     ' — ' + cct.conv + ' (' + cct.sem + ' h/semaine)   ·   Plage normale ' + cct.plageDebut + '–' + cct.plageFin +
-    ', nuit dès ' + cct.nuitDebut + '   ·   Jours fériés officiels du canton de Genève crédités automatiquement', STY.sous)]);
+    ', nuit dès ' + cct.nuitDebut + '   ·   Heures sup : même calcul que l’application (au-delà de 8 h, tout le travail les week-ends et fériés). Solde contractuel distinct ; crédit férié compensé par le dû', STY.sous)]);
   aoa.push([]);
   aoa.push(enTetes.map(h => cel(h, STY.th)));
   for (const j of jours) {
@@ -3485,7 +3485,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
       else if (at !== 'travail') code = CODE_ABS[at] + ' ½';
     }
     // Heures créditées / dues, base contractuelle, jours écoulés uniquement.
-    // Convention du classeur : un jour férié est crédité et rien n'est dû ;
+    // Un jour férié porte un crédit égal au dû : son incidence nette est nulle ;
     // une absence payée crédite sa demi-journée ; un congé non payé ne crédite rien.
     let cred = 0, dues = 0;
     if (passe) {
@@ -3493,7 +3493,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
       // samedi ou un dimanche ne crédite rien (convention du classeur).
       const du = we ? 0 : dueDuJour(j.iso);
       if (typeJour === 'Férié') {
-        cred = du;
+        cred = du; dues = du;
       } else if (!we) {
         dues = du;
         if (p) {
@@ -3504,7 +3504,9 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     }
     totCred += cred; totDues += dues;
     const ecart = min + cred - dues;
-    const enPlus = Math.max(0, ecart), enMoins = Math.max(0, -ecart);
+    // La colonne des heures sup reprend exactement le calcul affiché dans l'application.
+    // Le solde contractuel reste distinct : il utilise la base de 42 h/semaine.
+    const enPlus = heuresSupJour(p, j.iso, j.js), enMoins = Math.max(0, -ecart);
     totPlus += enPlus; totMoins += enMoins;
     const sc = typeJour === 'Férié' ? STY.fer : (we ? STY.we : STY.c);
     const sg = typeJour === 'Férié' ? STY.ferg : (we ? STY.weg : STY.cg);
@@ -3523,7 +3525,10 @@ function feuilleEmploye(emp, map, jours, titreMois) {
       enPlus ? cel(fmtDec(enPlus), sc, 'n', '0.00') : cel('', sc),
       enMoins ? cel(fmtDec(enMoins), sc, 'n', '0.00') : cel('', sc)
     ].concat(majDefs.map(d => maj[d.k] ? cel(fmtDec(maj[d.k]), sc, 'n', '0.00') : cel('', sc)))
-     .concat([cel(p ? (p.remarque || '') : '', sg)]));
+     .concat([cel(p ? (p.remarque || '') : '', sg),
+       cel(p ? libDecisionHeures(p) : '', sc),
+       cel(p && p.approuve ? fmtHM(minutesApprouvees(p)) : '', sc),
+       cel(p && p.approuve ? fmtHM(minutesRefusees(p)) : '', sc)]));
     if (j.js === 0 || j.num === jours.length) { // dimanche ou fin de mois : sous-total hebdomadaire
       if (semMin > 0) {
         const ligne = Array.from({ length: nCol }, () => cel('', STY.sem));
@@ -3542,6 +3547,8 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   totaux[11] = cel(fmtDec(totPlus), STY.totv, 'n', '0.00');
   totaux[12] = cel(fmtDec(totMoins), STY.totv, 'n', '0.00');
   majDefs.forEach((d, i) => { totaux[13 + i] = cel(fmtDec(totMaj[d.k]), STY.totv, 'n', '0.00'); });
+  totaux[nCol - 2] = cel(fmtHM(Object.values(map).reduce((n,p)=>n+minutesApprouvees(p),0)), STY.totv);
+  totaux[nCol - 1] = cel(fmtHM(Object.values(map).reduce((n,p)=>n+minutesRefusees(p),0)), STY.totv);
   aoa.push(totaux);
   const solde = totTrav + totCred - totDues;
   aoa.push([]);
@@ -3584,7 +3591,7 @@ async function exporterExcel() {
     const titreMois = MOIS[S.mois - 1] + ' ' + S.annee;
     const wb = XLSX.utils.book_new();
     const enTetesR = ['Employé', 'Métier', 'CCT applicable', 'Heures saisies', 'Heures créditées',
-      'Heures dues', 'Heures en +', 'Heures en −', 'Solde', 'Jours travaillés',
+      'Heures dues', 'Heures sup saisies (application)', 'Écart contractuel en −', 'Solde contractuel', 'Jours travaillés',
       'Maj. avant plage', 'Maj. après plage', 'Maj. nuit', 'Maj. samedi', 'Maj. dimanche', 'Maj. jour férié',
       'Vacances', 'Maladie', 'Accident', 'Autres absences', 'Contrôle', 'Heures approuvées', 'Heures refusées'];
     const minisR = [24, 14, 26, 18, 17, 13, 12, 12, 10, 16, 17, 17, 11, 13, 14, 16, 11, 10, 11, 16, 38, 20, 18];
@@ -3592,7 +3599,7 @@ async function exporterExcel() {
     const recap = [];
     recap.push([cel(S.entreprise || 'Relevé d’heures', STY.titre)]);
     recap.push([cel(titreMois.toUpperCase(), STY.mois)]);
-    recap.push([cel('Heures saisies ; les refus figurent séparément dans les colonnes de contrôle et l’onglet Décisions   ·   Base contractuelle : 42 h/semaine — 8:00 dues par jour ouvré écoulé, plus 2:00 le premier jour ouvré de chaque semaine   ·   Majorations selon la CCT de chaque branche (détail dans l’onglet de chaque collaborateur)', STY.sous)]);
+    recap.push([cel('Heures sup saisies : même calcul que l’application ; approbations et refus séparés. Le solde contractuel n’est pas égal aux heures sup moins les écarts négatifs   ·   Base contractuelle : 42 h/semaine — 8:00 dues par jour ouvré écoulé, plus 2:00 le premier jour ouvré de chaque semaine   ·   Majorations selon la CCT de chaque branche (détail dans l’onglet de chaque collaborateur)', STY.sous)]);
     recap.push([]);
     recap.push(enTetesR.map(h => cel(h, STY.th)));
     const feuilles = [];

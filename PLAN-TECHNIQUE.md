@@ -2616,3 +2616,22 @@ du back office. Le test d’aperçu vérifie désormais cette absence.
 ## 21 septembre 2026 — contrôle direct du back office et zéro heure
 
 Le BO peut saisir un jour puis décider (y compris un refus partiel) sans confirmation employé préalable. Après enregistrement, la fiche reste ouverte sur le contrôle. Les verrous des employés, demandes en attente, versions de décision et journaux restent actifs. Deux boutons explicites effacent ensemble début et fin du matin ou de l’après-midi ; une journée à zéro reste enregistrée et peut être approuvée. La migration ne modifie aucun pointage existant et vérifie leur empreinte dans sa transaction. Régressions : circuit mobile, approbation directe, zéro heure et SQL sur comptes synthétiques annulés.
+
+## 7 octobre 2026 — export fidèle aux heures supplémentaires affichées
+
+L’audit des exports de Steve révèle deux calculs distincts : `heuresSupJour`
+affiche le dépassement de la journée type de 8 h, tandis que l’export utilisait
+l’écart contractuel à 42 h/semaine sous le même libellé « Heures en + ».
+À la demande du propriétaire, l’export appelle désormais `heuresSupJour` et
+nomme ce total « Heures sup saisies (application) ». Le solde contractuel reste
+distinct et n’est pas la différence des colonnes de dépassement et de déficit.
+Le crédit férié est compensé par le dû de la même journée : un férié sans
+travail ne produit plus 8 h fictives. Le détail exporté comprend l’état du
+contrôle et les durées approuvées/refusées sans assimiler une saisie à une
+approbation. Aucun pointage ni aucune décision de contrôle n’est modifié.
+
+Régression sur les fichiers fournis, du 20 août au 20 septembre inclus :
+217h15 travaillées sur 22 journées approuvées ; 50h15 de dépassements affichés
+et exportés ; solde contractuel distinct de 41h15. Tests de lundi, férié
+travaillé/non travaillé, samedi, refus partiel et attente dans
+`tests/export-coherent.mjs`. Les anciennes copies Excel doivent être réexportées.
