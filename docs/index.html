@@ -1114,25 +1114,23 @@ const fmtSolde = m => (m < 0 ? '−' : '+') + fmtMin(Math.abs(m));
    envoyé à la fiduciaire, lui, appliquait bien les 42 h. Les deux écrans
    partagent désormais dueDuJour et ABS_PAYEE, définis plus bas avec l'export :
    une seule règle, un seul endroit où la corriger. */
-function heuresDues(jours, map) {
-  const auj = aujourdhui();
-  let net = 0;
-  for (const j of jours) {
-    if (j.iso > auj || j.js === 0 || j.js === 6) continue;
-    const p = map[j.iso];
-    const ferManuel = p && p.matin_type === 'ferie' && p.apm_type === 'ferie';
-    if (ferieGE(j.iso) || ferManuel) continue;   // crédité autant que dû : net nul
-    const du = dueDuJour(j.iso);
-    let d = du;
-    if (p) {
-      // Une absence payée crédite sa demi-journée ; un congé non payé ne
-      // crédite rien et reste donc dû, comme dans le relevé.
-      if (p.matin_type !== 'travail' && ABS_PAYEE[p.matin_type]) d -= du / 2;
-      if (p.apm_type   !== 'travail' && ABS_PAYEE[p.apm_type])   d -= du / 2;
-    }
-    net += d;
+// Calcul contractuel commun à l’écran et à l’export, avec la même date de référence.
+function bilanContractuelJour(p, iso, js, auj = S.auj || aujourdhui()) {
+  if (iso > auj || js === 0 || js === 6) return { cred: 0, dues: 0 };
+  const dues = dueDuJour(iso);
+  const ferie = ferieGE(iso) || (p && p.matin_type === 'ferie' && p.apm_type === 'ferie');
+  let cred = ferie ? dues : 0;
+  if (p && !ferie) {
+    if (p.matin_type !== 'travail' && ABS_PAYEE[p.matin_type]) cred += dues / 2;
+    if (p.apm_type !== 'travail' && ABS_PAYEE[p.apm_type]) cred += dues / 2;
   }
-  return net;
+  return { cred, dues };
+}
+function heuresDues(jours, map) {
+  return jours.reduce((net, j) => {
+    const { cred, dues } = bilanContractuelJour(map[j.iso], j.iso, j.js);
+    return net + dues - cred;
+  }, 0);
 }
 function joursManquants(jours, map) {
   const auj = aujourdhui();
@@ -1500,7 +1498,7 @@ function appliquerMarque() {
 }
 
 /* ---------- Chargement ---------- */
-let chargeSeq = 0;
+let chargeSeq = 0, chargeTerminee = 0;
 async function charger() {
   const seq = ++chargeSeq;
   try {
@@ -1521,6 +1519,7 @@ async function charger() {
       S.auj = res.aujourdhui || aujourdhui();
       S.depuis = res.tracabilite_depuis || '9999-12-31';
       if (compta && res.moi) { S.moi = res.moi; COFFRE.majMoi(S.moi); }
+      chargeTerminee = seq;
       montrer('admin'); renderAdmin(); chargerMarque();
       if (!compta) chargerRetards();
       if (S.ongletAdmin === 'messages') chargerMessages();
@@ -1530,6 +1529,7 @@ async function charger() {
       if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur); return; }
       S.moi = res.employe; COFFRE.majMoi(S.moi);
       S.pointages = res.pointages.map(p => ({ ...p, employe_id: S.moi.id }));
+      chargeTerminee = seq;
       montrer('emp'); renderEmp(); chargerMarque();
       chargerMsgEmp();                       // le fil du mois affiché
     }
@@ -3131,7 +3131,7 @@ function ouvrirDetails(empId) {
     supMois += heuresSupJour(p, p.jour, new Date(aS, mS - 1, dS).getDay());
   }
   let chips = '<span style="background:' + (solde >= 0 ? '#e7f6ef;color:#047857' : '#fee2e2;color:#b91c1c') +
-    '" title="8h00 dues par jour ouvré passé, absences déduites">Solde : ' + fmtSolde(solde) + '</span>';
+    '" title="Solde contractuel : base de 42 h par semaine, absences payées et fériés déduits">Solde : ' + fmtSolde(solde) + '</span>';
   if (supMois) chips += '<span style="background:#e7f6ef;color:#047857">Heures sup : +' + fmtMin(supMois) + '</span>';
   chips += Object.entries(abs).map(([t, n]) => '<span>' + TYPES[t] + ' : ' + fmtJours(n) + '</span>').join('');
   if (manq) chips += '<span style="background:#fef3c7;color:#92400e">⚠ ' + manq + ' jour' + (manq > 1 ? 's' : '') + ' à compléter</span>';
@@ -3425,7 +3425,10 @@ const dueDuJour = iso =>
   BASE_CONTRAT_MIN + (premierJourOuvreSemaine(iso) === iso ? COMPLEMENT_SEMAINE_MIN : 0);
 
 function feuilleEmploye(emp, map, jours, titreMois) {
-  const auj = aujourdhui();
+  const auj = S.auj || aujourdhui();
+  const lignes = jours.map(j => map[j.iso]).filter(Boolean);
+  const totApprouvees = lignes.reduce((n,p) => n + minutesApprouvees(p), 0);
+  const totRefusees = lignes.reduce((n,p) => n + minutesRefusees(p), 0);
   const aoa = [];
   let present = 0, nApp = 0, dateVal = '', jt = 0;
   let totTrav = 0, totCred = 0, totDues = 0, totPlus = 0, totMoins = 0;
@@ -3463,14 +3466,18 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     const p = map[j.iso];
     const we = j.js === 0 || j.js === 6;
     const fer = ferieGE(j.iso);
-    const passe = j.iso <= auj;
     const min = jourMin(p);
     totTrav += min;
     if (semDebut === null) semDebut = j.num;
     semMin += min;
     if (p) {
       present++;
-      if (p.approuve) { nApp++; if (p.approuve_le) dateVal = p.approuve_le; }
+      if (p.approuve) {
+        nApp++;
+        // Les jours sont triés par date travaillée, pas par date de validation.
+        const cleDate = d => d.split('.').reverse().join('-');
+        if (p.approuve_le && (!dateVal || cleDate(p.approuve_le) > cleDate(dateVal))) dateVal = p.approuve_le;
+      }
       if (demiMin(p.matin_type, p.matin_debut, p.matin_fin) > 0) jt += 0.5;
       if (demiMin(p.apm_type, p.apm_debut, p.apm_fin) > 0) jt += 0.5;
       for (const t of [p.matin_type, p.apm_type]) if (t !== 'travail') absCnt[t] = (absCnt[t] || 0) + 0.5;
@@ -3484,24 +3491,7 @@ function feuilleEmploye(emp, map, jours, titreMois) {
       else if (mt !== 'travail') code = CODE_ABS[mt] + ' ½';
       else if (at !== 'travail') code = CODE_ABS[at] + ' ½';
     }
-    // Heures créditées / dues, base contractuelle, jours écoulés uniquement.
-    // Un jour férié porte un crédit égal au dû : son incidence nette est nulle ;
-    // une absence payée crédite sa demi-journée ; un congé non payé ne crédite rien.
-    let cred = 0, dues = 0;
-    if (passe) {
-      // Un férié crédite ce que la journée aurait dû ; un férié tombant un
-      // samedi ou un dimanche ne crédite rien (convention du classeur).
-      const du = we ? 0 : dueDuJour(j.iso);
-      if (typeJour === 'Férié') {
-        cred = du; dues = du;
-      } else if (!we) {
-        dues = du;
-        if (p) {
-          if (p.matin_type !== 'travail' && ABS_PAYEE[p.matin_type]) cred += du / 2;
-          if (p.apm_type !== 'travail' && ABS_PAYEE[p.apm_type]) cred += du / 2;
-        }
-      }
-    }
+    const { cred, dues } = bilanContractuelJour(p, j.iso, j.js, auj);
     totCred += cred; totDues += dues;
     const ecart = min + cred - dues;
     // La colonne des heures sup reprend exactement le calcul affiché dans l'application.
@@ -3513,12 +3503,12 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     const maj = majorationsJour(p, j.iso, j.js, cct);
     for (const d of majDefs) totMaj[d.k] += maj[d.k];
     aoa.push([
-      cel(String(j.num).padStart(2, '0') + '.' + String(S.mois).padStart(2, '0') + '.' + S.annee, sc),
+      cel(j.iso.split('-').reverse().join('.'), sc),
       cel(JS_COURT[j.js], sc),
       cel(typeJour === 'Férié' && fer ? 'Férié — ' + fer : typeJour, sc),
       cel(p ? (p.matin_debut || '') : '', sc), cel(p ? (p.matin_fin || '') : '', sc),
       cel(p ? (p.apm_debut || '') : '', sc), cel(p ? (p.apm_fin || '') : '', sc),
-      cel(min ? fmtHM(min) : '', sc),
+      cel(p ? fmtHM(min) : '', sc),
       cel(code, code ? STY.abs : sc),
       cel(cred ? fmtHM(cred) : '', sc),
       cel(dues ? fmtHM(dues) : '', sc),
@@ -3547,8 +3537,8 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   totaux[11] = cel(fmtDec(totPlus), STY.totv, 'n', '0.00');
   totaux[12] = cel(fmtDec(totMoins), STY.totv, 'n', '0.00');
   majDefs.forEach((d, i) => { totaux[13 + i] = cel(fmtDec(totMaj[d.k]), STY.totv, 'n', '0.00'); });
-  totaux[nCol - 2] = cel(fmtHM(Object.values(map).reduce((n,p)=>n+minutesApprouvees(p),0)), STY.totv);
-  totaux[nCol - 1] = cel(fmtHM(Object.values(map).reduce((n,p)=>n+minutesRefusees(p),0)), STY.totv);
+  totaux[nCol - 2] = cel(fmtHM(totApprouvees), STY.totv);
+  totaux[nCol - 1] = cel(fmtHM(totRefusees), STY.totv);
   aoa.push(totaux);
   const solde = totTrav + totCred - totDues;
   aoa.push([]);
@@ -3562,8 +3552,8 @@ function feuilleEmploye(emp, map, jours, titreMois) {
     .map(d => d.h + ' +' + pourcent(d.t) + ' : ' + fmtHM(totMaj[d.k]));
   aoa.push([cel('Heures majorées selon la CCT — ' + (detailMaj.length ? detailMaj.join('   ·   ') : 'aucune ce mois'), STY.sous)]);
   const valide = present > 0 && nApp === present;
-  const refusees = Object.values(map).reduce((n,p)=>n+minutesRefusees(p),0);
-  aoa.push([cel('Heures approuvées : ' + fmtHM(Object.values(map).reduce((n,p)=>n+minutesApprouvees(p),0)) + ' · Heures refusées : ' + fmtHM(refusees) + ' · Détail et motifs dans l’onglet Décisions sur les heures', STY.sous)]);
+  const refusees = totRefusees;
+  aoa.push([cel('Heures approuvées : ' + fmtHM(totApprouvees) + ' · Heures refusées : ' + fmtHM(refusees) + ' · Détail et motifs dans l’onglet Décisions sur les heures', STY.sous)]);
   aoa.push([cel(valide ? (refusees ? '✓ Contrôle terminé avec heures refusées' : '✓ Validé par le back office') + (dateVal ? ' le ' + dateVal : '')
                        : 'En attente de validation par le back office',
     valide ? { font: { bold: true, sz: 11, color: { rgb: '065F46' } } }
@@ -3575,9 +3565,11 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   ws['!cols'] = enTetes.map((h, i) => largeur(h, minis[i]));
   ws['!rows'] = [{ hpt: 20 }, { hpt: 28 }, { hpt: 18 }];
   ws['!merges'] = [0, 1, 2, 3].map(r => ({ s: { r, c: 0 }, e: { r, c: nCol - 1 } }));
-  return { ws, totMin: totTrav, totCred, totDues, totPlus, totMoins, totMaj, solde, absCnt, valide, nApp, present, jt, cct };
+  return { ws, totMin: totTrav, totCred, totDues, totPlus, totMoins, totMaj, solde, absCnt, valide, nApp, present, jt, cct, totApprouvees, totRefusees };
 }
 async function exporterExcel() {
+  if (chargeTerminee !== chargeSeq) { toast('Attendez le chargement complet du mois avant d’exporter.'); return; }
+  const version = chargeSeq, annee = S.annee, mois = S.mois;
   const ids = Array.from($('ong-export').querySelectorAll('input[type=checkbox]:checked'))
     .map(c => c.dataset.id)
     .filter(id => { const e = S.employes.find(x => x.id === id); return e && !e.demo; });
@@ -3586,6 +3578,9 @@ async function exporterExcel() {
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Préparation…';
   try {
     await chargerXLSX();
+    if (version !== chargeSeq || chargeTerminee !== chargeSeq || annee !== S.annee || mois !== S.mois) {
+      throw new Error('Les données ou le mois ont changé pendant la préparation. Relancez l’export.');
+    }
     const map = ptgMap();
     const jours = joursDuMois(S.annee, S.mois);
     const titreMois = MOIS[S.mois - 1] + ' ' + S.annee;
@@ -3625,9 +3620,9 @@ async function exporterExcel() {
         cel(f.absCnt.maladie ? fmtJours(f.absCnt.maladie) : '', STY.c),
         cel(f.absCnt.accident ? fmtJours(f.absCnt.accident) : '', STY.c),
         cel(autres ? fmtJours(autres) : '', STY.c),
-        cel(Object.values(map[id] || {}).some(p=>minutesRefusees(p)>0) ? 'Avec heures refusées — voir Décisions' : f.valide ? 'OUI' : (f.nApp > 0 ? 'Partiel' : 'Non'), STY.c),
-        cel(fmtHM(Object.values(map[id] || {}).reduce((n,p)=>n+minutesApprouvees(p),0)),STY.c),
-        cel(fmtHM(Object.values(map[id] || {}).reduce((n,p)=>n+minutesRefusees(p),0)),STY.c)
+        cel(f.totRefusees > 0 ? 'Avec heures refusées — voir Décisions' : f.valide ? 'OUI' : (f.nApp > 0 ? 'Partiel' : 'Non'), STY.c),
+        cel(fmtHM(f.totApprouvees),STY.c),
+        cel(fmtHM(f.totRefusees),STY.c)
       ]);
     }
     const wsr = XLSX.utils.aoa_to_sheet(recap);

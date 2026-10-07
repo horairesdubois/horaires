@@ -2635,3 +2635,26 @@ Régression sur les fichiers fournis, du 20 août au 20 septembre inclus :
 et exportés ; solde contractuel distinct de 41h15. Tests de lundi, férié
 travaillé/non travaillé, samedi, refus partiel et attente dans
 `tests/export-coherent.mjs`. Les anciennes copies Excel doivent être réexportées.
+
+### Vérification renforcée du 7 octobre 2026
+
+Le propriétaire demande une correspondance exacte de l’export avec les saisies,
+affichages et décisions. Le solde utilise maintenant `bilanContractuelJour`
+dans les deux parcours, avec la même date de Genève (`S.auj`). L’export est
+refusé pendant un chargement incomplet ou si le mois/les données changent
+pendant le chargement du module Excel. Les totaux d’approbation sont bornés
+aux dates exportées et partagés entre détail et récapitulatif. Une saisie à
+zéro apparaît explicitement comme 0:00 ; une absence de saisie reste vide.
+Le titre explicatif du solde de l’écran indique correctement la base 42 h.
+
+Validation : 561 journées sur 21 combinaisons mois/branche (3 branches),
+comparaison des heures saisies, sup, soldes, approbations et refus ; parcours
+complet `exporterExcel` avec chargement concurrent, sélection de démonstration,
+pointage hors période, refus partiel/total et attente. Un vrai XLSX produit
+avec le module CDN de l’application a aussi été relu avec openpyxl : même
+récapitulatif, détail et décisions (jeu fictif : 50:05 saisies, 19:01 approuvées,
+11:02 refusées). Les fichiers réels de Steve conservent 50h15 de dépassements
+et 217h15 travaillées approuvées pour la période 20 août–20 septembre.
+
+La date de validation du relevé est désormais la dernière approbation effective,
+et non celle de la dernière journée du mois. Ce cas a son assertion dédiée.
