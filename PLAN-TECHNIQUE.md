@@ -2722,3 +2722,20 @@ leurs avis génériques restent attendus. Le search_path de `_emp_json` est fix�
 les 9 avis résiduels concernent le schéma bastion non modifié.
 Références des contrôles : https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
 et https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy.
+
+### 2026-10-12 — Boutons cohérents et demande au responsable
+
+À la demande du propriétaire, « Terminer ma journée » prend la même forme ronde
+que début/pause/reprise, avec une icône stop et sa confirmation conservée.
+Pendant le travail ou une pause, les deux actions explicitement nommées sont
+côte à côte. Les doublons restent protégés par le même circuit serveur.
+
+L'entrée « Corriger / ajouter un pointage oublié » disparaît. L'employé peut
+uniquement modifier les heures des événements existants d'une journée terminée
+via « Demander une correction », toujours soumise à validation. L'ajout/retrait
+d'événements reste disponible dans l'éditeur du back-office. « Faire une
+demande » ouvre un message daté au responsable, enregistré par la RPC
+message_ecrire dans Questions : cette action ne crée ni ne modifie d'heures.
+Le formulaire rappelle que tout début, pause, reprise et fin doit être pointé
+au moment exact. Si l'envoi n'est pas confirmé, il invite à vérifier Questions
+avant de réessayer. Aucune notification externe n'est envoyée par cette livraison.
