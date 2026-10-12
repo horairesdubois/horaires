@@ -30,10 +30,13 @@ ${morceau('function ptgMap()','function sessionPerdue()')}
 var chargeSeq=1,chargeTerminee=1,attenteModule=null,avis=[];
 var bouton={disabled:false,innerHTML:'',textContent:''};
 const $=id=>id==='btn-export'?bouton:{querySelectorAll:()=>[{dataset:{id:'E1'}},{dataset:{id:'D1'}}]};
-const toast=s=>avis.push(s);const rpc=()=>Promise.resolve({ok:true});
+const toast=s=>avis.push(s);const rpc=fn=>Promise.resolve(fn==='pointage_exporter'?{ok:true,pointages:S.pointages.filter(p=>p.jour.startsWith(S.annee+'-'+String(S.mois).padStart(2,'0'))),aujourdhui:S.auj}:{ok:true});
 const chargerXLSX=()=>attenteModule||Promise.resolve();
 ${morceau('function ajouterFeuilleDecisions(','function chargerXLSX(')}
-${morceau('const BORD','/* ---------- Initialisation ---------- */')}
+${morceau('const BORD','/* Pointage réel, version')}
+const POINTE_LIB={debut:'Début de journée',pause:'Début de pause',reprise:'Reprise du travail',fin:'Fin de journée'};
+${morceau('function pointeHeure(', 'function pointeTexteEvents(')}
+${morceau('function ajouterFeuillePointages(', 'Object.assign(JR,')}
 `,ctx);
 const p=(jour,extra={})=>({employe_id:'E1',jour,matin_type:'travail',matin_debut:'08:00',matin_fin:'12:00',apm_type:'travail',apm_debut:'13:00',apm_fin:'19:01',approuve:true,confirme:true,...extra});
 ctx.donnees=[p('2026-09-02'),p('2026-09-03',{minutes_refusees:61}),p('2026-09-04',{approuve:false}),p('2026-09-05',{approuve:false,confirme:false}),p('2026-09-06',{minutes_refusees:601}),p('2026-09-07',{matin_debut:null,matin_fin:null,apm_debut:null,apm_fin:null}),p('2026-08-31'),p('2026-09-08',{employe_id:'D1'})];
@@ -70,3 +73,11 @@ vm.runInContext('S.mois=10;chargeSeq++;chargeTerminee=chargeSeq',ctx);finir();aw
 assert.equal(livre,null);assert.match(vm.runInContext('avis.at(-1)',ctx),/changé/);
 assert.equal(vm.runInContext('bouton.disabled',ctx),false);
 console.log('✓ Export intégral : récapitulatif/détail/décisions identiques, démo et hors période exclus, refus total/partiel, attente, zéro et changements de mois');
+// Plusieurs pauses : aucune conversion approximative en deux demi-journées.
+ctx.pointe={employe_id:'E1',jour:'2026-10-12',matin_type:'travail',apm_type:'travail',pointe_segments:[[60,180],[195,300],[345,540]],pointe_etat:'termine',pointe_version:3,pointe_evenements:[{action:'debut',at:'2026-10-12T01:00:17+02:00'},{action:'pause',at:'2026-10-12T03:00:22+02:00'},{action:'reprise',at:'2026-10-12T03:15:32+02:00'},{action:'pause',at:'2026-10-12T05:00:59+02:00'},{action:'reprise',at:'2026-10-12T05:45:00+02:00'},{action:'fin',at:'2026-10-12T09:00:42+02:00'}],confirme:true,approuve:true,minutes_refusees:20};
+await vm.runInContext("S.annee=2026;S.mois=10;S.auj='2026-10-12';S.pointages=[pointe];exporterExcel()",ctx);
+const ligneP=lignes('Test').find(r=>r[0]==='12.10.2026');assert.equal(ligneP[7],'7:00');assert.equal(ligneP.at(-2),'6:40');assert.equal(ligneP.at(-1),'0:20');
+const detailP=lignes('Détail des pointages');assert.equal(detailP.length,7);assert.equal(detailP[1][3],'01:00:17');assert.equal(detailP[6][4],'2026-10-12T09:00:42+02:00');
+if(xlsx){const bytes=Buffer.from(xlsx.write(livre,{bookType:'xlsx',type:'array'}));const relu=xlsx.read(bytes.toString('base64'),{type:'base64'});assert.equal(xlsx.utils.sheet_to_json(relu.Sheets.Test,{header:1}).find(r=>r[0]==='12.10.2026')[7],'7:00');}
+livre=null;await vm.runInContext("pointe.pointe_etat='travail';exporterExcel()",ctx);assert.equal(livre,null);assert.match(vm.runInContext('avis.at(-1)',ctx),/Export suspendu/);
+console.log('✓ Pointages Excel : 3 plages, 7h00 saisies, 6h40 approuvées + 20 min refusées, secondes originales et blocage journée incomplète');

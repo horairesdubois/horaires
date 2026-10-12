@@ -2658,3 +2658,67 @@ et 217h15 travaillées approuvées pour la période 20 août–20 septembre.
 
 La date de validation du relevé est désormais la dernière approbation effective,
 et non celle de la dernière journée du mois. Ce cas a son assertion dédiée.
+
+## 2026-10-12 — Pointage réel sur téléphone, corrections et export
+
+Le propriétaire a autorisé la mise en production, puis précisé « pour tout le
+monde » : activation de Sami, Steve et Alen. Le mode privé des maquettes n'est
+plus le périmètre demandé. Les liens personnels et les anciennes feuilles sont
+conservés. Une journée déjà saisie manuellement reste dans son circuit existant ;
+le nouveau pointage commence à la prochaine journée vide.
+
+Le rond propose début, pause ou reprise selon l'état enregistré. « Terminer ma
+journée » est un geste distinct avec confirmation : l'heure seule ne permet pas
+de deviner si un arrêt est une pause ou la fin. Le reçu est obligatoire avant
+confirmation visuelle. Le serveur horodate en UTC ; affichage Europe/Zurich,
+secondes conservées, bornes à la minute pour les totaux habituels. Les minutes
+réelles sont découpées en plages locales pour conserver durée et majorations
+même lors d'un changement d'heure. Aucun arrondi au quart d'heure.
+
+Chaque requête possède un UUID conservé pendant une erreur réseau, un verrou
+transactionnel par technicien et une version attendue. Un double clic reste une
+seule action ; un reçu perdu peut être revérifié sans recréer le pointage. Sans
+réseau, aucune heure n'est présentée comme enregistrée. Les journées doivent
+être terminées sur leur date suisse ; une fin oubliée, notamment après minuit,
+se régularise par une correction de la journée complète.
+
+Les propositions de correction conservent l'avant, les heures proposées, le
+motif, l'auteur et l'horodatage. Seul l'administrateur accepte/refuse. Une
+acceptation invalide l'ancienne approbation des heures et exige un nouveau
+contrôle. La version protège contre une correction devenue obsolète. Le journal
+conserve début/pause/reprise/fin, demandes et décisions, connexions existantes,
+ouvertures/retours de l'app et vues consultées déclarés par le navigateur.
+Aucun suivi du téléphone hors application, aucune géolocalisation. La fiduciaire
+consulte les heures effectives et exporte, sans accès au journal des corrections.
+
+Le même jeu de plages alimente les totaux, heures sup, majorations et décisions.
+Avant l'export, une RPC relit un instantané serveur ; une journée inachevée ou
+une demande en attente bloque l'export. Le classeur conserve les colonnes
+historiques, expose les plages pointées dans Remarque et ajoute « Détail des
+pointages » avec chaque action, seconde, timestamp complet et version. Les
+colonnes des deux anciennes demi-journées restent vides pour une journée pointée
+plutôt que d'inventer deux plages à partir de plusieurs pauses.
+
+Manifest et icônes installables sont publiés avec le HTML par le script de build.
+Installation depuis Safari/Chrome, sans store ; pas de cache hors ligne des
+heures ni de service worker servant une interface périmée. Un accès habituel
+peut être redemandé dans l'app installée. Vérification navigateur mobile simulé
+390×664, pas de test sur les appareils physiques des employés.
+
+Vérification : suite de 18 scénarios existants/nouveau mobile sans échec, nouveau
+scénario back-office réussi, puis les 6 scénarios affectés rejoués après les
+derniers ajustements. XLSX réellement sérialisé/relu avec le module de production :
+3 plages = 7h00, dont 6h40 approuvées + 20 minutes refusées. Scénarios PostgreSQL
+sur copie du schéma dans un conteneur sans réseau, puis transaction annulée sur
+la base réelle : doublons, versions, droits, pauses multiples, corrections,
+refus/approbations, export et changements d'heure. Les 240 anciennes journées
+ont gardé la même empreinte avant/après migration :
+37bddb26d5121ee132c38c87f398ae36 (JSON des colonnes historiques, trié par id).
+Aucun compte d'essai ni reçu/correction synthétique ne subsiste.
+
+Audit Supabase : aucun helper `_` exécutable par anon. RLS sans policy et RPC
+SECURITY DEFINER avec authentification interne sont les invariants du projet ;
+leurs avis génériques restent attendus. Le search_path de `_emp_json` est fixé ;
+les 9 avis résiduels concernent le schéma bastion non modifié.
+Références des contrôles : https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+et https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy.

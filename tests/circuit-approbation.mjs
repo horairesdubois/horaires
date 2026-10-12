@@ -41,6 +41,7 @@ async function repondre(nom, args) {
       return { ok: true, retards: [], aujourdhui: '2026-09-10' };
     case 'marque_lire':
     case 'journal_noter':
+    case 'activite_noter':
     case 'messages_marquer_lus':
       return { ok: true };
     case 'demande_modification':
