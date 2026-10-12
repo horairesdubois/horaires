@@ -23,6 +23,7 @@ await pg.addInitScript(({A,E,PTG,MSG,JR})=>{
  const rep=o=>new Response(JSON.stringify(o),{status:200,headers:{'Content-Type':'application/json'}});
  window.__rpc=[];
  window.fetch=async (u,o)=>{const n=String(u).split('/rpc/')[1];window.__rpc.push(n);
+  if(n==='pointage_exporter')return rep({ok:true,pointages:PTG,aujourdhui:'2026-09-07'});
   if(n==='admin_donnees')return rep({ok:true,entreprise:'Essai',employes:[A,E],pointages:PTG,
     msg_non_lus:1,tracabilite_depuis:'2026-01-01',aujourdhui:'2026-09-07'});
   if(n==='messages_lire')return rep({ok:true,messages:MSG,non_lus:1,
