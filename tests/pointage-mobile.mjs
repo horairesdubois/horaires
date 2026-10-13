@@ -58,12 +58,14 @@ await pg.locator('[data-pointe-reessayer]').click();await pg.waitForTimeout(2300
 assert.equal(await pg.evaluate(()=>essai.events.length),2,'réponse perdue puis rejeu = pas de doublon');
 const requetes=await pg.evaluate(()=>essai.appels.filter(a=>a.fn==='pointage_pointer').map(a=>a.p.p_requete));assert.equal(requetes[1],requetes[2]);
 assert.equal(await pg.locator('[data-pointe-action]').getAttribute('data-pointe-action'),'reprise');
-pg.once('dialog',async d=>{assert.match(d.message(),/moins d’une minute/);await d.dismiss();});
 await pg.locator('[data-pointe-action]').click();
+await pg.locator('#reprise-annuler').click();
 assert.equal(await pg.evaluate(()=>essai.events.length),2,'annuler laisse en pause');
 assert.equal(await pg.locator('[data-pointe-action]').getAttribute('data-pointe-action'),'reprise');
-pg.once('dialog',async d=>{assert.match(d.message(),/moins d’une minute/);await d.accept();});
-await pg.locator('[data-pointe-action]').click();await pg.waitForTimeout(2300);
+await pg.locator('[data-pointe-action]').click();
+assert.equal(await pg.locator('#confirmation-reprise-texte').innerText(),'Ta pause a duré moins d’une heure. Tu reprends bien le travail maintenant ?');
+await pg.screenshot({path:new URL('../work/essais/confirmation-pause.png',import.meta.url).pathname});
+await pg.locator('#reprise-confirmer').click();await pg.waitForTimeout(2300);
 pg.once('dialog',d=>d.accept());await pg.locator('[data-pointe-fin]').click();await pg.waitForTimeout(2300);
 assert.match(await pg.locator('.pointe-etat').innerText(),/terminée/);assert.equal(await pg.locator('[data-pointe-action]').count(),0);
 await pg.locator('[data-pointe-detail]').click();await pg.waitForSelector('[data-editer-pointe]');await pg.locator('[data-editer-pointe]').click();
@@ -81,13 +83,13 @@ const questions=await pg.evaluate(()=>{
  confirmationPointe('debut',vide,Date.parse('2026-10-12T06:00:00Z')),
  confirmationPointe('debut',vide,Date.parse('2026-10-12T05:59:59Z')),
  confirmationPointe('debut',vide,Date.parse('2026-12-12T06:59:00Z')),
- confirmationPointe('reprise',pause,Date.parse('2026-10-12T13:00:59Z')),
- confirmationPointe('reprise',pause,Date.parse('2026-10-12T13:01:00Z')),
- confirmationPointe('reprise',pause,Date.parse('2026-10-12T13:05:00Z')),
+ confirmationPointe('reprise',pause,Date.parse('2026-10-12T13:59:59Z')),
+ confirmationPointe('reprise',pause,Date.parse('2026-10-12T14:00:00Z')),
+ confirmationPointe('reprise',pause,Date.parse('2026-10-12T14:05:00Z')),
  confirmationPointe('pause',{etat:'travail',evenements:[]},Date.parse('2026-10-12T05:59:00Z'))];
 });
-assert.equal(questions[0],'','à 8h aucune question');assert.ok(questions[1]);assert.ok(questions[2],'heure hiver suisse');assert.ok(questions[3],'reprise immédiate même à 15h');
-assert.deepEqual(questions.slice(4),['','',''],'pauses courtes réelles ou tardives sans confirmation supplémentaire');
+assert.equal(questions[0],'','à 8h aucune question');assert.ok(questions[1]);assert.ok(questions[2],'heure hiver suisse');assert.ok(questions[3],'pause de 59 min 59 s');
+assert.deepEqual(questions.slice(4),['','',''],'pause de 1h ou plus sans confirmation supplémentaire');
 await pg.evaluate(()=>sessionPerdue());assert.equal(await pg.locator('#voile-pointe').evaluate(e=>e.classList.contains('ouvert')),false);
 assert.deepEqual(erreurs,[]);console.log('✓ Mobile : début/pause/reprise/fin, double tap, réponse perdue et même reçu, heure suisse, correction complète, déconnexion et largeur 390 px');
 }finally{await browser.close();}

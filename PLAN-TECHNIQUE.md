@@ -2842,3 +2842,13 @@ déjà confirmé ne redemande rien et conserve le même reçu. Les vrais horodat
 et durées restent calculés comme avant, sans transformer une pause courte en zéro.
 Tests : acceptation/refus, seuil 08:00 suisse été/hiver sur navigateur américain,
 seuil de 60 secondes, pause décalée, double clic et réponse réseau perdue.
+
+### 2026-10-13 — Confirmation de reprise avant une heure de pause
+
+Le propriétaire valide le seuil strict de 60 minutes (remplace celui d'une
+minute). Question exacte : « Ta pause a duré moins d’une heure. Tu reprends bien
+le travail maintenant ? ». Dialogue avec « Oui, je reprends » et « Non, je reste
+en pause ». Non ou Échap n'enregistre rien. À une heure pile, aucune confirmation.
+Le dialogue empêche les doubles appuis et se ferme en cas de changement de session.
+Les pauses restent libres, aucune heure n'est déduite automatiquement. La question
+avant 8h00 et la reprise après perte réseau restent inchangées.

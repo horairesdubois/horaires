@@ -921,6 +921,13 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 </div>
 
 <!-- ============ MODALE JOUR ============ -->
+<dialog id="confirmation-reprise" class="modale" aria-labelledby="confirmation-reprise-texte" style="border:0;margin:auto;padding:24px;color:var(--texte)">
+  <h2 id="confirmation-reprise-texte">Ta pause a duré moins d’une heure. Tu reprends bien le travail maintenant ?</h2>
+  <div style="display:grid;gap:10px;margin-top:20px">
+    <button class="btn" id="reprise-confirmer">Oui, je reprends</button>
+    <button class="btn sec" id="reprise-annuler">Non, je reste en pause</button>
+  </div>
+</dialog>
 <div class="voile" id="voile-pointe"><section class="pointe-dialogue" role="dialog" aria-modal="true" aria-labelledby="pointe-titre"><button class="fermer" id="pointe-fermer" aria-label="Fermer">✕</button><h2 id="pointe-titre">Pointages</h2><div id="pointe-contenu"></div></section></div>
 <div class="voile" id="voile-jour">
   <div class="modale mj">
@@ -3772,7 +3779,7 @@ async function exporterExcel() {
 const POINTE_LIB = {debut:'Début de journée',pause:'Début de pause',reprise:'Reprise du travail',fin:'Fin de journée'};
 const POINTE = {donnees:null,jour:null,sequence:0,occupe:false,requete:null,erreur:'',horloge:0,recuLocal:0};
 let pointeDialogue=null, activiteSession=null;
-function reinitialiserPointe(){POINTE.sequence++;Object.assign(POINTE,{donnees:null,jour:null,occupe:false,requete:null,erreur:'',token:null});pointeDialogue=null;activiteSession=null;$('voile-pointe').classList.remove('ouvert');$('pointe-carte').textContent='';}
+function reinitialiserPointe(){fermerConfirmationReprise?.();POINTE.sequence++;Object.assign(POINTE,{donnees:null,jour:null,occupe:false,requete:null,erreur:'',token:null});pointeDialogue=null;activiteSession=null;$('voile-pointe').classList.remove('ouvert');$('pointe-carte').textContent='';}
 ICONES.play='<svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>';
 ICONES.stop='<svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>';
 ICONES.pause='<svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z" fill="currentColor"/></svg>';
@@ -3836,17 +3843,37 @@ function confirmationPointe(action,donnees,maintenant){
  }
  if(action==='reprise'&&donnees?.etat==='pause'){
   const dernier=donnees.evenements.at(-1),duree=maintenant-Date.parse(dernier?.at);
-  if(dernier?.action==='pause'&&duree>=0&&duree<60000)return 'Tu reprends déjà ? Ta pause a duré moins d’une minute. Confirme que tu reprends bien le travail maintenant.';
+  if(dernier?.action==='pause'&&duree>=0&&duree<3600000)return 'Ta pause a duré moins d’une heure. Tu reprends bien le travail maintenant ?';
  }
  return '';
 }
+let fermerConfirmationReprise=null;
+function confirmerReprise(){
+ return new Promise(resolve=>{
+  const dialogue=$('confirmation-reprise');
+  const terminer=oui=>{dialogue.close();fermerConfirmationReprise=null;resolve(oui);};
+  fermerConfirmationReprise=()=>terminer(false);
+  $('reprise-confirmer').onclick=()=>terminer(true);
+  $('reprise-annuler').onclick=()=>terminer(false);
+  dialogue.oncancel=e=>{e.preventDefault();terminer(false);};
+  dialogue.showModal();$('reprise-annuler').focus();
+ });
+}
 async function envoyerPointe(action) {
  if(POINTE.occupe)return;
+ const token=S.token;
  if(!POINTE.requete){
   const question=confirmationPointe(action,POINTE.donnees,POINTE.horloge+Date.now()-POINTE.recuLocal);
-  if(question&&!confirm(question))return;
+  if(question){
+   if(action==='reprise'){
+    POINTE.occupe=true;
+    const accord=await confirmerReprise();
+    if(token!==S.token)return;
+    POINTE.occupe=false;
+    if(!accord)return;
+   }else if(!confirm(question))return;
+  }
  }
- const token=S.token;
  if(!POINTE.requete){POINTE.requete={p_jour:POINTE.jour,p_action:action,p_version:POINTE.donnees.version,p_requete:crypto.randomUUID()};pointeStockage(POINTE.requete);}
  POINTE.occupe=true;POINTE.erreur='';peindrePointe();
  try{
