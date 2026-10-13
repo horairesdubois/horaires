@@ -54,6 +54,25 @@ try{
  await pg.locator('#mj-ad').fill('');await pg.locator('#mj-save').click();
  await pg.waitForFunction(()=>MJ.pointeOriginal?.pointe_version===6);
  assert.equal(await pg.locator('#mj-total').innerText(),'4h00');
+ // Deux plages jointives représentent une journée continue, sans fausse pause.
+ for(const [id,v] of champs.map((id,i)=>[id,['08:00','12:00','12:00','20:30'][i]]))await pg.locator('#'+id).fill(v);
+ await pg.locator('#mj-save').click();await pg.waitForFunction(()=>MJ.pointeOriginal?.pointe_version===7);
+ const continu=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_formulaire_pointage').at(-1).a.p_evenements);
+ assert.deepEqual(continu.map(e=>e.action),['debut','fin'],'pas de pause/reprise à la même heure');
+ assert.equal(await pg.locator('#mj-total').innerText(),'12h30');
+ assert.equal(await pg.locator('#mj-md').inputValue(),'08:00');
+ assert.equal(await pg.locator('#mj-mf').inputValue(),'20:30');
+ assert.equal(await pg.locator('#mj-ad').inputValue(),'');
+ assert.equal(await pg.locator('#mj-af').inputValue(),'');
+ await pg.locator('#mj-approuver').click();await pg.waitForFunction(()=>essai.p.approuve);
+ await pg.evaluate(()=>ouvrirJour('E','2026-10-12'));
+ // Une vraie pause courte conserve ses secondes même si les minutes sont égales.
+ await pg.evaluate(()=>{Object.assign(essai.p,{pointe_evenements:[{action:'debut',at:'2026-10-12T08:00:00+02:00'},{action:'pause',at:'2026-10-12T12:00:10+02:00'},{action:'reprise',at:'2026-10-12T12:00:40+02:00'},{action:'fin',at:'2026-10-12T20:30:00+02:00'}]});S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
+ await pg.locator('#mj-save').click();await pg.waitForFunction(()=>MJ.pointeOriginal?.pointe_version===8);
+ const courte=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_formulaire_pointage').at(-1).a.p_evenements);
+ assert.equal(courte.length,4,'une vraie pause de 30 secondes inchangée reste conservée');
+ assert.equal(courte[1].at,'2026-10-12T12:00:10+02:00');
+ assert.equal(courte[2].at,'2026-10-12T12:00:40+02:00');
  // Retour au cas initial sur téléphone, puis journée laissée au travail.
  await pg.setViewportSize({width:390,height:664});
  await pg.evaluate(()=>{essai.p.pointe_etat='travail';essai.p.pointe_evenements=[{action:'debut',at:'2026-10-12T06:00:00Z'}];S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
@@ -62,5 +81,5 @@ try{
  assert.equal(await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'pas de débordement mobile');
  await pg.screenshot({path:'work/essais/correction-journee-passee-mobile.png'});
  assert.deepEqual(erreurs,[]);
- console.log('✓ Journées passées : pause et travail oubliés, quatre champs libres, secondes, 8h, validation, recorrection 7h30, matin seul, plage incomplète refusée, mobile');
+ console.log('✓ Journées passées : correction, validation, matin seul, journée continue 12h30, vraie pause courte conservée, mobile');
 }finally{await nav.close();}

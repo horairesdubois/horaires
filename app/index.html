@@ -2490,6 +2490,12 @@ async function sauverJour() {
         events.push(original&&pointeHeure(original.at)===heure?{action,at:original.at}:{action,heure});
       }
     });
+    // Deux plages jointives sont une seule présence, sans pause de durée nulle.
+    // Une vraie pause courte inchangée conserve toutefois ses horodatages précis.
+    if(plages.length===2&&plages[0][1]===plages[1][0]&&
+       !(events[1].at&&events[2].at&&Date.parse(events[1].at)<Date.parse(events[2].at))){
+      events.splice(1,2);
+    }
     }
     const signature=JSON.stringify([events,args.p_remarque]);
     if(signature!==MJ.signaturePointe){MJ.signaturePointe=signature;MJ.requetePointe=crypto.randomUUID();}

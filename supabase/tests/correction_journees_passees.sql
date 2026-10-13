@@ -36,5 +36,16 @@ begin
  assert r->'pointages'->0->>'remarque'='Matin uniquement','export corrigé';
  assert not exists(select 1 from public.pointage_corrections where employe_id=e and etat='attente'),'aucune demande bloquée';
  assert (select count(*)=3 from public.journal where acteur_id=a and action='pointage_correction_acceptee'),'journal attribué au bureau';
+ -- Le formulaire fusionne 08:00–12:00 / 12:00–20:30 en une présence continue.
+ ev:='[{"action":"debut","heure":"08:00"},{"action":"fin","heure":"20:30"}]';
+ r:=public.admin_formulaire_pointage(atok,e,j,ev,'Sans pause de midi',4,gen_random_uuid());assert (r->>'ok')::boolean,r::text;
+ select * into p from public.pointages where employe_id=e and jour=j;
+ assert public._pointe_total(p)=750 and p.pointe_etat='termine' and jsonb_array_length(p.pointe_evenements)=2,'journée continue de 12h30';
+ r:=public.admin_decider_heures(atok,e,j,750,'',md5(row_to_json(p)::text));assert (r->>'ok')::boolean,r::text;
+ r:=public.pointage_exporter(ctok,2026,10,array[e]);assert (r->>'ok')::boolean,r::text;
+ assert jsonb_array_length(r->'pointages'->0->'pointe_evenements')=2,'export sans pause inventée';
+ -- Un chevauchement reste refusé, sans changer les heures enregistrées.
+ r:=public.admin_formulaire_pointage(atok,e,j,'[{"action":"debut","heure":"08:00"},{"action":"pause","heure":"12:01"},{"action":"reprise","heure":"12:00"},{"action":"fin","heure":"20:30"}]','Chevauchement invalide',5,gen_random_uuid());assert not (r->>'ok')::boolean,'chevauchement refusé';
+ assert (select pointe_version=5 and approuve from public.pointages where employe_id=e and jour=j),'échec sans modification';
 end $$;
 rollback;
