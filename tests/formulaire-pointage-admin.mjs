@@ -29,7 +29,7 @@ try{
  assert.equal(await pg.locator('#mj-total').innerText(),'8h30');
  await pg.locator('#mj-approuver').click();await pg.waitForFunction(()=>essai.p.approuve);
  await pg.evaluate(()=>ouvrirJour('E','2026-10-12'));assert.equal(await pg.locator('#mj-af').isEnabled(),true);
- await pg.evaluate(()=>{essai.p.pointe_evenements=essai.p.pointe_evenements.slice(0,1);essai.p.pointe_etat='travail';S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
+ await pg.evaluate(()=>{essai.p.pointe_evenements=essai.p.pointe_evenements.slice(0,1);essai.p.pointe_etat='travail';S.auj='2026-10-12';S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
  assert.equal(await pg.locator('#mj-md').inputValue(),'08:00');assert.equal(await pg.locator('#mj-mf').inputValue(),'');
  assert.equal(await pg.locator('#mj-approuver').isVisible(),false,'incomplet à enregistrer avant validation');
  assert.equal(await pg.locator('#mj-mf').isDisabled(),true,'pas de fin inventée');

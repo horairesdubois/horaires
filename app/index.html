@@ -2291,6 +2291,8 @@ function ouvrirJour(empId, jour, absence=false) {
   const admin = S.moi.role === 'admin';
   ['mj-plus1','mj-zero-m','mj-zero-a'].forEach(id=>$(id).hidden=false);
   MJ.pointeOriginal=admin&&p?.pointe_evenements?structuredClone(p):null;
+  // Un oubli de fin sur un jour passé ne doit pas verrouiller les heures du bureau.
+  MJ.pointeEnCours=!!MJ.pointeOriginal&&p.pointe_etat!=='termine'&&(!S.auj||jour>=S.auj);
   $('mj-pointage-historique').hidden=!MJ.pointeOriginal;
   $('mj-pointage-historique').onclick=()=>{fermerJour();ouvrirPointe(empId,jour,true);};
   MJ.requetePointe=null;MJ.signaturePointe=null;
@@ -2382,12 +2384,15 @@ function ouvrirJour(empId, jour, absence=false) {
   majStatuts();
   if(MJ.pointeOriginal){
     $('mj-statut-m').disabled=true;$('mj-statut-a').disabled=true;
-    if(MJ.pointeOriginal.pointe_etat!=='termine'){
+    if(MJ.pointeEnCours){
       ['mj-md','mj-mf','mj-ad','mj-af'].forEach(id=>$(id).disabled=!(id in MJ.pointeChamps));
       ['mj-defaut','mj-plus1','mj-zero-m','mj-zero-a'].forEach(id=>$(id).hidden=true);
       $('mj-save').textContent='Enregistrer la correction';
       $('mj-demande').hidden=false;$('mj-demande').textContent=MJ.pointeComplexe?'Plusieurs pauses : utilisez les pointages détaillés pour corriger chaque heure.':'Corrigez les heures déjà pointées. Le technicien pourra continuer à pointer normalement.';
       if(MJ.pointeComplexe)$('mj-save').hidden=true;
+    }else if(MJ.pointeOriginal.pointe_etat!=='termine'&&!MJ.pointeComplexe){
+      $('mj-demande').hidden=false;
+      $('mj-demande').textContent='Cette journée passée est incomplète. Complétez ou corrigez les plages travaillées, puis enregistrez pour pouvoir la valider.';
     }
   }
   $('voile-jour').classList.add('ouvert');
@@ -2468,19 +2473,23 @@ async function sauverJour() {
   let argsPointe=null;
   if(admin&&MJ.pointeOriginal){
     let events=[];
-    if(MJ.pointeOriginal.pointe_etat!=='termine'){
+    if(MJ.pointeEnCours){
       events=structuredClone(MJ.pointeOriginal.pointe_evenements);
       for(const [id,indice] of Object.entries(MJ.pointeChamps)){
         const heure=$(id).value;if(!heure){toast('Renseignez les heures déjà pointées.');return;}
         if(heure!==pointeHeure(events[indice].at))events[indice]={action:events[indice].action,heure};
       }
     }else{
-    const plages=[[args.p_matin_debut,args.p_matin_fin],[args.p_apm_debut,args.p_apm_fin]].filter(x=>x[0]||x[1]);
+    const plages=[[args.p_matin_debut,args.p_matin_fin,'mj-md','mj-mf'],[args.p_apm_debut,args.p_apm_fin,'mj-ad','mj-af']].filter(x=>x[0]||x[1]);
     if(!plages.length||plages.some(x=>!x[0]||!x[1])){toast('Renseignez le début et la fin de chaque plage travaillée.');return;}
 
-    plages.forEach(([debut,fin],i)=>{events.push({action:i?'reprise':'debut',heure:debut},{action:i===plages.length-1?'fin':'pause',heure:fin});});
-    // Les secondes d'origine sont conservées pour les bornes non modifiées.
-    for(const ev of events){const original=MJ.pointeOriginal.pointe_evenements.find(e=>e.action===ev.action&&pointeHeure(e.at)===ev.heure);if(original){ev.at=original.at;delete ev.heure;}}
+    plages.forEach(([debut,fin,idDebut,idFin],i)=>{
+      for(const [heure,id,action] of [[debut,idDebut,i?'reprise':'debut'],[fin,idFin,i===plages.length-1?'fin':'pause']]){
+        // Une pause devenue fin garde aussi ses secondes si son heure ne change pas.
+        const original=MJ.pointeOriginal.pointe_evenements[MJ.pointeChamps[id]];
+        events.push(original&&pointeHeure(original.at)===heure?{action,at:original.at}:{action,heure});
+      }
+    });
     }
     const signature=JSON.stringify([events,args.p_remarque]);
     if(signature!==MJ.signaturePointe){MJ.signaturePointe=signature;MJ.requetePointe=crypto.randomUUID();}
@@ -2491,7 +2500,7 @@ async function sauverJour() {
     const res = await rpc(admin ? (MJ.pointeOriginal?'admin_formulaire_pointage':'admin_enregistrer_jour') : 'enregistrer_jour', argsPointe||args);
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
     const employe = MJ.empId, jour = MJ.jour;
-    fermerJour(); toast(admin ? (MJ.pointeOriginal&&MJ.pointeOriginal.pointe_etat!=='termine'?'✓ Corrigé — le technicien peut continuer à pointer':'✓ Enregistré — vous pouvez approuver directement') : '✓ Enregistré');
+    fermerJour(); toast(admin ? (MJ.pointeEnCours?'✓ Corrigé — le technicien peut continuer à pointer':'✓ Enregistré — vous pouvez approuver directement') : '✓ Enregistré');
     await charger();
     if (admin) ouvrirJour(employe, jour);
   } catch (e) { toast(e.message); }
