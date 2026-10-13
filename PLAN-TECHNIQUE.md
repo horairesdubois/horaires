@@ -2739,3 +2739,25 @@ message_ecrire dans Questions : cette action ne crée ni ne modifie d'heures.
 Le formulaire rappelle que tout début, pause, reprise et fin doit être pointé
 au moment exact. Si l'envoi n'est pas confirmé, il invite à vérifier Questions
 avant de réessayer. Aucune notification externe n'est envoyée par cette livraison.
+
+### 2026-10-13 — Saisie directe du back-office
+
+Le responsable ne passe plus par une demande : « Modifier les heures » puis
+« Enregistrer les heures », avec note facultative, y compris sur une journée
+incomplète ou déjà validée. Ajout/retrait d'événements possible. La validation
+reste une action explicite après enregistrement ; une nouvelle modification
+annule l'ancienne décision pour éviter une approbation sur des heures périmées.
+
+La RPC admin_pointage_enregistrer contrôle le rôle côté serveur et réutilise
+les contrôles chronologiques, le fuseau Zurich, le verrou par employé et les
+versions. En une transaction, elle traite les demandes en attente comme
+remplacées, puis enregistre et accepte la correction administrative. En cas
+d'erreur, aucune demande n'est perdue. Une requête rejouée ne réécrit pas les
+heures. L'avant/après, l'auteur et les horodatages restent dans l'historique.
+La fiduciaire reste en lecture et l'employé conserve le circuit de demande.
+
+Essai SQL dans une transaction annulée : journée incomplète, 480 minutes,
+validation puis recorrection à 450 minutes, nouvelle validation, export UTC
+avec secondes, rejeu, accès technicien/compta refusé, version périmée, atomicité
+avec demande en attente et attribution du journal. Essai navigateur ajouté au
+parcours de back-office pour compléter puis modifier après validation.
