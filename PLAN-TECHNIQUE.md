@@ -2778,3 +2778,25 @@ groupes secondaires ; leur ordre serveur est conservé. La limite existante de
 Tests navigateur : accentuation, absence d'icônes, regroupement séparé par
 personne et jour, ouverture/repli, conservation des heures, échappement des noms
 et absence de débordement sur téléphone ; avant/après des corrections conservé.
+
+### 2026-10-13 — Formulaire habituel pour le back-office
+
+L'ouverture d'une journée pointée par l'administrateur utilise maintenant le
+formulaire matin/après-midi habituel, avec préremplissage depuis les événements,
+remarque, enregistrement puis décision. Les secondes des bornes inchangées sont
+conservées. L'employé et la fiduciaire gardent leur parcours précédent. Une plage
+incomplète doit être complétée avant enregistrement/validation. Si plus de deux
+plages existent, aucun aplatissement automatique : un avertissement invite à
+saisir explicitement les plages retenues, l'historique détaillé reste accessible.
+Les menus de statut restent Présence pour une journée pointée ; les journées
+manuelles conservent tous leurs statuts. Les événements ne sont pas supprimés.
+
+La RPC admin_formulaire_pointage réutilise la correction administrative atomique
+et ajoute la remarque, avec contrôle admin, verrou, version et idempotence.
+Les reçus et anciennes versions sont conservés. Aucune conversion destructive
+vers le modèle manuel, ni changement de _save_jour ou des règles technicien.
+Les rappels de justification d'heures supplémentaires ne s'adressent plus au BO.
+
+Tests SQL annulés : permissions, remarque exportée, événements conservés, rejeu
+sans réécriture, requête altérée refusée. Tests navigateur : préremplissage,
+secondes inchangées, nouveau total, validation, recorrection et journée ouverte.
