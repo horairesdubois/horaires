@@ -307,6 +307,8 @@ try {
     assert(await employe.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     await employe.locator('#mj-save').click();
     await employe.locator('#voile-jour.ouvert').waitFor({state:'hidden'});
+    // La fermeture précède le rechargement des pointages : attendre sa fin avant réouverture.
+    await employe.waitForFunction(date=>S.pointages.some(p=>p.jour===date&&p.confirme)&&!document.getElementById('mj-save').disabled,date);
     await ouvrir(employe, date);
     if (demi !== 'a') assert.equal(await employe.locator('#mj-md').inputValue(), '');
     if (demi !== 'm') assert.equal(await employe.locator('#mj-ad').inputValue(), '');

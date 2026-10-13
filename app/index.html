@@ -1015,11 +1015,54 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
   </div>
 </div>
 
+<style>
+  .bilan-periode { margin:18px 0 26px; }
+  .bilan-periode h3 { margin:0 0 12px; }
+  .bilan-champs { display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin-top:12px; }
+  .bilan-champs label,.bilan-personne { display:block;font-size:13px;font-weight:600;min-width:0; }
+  .bilan-champs input,.bilan-personne select { margin-top:6px;width:100%;min-width:0; }
+  .bilan-champs input { min-height:44px;padding:10px 12px;border:1px solid var(--ligne);border-radius:10px;background:var(--carte);font-size:16px; }
+  #bp-periode { margin:14px 0 6px; }
+  .bilan-mesures { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0; }
+  .bilan-mesure { background:#fff;border:1px solid var(--ligne);border-radius:14px;padding:16px; }
+  .bilan-mesure strong { display:block;font-size:30px;color:var(--bleu);font-variant-numeric:tabular-nums;margin:8px 0; }
+  .bilan-mesure small { display:block;color:var(--gris); }
+  .bilan-precisions { display:flex;flex-wrap:wrap;gap:8px 24px;margin:12px 0;font-size:13px; }
+  .bilan-periode summary { color:var(--bleu);padding:12px 0;cursor:pointer; }
+  .bilan-periode table { width:100%;border-collapse:collapse;font-size:12px; }
+  .bilan-periode th,.bilan-periode td { padding:10px 5px;border-bottom:1px solid var(--ligne);text-align:right; }
+  .bilan-periode th:first-child,.bilan-periode td:first-child { text-align:left; }
+  .bilan-periode td small { display:block;color:var(--gris); }
+  .bilan-erreur { color:#b91c1c;margin-top:12px; }
+  .bilan-mois { border-top:1px solid var(--ligne);padding-top:20px; }
+  @media(max-width:480px){.bilan-champs{grid-template-columns:1fr 1fr}.bilan-champs .btn{grid-column:1/-1}.bilan-mesures{grid-template-columns:1fr}}
+</style>
 <!-- ============ MODALE REVUE (back office : détail avant validation) ============ -->
 <div class="voile" id="voile-det">
   <div class="modale">
     <h2 id="det-titre"></h2>
     <div class="muet" id="det-sous" style="margin:-8px 0 10px"></div>
+    <section class="bilan-periode" id="det-periode" hidden aria-label="Heures par période, back-office">
+      <h3>Heures par période</h3>
+      <label class="bilan-personne">Collaborateur<select id="bp-employe"></select></label>
+      <div class="bilan-champs">
+        <label>Du<input id="bp-debut" type="date" min="2020-01-01" max="2100-12-31"></label>
+        <label>Au, inclus<input id="bp-fin" type="date" min="2020-01-01" max="2100-12-31"></label>
+        <button type="button" class="btn" id="bp-afficher">Afficher</button>
+      </div>
+      <div class="bilan-erreur" id="bp-erreur" role="alert" hidden></div>
+      <div id="bp-resultat" aria-live="polite" hidden>
+        <p class="muet" id="bp-periode"></p>
+        <div class="bilan-mesures">
+          <div class="bilan-mesure">Dépassements journaliers<strong id="bp-sup"></strong><small>Cumul des heures sup de chaque jour</small></div>
+          <div class="bilan-mesure">Solde de la période<strong id="bp-solde"></strong><small>Heures réalisées − heures dues</small></div>
+        </div>
+        <div class="bilan-precisions"><span>Heures réalisées : <b id="bp-travail"></b></span><span>Heures dues : <b id="bp-dues"></b></span></div>
+        <p class="muet" id="bp-etat"></p>
+        <details><summary>Voir le détail par jour</summary><div class="defile"><table aria-label="Détail du bilan par période"><thead><tr><th>Date / état</th><th>Réalisées</th><th>Dues</th><th>Sup</th><th>Solde</th></tr></thead><tbody id="bp-jours"></tbody></table></div></details>
+      </div>
+    </section>
+    <h3 class="bilan-mois" id="bp-revue-mois" hidden></h3>
     <div class="muet aide-det" id="det-aide">Contrôlez les horaires et remarques, puis <b>✓</b> approuve une journée confirmée. Une réouverture autorise l’employé à la corriger.</div>
     <div class="carte" style="padding:12px">
       <div class="totaux"><div>Total du mois</div><div class="gros" id="det-total">0h00</div></div>
@@ -3234,8 +3277,82 @@ async function demanderExplication(iso, sup, empId = DET.empId) {
     chargerMessages();                            // la pastille de l'onglet suit
   } catch (err) { toast(err.message); }
 }
+function joursBilanPeriode(debut, fin) {
+  const date=iso=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||''))return null;const d=new Date(iso+'T12:00:00Z');return Number.isFinite(+d)&&d.toISOString().slice(0,10)===iso?d:null;};
+  const a=date(debut),b=date(fin);
+  if(!a||!b||debut>fin||debut<'2020-01-01'||fin>'2100-12-31'||(+b-a)/86400000>3660)throw new Error('Choisissez une période valide de dix ans maximum, entre 2020 et 2100.');
+  const jours=[];
+  for(const d=new Date(a);d<=b;d.setUTCDate(d.getUTCDate()+1))jours.push({iso:d.toISOString().slice(0,10),js:d.getUTCDay()});
+  return jours;
+}
+function calculerBilanPeriode(lignes, debut, fin, auj) {
+  const map=Object.fromEntries(lignes.map(p=>[p.jour,p]));
+  const bilan={travail:0,dues:0,sup:0,solde:0,manquants:0,attente:0,incomplets:0,refusees:0,futurs:0,jours:[]};
+  for(const j of joursBilanPeriode(debut,fin)){
+    if(j.iso>auj){bilan.futurs++;continue;}
+    const p=map[j.iso],{dues,cred}=bilanContractuelJour(p,j.iso,j.js,auj);
+    const travail=jourMin(p),net=dues-cred,sup=heuresSupJour(p,j.iso,j.js),solde=travail-net;
+    const manque=!p&&net>0,incomplet=!!p?.pointe_etat&&p.pointe_etat!=='termine';
+    bilan.travail+=travail;bilan.dues+=net;bilan.sup+=sup;bilan.solde+=solde;
+    if(manque)bilan.manquants++;if(p&&!p.approuve)bilan.attente++;if(incomplet)bilan.incomplets++;
+    bilan.refusees+=minutesRefusees(p);
+    bilan.jours.push({...j,travail,dues:net,sup,solde,etat:manque?'Sans saisie':incomplet?'Pointage incomplet':p?libDecisionHeures(p):ferieGE(j.iso)||'Repos'});
+  }
+  return bilan;
+}
 const DET = { empId: null };
+const BP = { debut:null,fin:null,token:null,emp:null,seq:0 };
+function peindreBilanPeriode(lignes,debut,fin,auj) {
+  const b=calculerBilanPeriode(lignes,debut,fin,auj);
+  $('bp-periode').textContent='Du '+debut.split('-').reverse().join('.')+' au '+fin.split('-').reverse().join('.')+' inclus';
+  $('bp-sup').textContent=fmtMin(b.sup);$('bp-solde').textContent=fmtSolde(b.solde);
+  $('bp-travail').textContent=fmtMin(b.travail);$('bp-dues').textContent=fmtMin(b.dues);
+  const etats=[];
+  if(b.manquants)etats.push(b.manquants+' journée(s) sans saisie');
+  if(b.attente)etats.push(b.attente+' journée(s) non approuvée(s)');
+  if(b.incomplets)etats.push(b.incomplets+' pointage(s) incomplet(s)');
+  $('bp-etat').textContent=(etats.length?'Bilan provisoire : '+etats.join(' · ')+'. ':'')+'Calcul sur les heures saisies, selon les mêmes règles que la revue mensuelle.'+
+    (b.refusees?' Dont '+fmtMin(b.refusees)+' refusées, non déduites de ces totaux.':'')+(b.futurs?' Les jours futurs sont exclus.':'');
+  $('bp-jours').innerHTML=b.jours.map(j=>'<tr><td>'+j.iso.split('-').reverse().join('.')+'<small>'+esc(j.etat)+'</small></td><td>'+fmtMin(j.travail)+'</td><td>'+fmtMin(j.dues)+'</td><td>'+fmtMin(j.sup)+'</td><td>'+fmtSolde(j.solde)+'</td></tr>').join('');
+  $('bp-resultat').hidden=false;$('bp-erreur').hidden=true;
+}
+function preparerBilanPeriode(empId,recharger) {
+  const admin=S.moi?.role==='admin';
+  $('det-periode').hidden=!admin;$('bp-revue-mois').hidden=!admin;
+  if(!admin){BP.seq++;return;}
+  $('bp-revue-mois').textContent='Revue mensuelle · '+MOIS[S.mois-1]+' '+S.annee;
+  if(BP.token!==S.token){Object.assign(BP,{debut:null,fin:null,token:S.token,emp:null});BP.seq++;}
+  const jours=joursDuMois(S.annee,S.mois),debutMois=jours[0].iso,finMois=jours[jours.length-1].iso;
+  if(!BP.debut){BP.debut=debutMois;BP.fin=finMois;}
+  $('bp-employe').innerHTML=S.employes.filter(e=>e.role!=='compta'&&!e.demo).map(e=>'<option value="'+esc(e.id)+'">'+esc(nomComplet(e))+'</option>').join('');
+  $('bp-employe').value=empId;
+  // Un rafraîchissement des messages ne doit pas écraser des dates en cours de saisie.
+  if(!recharger&&BP.emp===empId)return;
+  BP.emp=empId;BP.seq++;
+  $('bp-debut').value=BP.debut;$('bp-fin').value=BP.fin;
+  $('bp-afficher').disabled=false;$('bp-afficher').textContent='Afficher';
+  if(BP.debut===debutMois&&BP.fin===finMois){
+    peindreBilanPeriode(S.pointages.filter(p=>p.employe_id===empId),BP.debut,BP.fin,S.auj||aujourdhui());
+  }else chargerBilanPeriode();
+}
+async function chargerBilanPeriode() {
+  if(S.moi?.role!=='admin')return;
+  const debut=$('bp-debut').value,fin=$('bp-fin').value,emp=DET.empId,token=S.token,seq=++BP.seq;
+  $('bp-resultat').hidden=true;$('bp-erreur').hidden=true;
+  try{
+    joursBilanPeriode(debut,fin);
+    $('bp-afficher').disabled=true;$('bp-afficher').textContent='Chargement…';
+    const r=await rpc('admin_bilan_periode',{p_token:token,p_employe:emp,p_debut:debut,p_fin:fin});
+    if(seq!==BP.seq||S.token!==token||S.moi?.role!=='admin'||DET.empId!==emp)return;
+    if(!r?.ok)throw new Error(r?.erreur||'Impossible de charger cette période.');
+    if(!Array.isArray(r.pointages))throw new Error('Réponse incomplète. Réessayez.');
+    BP.debut=debut;BP.fin=fin;
+    peindreBilanPeriode(r.pointages.filter(p=>p.employe_id===emp),debut,fin,r.aujourdhui||S.auj||aujourdhui());
+  }catch(e){if(seq===BP.seq&&S.token===token&&S.moi?.role==='admin'){$('bp-erreur').textContent=e.message;$('bp-erreur').hidden=false;}}
+  finally{if(seq===BP.seq){$('bp-afficher').disabled=false;$('bp-afficher').textContent='Afficher';}}
+}
 function ouvrirDetails(empId) {
+  const memeRevue=$('voile-det').classList.contains('ouvert')&&DET.empId===empId;
   DET.empId = empId;
   const e = S.employes.find(x => x.id === empId);
   if (!e) return;
@@ -3330,9 +3447,10 @@ function ouvrirDetails(empId) {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.stopPropagation(); s.click(); }
     }));
   }
+  preparerBilanPeriode(empId,!memeRevue);
   $('voile-det').classList.add('ouvert');
 }
-function fermerDetails() { $('voile-det').classList.remove('ouvert'); }
+function fermerDetails() { BP.seq++;$('voile-det').classList.remove('ouvert'); }
 async function approuverJourRevue(empId, jour, approuve) {
   if (approuve) { fermerDetails(); ouvrirJour(empId, jour); return; }
   if (!approuve && !confirm('Autoriser une correction ? L’employé pourra corriger cette journée. Le back office pourra aussi la modifier et l’approuver directement.')) return;
@@ -4022,6 +4140,9 @@ function init() {
     } catch (e) { toast(e.message); }
   });
   $('det-fermer').addEventListener('click', fermerDetails);
+  $('bp-afficher').addEventListener('click',chargerBilanPeriode);
+  $('bp-employe').addEventListener('change',()=>{if(S.moi?.role==='admin')ouvrirDetails($('bp-employe').value);});
+  ['bp-debut','bp-fin'].forEach(id=>$(id).addEventListener('input',()=>{BP.seq++;$('bp-resultat').hidden=true;$('bp-erreur').hidden=true;$('bp-afficher').disabled=false;$('bp-afficher').textContent='Afficher';}));
   $('btn-tout-mois').addEventListener('click', () => empChangerVue('mois'));
   $('emp-voir-mois').addEventListener('click', () => empChangerVue('mois'));
   $('emp-nav-aujourdhui').addEventListener('click', () => empChangerVue('aujourdhui'));

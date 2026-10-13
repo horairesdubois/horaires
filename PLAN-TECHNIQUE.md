@@ -2903,3 +2903,42 @@ Régression reproduite avant correction. Trois suites navigateur passent :
 correction des journées passées, formulaire administratif et back-office pointage.
 SQL avec rollback : 750 minutes, validation, export sans pause inventée,
 chevauchement refusé sans modification. Aucune heure de Sami n'a été changée.
+
+### 2026-10-13 — Bilan d'un collaborateur sur une période libre, back-office uniquement
+
+Le propriétaire a validé l'aperçu « Dans la fiche » et demandé les deux résultats :
+dépassements journaliers et solde de la période. Un bloc en haut de la fiche permet
+le choix du collaborateur, de la date de début et de fin incluses. Le détail par
+jour s'ouvre au besoin ; la revue du mois et ses actions restent accessibles en
+dessous. Le bilan ne remplace pas les données mensuelles en mémoire et ne change
+pas le mois de la grille.
+
+Les calculs réutilisent heuresSupJour et bilanContractuelJour, donc les mêmes
+règles que l'export et la revue mensuelle (dépassements de la journée type et
+solde contractuel de 42h/semaine distincts). Absences payées et jours fériés sont
+neutralisés selon la règle existante. Les dates futures sont exclues ; les jours
+manquants, pointages ouverts et journées non approuvées signalent un résultat
+provisoire. Les totaux portent sur les heures saisies : les heures refusées sont
+explicitement signalées et ne sont pas implicitement retranchées.
+
+La RPC admin_bilan_periode lit uniquement le collaborateur et la période demandés,
+sans modifier les pointages. Contrôle _auth puis rôle admin côté serveur ; refus
+pour employé, fiduciaire, session invalide, cible inconnue ou compte démo. Aucun
+grant de table, nouvelle policy ou helper public n'est ajouté. Le chargement
+protège contre les réponses périmées lors d'un changement de personne, de dates
+ou de session ; une erreur masque les anciens totaux et permet de réessayer.
+
+Essais ajoutés : bornes inclusives août/septembre et décembre/janvier, comparaison
+avec l'export, changement d'heure, année bissextile, fériés, absences, refus,
+journées vides/ouvertes, dates invalides/futures. Interface : sélecteurs, détail,
+concurrence, erreur réseau, grille mensuelle intacte, mobile et accès admin seul.
+SQL dans une transaction annulée : restriction des rôles, bornes et cible,
+lecture sans écriture, compte démo exclu et révocation des droits implicites.
+
+Validation : 23 scénarios vérifiés, dont le circuit d'approbation rejoué après
+correction d'une attente du test (la fermeture du formulaire précède le retour
+des données rechargées). Aucun changement fonctionnel du circuit de confirmation.
+Les calculs passent aussi avec TZ=America/Los_Angeles. Migration appliquée puis
+scénario SQL rejoué avec rollback : 245 pointages et empreinte identique avant/
+après. Les avertissements de sécurité existants ont été examinés ; la nouvelle
+RPC suit le même modèle de session applicative et refuse les autres rôles.
