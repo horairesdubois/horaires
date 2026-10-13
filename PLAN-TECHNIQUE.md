@@ -2800,3 +2800,26 @@ Les rappels de justification d'heures supplémentaires ne s'adressent plus au BO
 Tests SQL annulés : permissions, remarque exportée, événements conservés, rejeu
 sans réécriture, requête altérée refusée. Tests navigateur : préremplissage,
 secondes inchangées, nouveau total, validation, recorrection et journée ouverte.
+
+### 2026-10-13 — Corriger sans interrompre le pointage du technicien
+
+Une correction administrative peut désormais porter sur une journée encore au
+travail ou en pause. Le formulaire ne modifie que les heures déjà pointées ;
+les champs des événements futurs et les raccourcis de remplissage sont désactivés.
+Il conserve exactement les actions existantes et leur ordre. La RPC du formulaire
+refuse toute modification implicite de l'état ou du nombre d'événements pendant
+une journée ouverte. Le circuit employé garde l'exigence d'une journée terminée
+pour proposer une correction. Les événements corrigés restent des pointages,
+pas une feuille manuelle. Le rond technicien conserve donc ses actions normales.
+
+Essai SQL transactionnel annulé : corriger début, pointer pause, corriger pause,
+pointer reprise, corriger reprise, pointer fin. Vérification du maintien de
+l'état, du rejet d'une clôture implicite, du rejeu idempotent, de la version
+périmée et des trois historiques administrateur. Essai navigateur : seul le
+pointage existant est envoyé quand un début de journée est corrigé.
+Le technicien peut aussi garder l'application ouverte pendant la correction :
+si son appui rencontre une version périmée mais que l'état et la liste des actions
+sont inchangés, le client recharge la version et réessaie une seule fois avec le
+même identifiant de reçu. Aucun rejeu automatique si un autre appareil a ajouté
+un pointage. Le test mobile combine cette correction concurrente avec une réponse
+réseau perdue et vérifie qu'une seule pause est enregistrée.

@@ -18,6 +18,7 @@ await pg.addInitScript(()=>{
  if(fn==='messages_lire')return rep({ok:true,messages:[],non_lus:0,fils:[],autres_mois:[]});
  if(fn==='pointage_lire')return rep(lire());
  if(fn==='pointage_pointer'){
+  if(!essai.recus[p.p_requete]&&p.p_version!==essai.version)return rep({ok:false,code:'conflit',erreur:'Version changée'});
   if(!essai.recus[p.p_requete]){essai.events.push({action:p.p_action,at:'2026-10-12T'+(essai.version===0?'06:00:17':'08:00:38')+'Z'});essai.etat={debut:'travail',pause:'pause',reprise:'travail',fin:'termine'}[p.p_action];essai.version++;essai.recus[p.p_requete]=true;}
   if(essai.perdre){essai.perdre=false;throw new TypeError('Network error');}return rep(lire());
  }
@@ -44,7 +45,7 @@ assert.equal(await pg.locator('[data-pointe-action]').getAttribute('data-pointe-
 assert.match(await pg.locator('.pointe-recu').innerText(),/08:00:17/,'fuseau Zurich même téléphone étranger');
 assert.equal(await pg.locator('[data-pointe-fin]').evaluate(e=>getComputedStyle(e).borderRadius),'50%');
 await pg.screenshot({path:new URL('../work/essais/pointage-deux-ronds.png',import.meta.url).pathname,fullPage:true});
-await pg.evaluate(()=>essai.perdre=true);
+await pg.evaluate(()=>{essai.version++;essai.perdre=true;});
 await pg.locator('[data-pointe-action]').click();
 await pg.waitForSelector('[data-pointe-reessayer]');
 assert.equal(await pg.locator('[data-pointe-action]').isDisabled(),true);
