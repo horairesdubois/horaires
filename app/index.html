@@ -2282,22 +2282,24 @@ function ouvrirJour(empId, jour, absence=false) {
   let p = (ptgMap()[empId] || {})[jour] || null;
   if ((p && p.pointe_evenements && S.moi.role!=='admin') || (!absence && !p && S.moi.pointage_actif && S.moi.role==='employe' && jour>='2026-10-12' && jour<=S.auj)) { ouvrirPointe(empId,jour); return; }
   const admin = S.moi.role === 'admin';
+  ['mj-plus1','mj-zero-m','mj-zero-a'].forEach(id=>$(id).hidden=false);
   MJ.pointeOriginal=admin&&p?.pointe_evenements?structuredClone(p):null;
   $('mj-pointage-historique').hidden=!MJ.pointeOriginal;
   $('mj-pointage-historique').onclick=()=>{fermerJour();ouvrirPointe(empId,jour,true);};
   MJ.requetePointe=null;MJ.signaturePointe=null;
+  MJ.pointeChamps={};
   MJ.pointeComplexe=false;
   if(MJ.pointeOriginal){
     p=structuredClone(p);p.matin_type=p.apm_type='travail';
     p.matin_debut=p.matin_fin=p.apm_debut=p.apm_fin=null;
-    const plages=[];let debut=null;
-    for(const ev of p.pointe_evenements){
-      if(ev.action==='debut'||ev.action==='reprise')debut=pointeHeure(ev.at);
-      else if(debut){plages.push([debut,pointeHeure(ev.at)]);debut=null;}
-    }
-    if(debut)plages.push([debut,null]);
+    const plages=[];let debut=null,indiceDebut=null;
+    p.pointe_evenements.forEach((ev,indice)=>{
+      if(ev.action==='debut'||ev.action==='reprise'){debut=pointeHeure(ev.at);indiceDebut=indice;}
+      else if(debut){plages.push([debut,pointeHeure(ev.at),indiceDebut,indice]);debut=null;}
+    });
+    if(debut)plages.push([debut,null,indiceDebut,null]);
     MJ.pointeComplexe=plages.length>2;
-    if(!MJ.pointeComplexe)plages.forEach(([debut,fin],i)=>{const prefixe=i===1||(plages.length===1&&Number(debut.slice(0,2))>=12)?'apm':'matin';p[prefixe+'_debut']=debut;p[prefixe+'_fin']=fin;});
+    if(!MJ.pointeComplexe)plages.forEach(([debut,fin,idDebut,idFin],i)=>{const prefixe=i===1||(plages.length===1&&Number(debut.slice(0,2))>=12)?'apm':'matin';p[prefixe+'_debut']=debut;p[prefixe+'_fin']=fin;const lettre=prefixe==='matin'?'m':'a';MJ.pointeChamps['mj-'+lettre+'d']=idDebut;if(idFin!==null)MJ.pointeChamps['mj-'+lettre+'f']=idFin;});
   }
   MJ.empId = empId; MJ.jour = jour; MJ.existe = !!p;
   MJ.approuve = !!(p && p.approuve);
@@ -2371,7 +2373,16 @@ function ouvrirJour(empId, jour, absence=false) {
   if(MJ.pointeOriginal&&MJ.approuve)btnApp.hidden=true;
   if(MJ.pointeOriginal&&p.pointe_etat!=='termine'){$('mj-decision').hidden=true;btnApp.hidden=true;}
   majStatuts();
-  if(MJ.pointeOriginal){$('mj-statut-m').disabled=true;$('mj-statut-a').disabled=true;}
+  if(MJ.pointeOriginal){
+    $('mj-statut-m').disabled=true;$('mj-statut-a').disabled=true;
+    if(MJ.pointeOriginal.pointe_etat!=='termine'){
+      ['mj-md','mj-mf','mj-ad','mj-af'].forEach(id=>$(id).disabled=!(id in MJ.pointeChamps));
+      ['mj-defaut','mj-plus1','mj-zero-m','mj-zero-a'].forEach(id=>$(id).hidden=true);
+      $('mj-save').textContent='Enregistrer la correction';
+      $('mj-demande').hidden=false;$('mj-demande').textContent=MJ.pointeComplexe?'Plusieurs pauses : utilisez les pointages détaillés pour corriger chaque heure.':'Corrigez les heures déjà pointées. Le technicien pourra continuer à pointer normalement.';
+      if(MJ.pointeComplexe)$('mj-save').hidden=true;
+    }
+  }
   $('voile-jour').classList.add('ouvert');
 }
 function fermerJour() { $('voile-jour').classList.remove('ouvert'); }
@@ -2449,12 +2460,21 @@ async function sauverJour() {
   if (admin) args.p_employe = MJ.empId;
   let argsPointe=null;
   if(admin&&MJ.pointeOriginal){
+    let events=[];
+    if(MJ.pointeOriginal.pointe_etat!=='termine'){
+      events=structuredClone(MJ.pointeOriginal.pointe_evenements);
+      for(const [id,indice] of Object.entries(MJ.pointeChamps)){
+        const heure=$(id).value;if(!heure){toast('Renseignez les heures déjà pointées.');return;}
+        if(heure!==pointeHeure(events[indice].at))events[indice]={action:events[indice].action,heure};
+      }
+    }else{
     const plages=[[args.p_matin_debut,args.p_matin_fin],[args.p_apm_debut,args.p_apm_fin]].filter(x=>x[0]||x[1]);
     if(!plages.length||plages.some(x=>!x[0]||!x[1])){toast('Renseignez le début et la fin de chaque plage travaillée.');return;}
-    const events=[];
+
     plages.forEach(([debut,fin],i)=>{events.push({action:i?'reprise':'debut',heure:debut},{action:i===plages.length-1?'fin':'pause',heure:fin});});
     // Les secondes d'origine sont conservées pour les bornes non modifiées.
     for(const ev of events){const original=MJ.pointeOriginal.pointe_evenements.find(e=>e.action===ev.action&&pointeHeure(e.at)===ev.heure);if(original){ev.at=original.at;delete ev.heure;}}
+    }
     const signature=JSON.stringify([events,args.p_remarque]);
     if(signature!==MJ.signaturePointe){MJ.signaturePointe=signature;MJ.requetePointe=crypto.randomUUID();}
     argsPointe={p_token:S.token,p_employe:MJ.empId,p_jour:MJ.jour,p_evenements:events,p_remarque:args.p_remarque,p_version:MJ.pointeOriginal.pointe_version,p_requete:MJ.requetePointe};
@@ -2464,7 +2484,7 @@ async function sauverJour() {
     const res = await rpc(admin ? (MJ.pointeOriginal?'admin_formulaire_pointage':'admin_enregistrer_jour') : 'enregistrer_jour', argsPointe||args);
     if (!res.ok) { if (res.erreur === 'session') return sessionPerdue(); toast(res.erreur, 3500); return; }
     const employe = MJ.empId, jour = MJ.jour;
-    fermerJour(); toast(admin ? '✓ Enregistré — vous pouvez approuver directement' : '✓ Enregistré');
+    fermerJour(); toast(admin ? (MJ.pointeOriginal&&MJ.pointeOriginal.pointe_etat!=='termine'?'✓ Corrigé — le technicien peut continuer à pointer':'✓ Enregistré — vous pouvez approuver directement') : '✓ Enregistré');
     await charger();
     if (admin) ouvrirJour(employe, jour);
   } catch (e) { toast(e.message); }
@@ -3815,7 +3835,19 @@ async function envoyerPointe(action) {
  if(!POINTE.requete){POINTE.requete={p_jour:POINTE.jour,p_action:action,p_version:POINTE.donnees.version,p_requete:crypto.randomUUID()};pointeStockage(POINTE.requete);}
  POINTE.occupe=true;POINTE.erreur='';peindrePointe();
  try{
-  const r=await rpc('pointage_pointer',{p_token:token,...POINTE.requete});
+  let r=await rpc('pointage_pointer',{p_token:token,...POINTE.requete});
+  if(token!==S.token)return;
+  if(!r.ok&&r.code==='conflit'){
+    const avant=POINTE.donnees,actualise=await rpc('pointage_lire',{p_token:token,p_jour:POINTE.requete.p_jour});
+    if(token!==S.token)return;
+    // Une correction d'heure seule ne demande pas un deuxième appui au technicien.
+    // Un pointage ajouté sur un autre appareil ne doit jamais être rejoué automatiquement.
+    if(actualise.ok&&actualise.jour===avant.jour&&actualise.etat===avant.etat&&!actualise.pointage?.approuve&&
+      JSON.stringify(actualise.evenements.map(e=>e.action))===JSON.stringify(avant.evenements.map(e=>e.action))){
+      POINTE.requete.p_version=actualise.version;pointeStockage(POINTE.requete);
+      r=await rpc('pointage_pointer',{p_token:token,...POINTE.requete});
+    }
+  }
   if(token!==S.token)return;
   if(!r.ok){POINTE.requete=null;pointeStockage(null);throw new Error(r.erreur);}
   POINTE.requete=null;pointeStockage(null);POINTE.donnees=r;POINTE.jour=r.jour;POINTE.horloge=Date.parse(r.serveur);POINTE.recuLocal=Date.now();

@@ -1,0 +1,30 @@
+begin;
+do $$
+declare e uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); et uuid:=gen_random_uuid(); atok uuid:=gen_random_uuid(); j date:=(clock_timestamp() at time zone 'Europe/Zurich')::date;
+ r jsonb; p public.pointages; ev jsonb; req uuid:=gen_random_uuid();
+begin
+ insert into public.employes(id,prenom,nom,pin_hash,role,pointage_actif) values(e,'Essai continuation','Tech','test','employe',true),(a,'Essai continuation','Admin','test','admin',false);
+ insert into public.sessions(token,employe_id,expire_le) values(et,e,now()+interval '1 hour'),(atok,a,now()+interval '1 hour');
+ perform public._pointe_ecrire(e,j,jsonb_build_array(jsonb_build_object('action','debut','at',(j+time '00:00') at time zone 'Europe/Zurich')),e);
+ ev:='[{"action":"debut","heure":"00:01"}]';
+ r:=public.pointage_corriger(et,j,ev,'Heure corrigée',1,gen_random_uuid(),e);assert not (r->>'ok')::boolean,'employé garde circuit terminé';
+ r:=public.admin_formulaire_pointage(atok,e,j,ev,'Début corrigé',1,req);assert (r->>'ok')::boolean,r::text;
+ r:=public.admin_formulaire_pointage(atok,e,j,ev,'Début corrigé',1,req);assert (r->>'ok')::boolean,'rejeu';
+ select * into p from public.pointages where employe_id=e and jour=j;
+ assert p.pointe_etat='travail' and p.pointe_version=2 and jsonb_array_length(p.pointe_evenements)=1,'reste au travail';
+ r:=public.pointage_pointer(et,j,'pause',1,gen_random_uuid());assert not (r->>'ok')::boolean,'version périmée protégée';
+ r:=public.pointage_pointer(et,j,'pause',2,gen_random_uuid());assert (r->>'ok')::boolean,r::text;
+ ev:='[{"action":"debut","heure":"00:01"},{"action":"pause","heure":"00:02"}]';
+ r:=public.admin_formulaire_pointage(atok,e,j,ev,'Pause corrigée',3,gen_random_uuid());assert (r->>'ok')::boolean,r::text;
+ select * into p from public.pointages where employe_id=e and jour=j;assert p.pointe_etat='pause','reste en pause';
+ r:=public.admin_formulaire_pointage(atok,e,j,'[{"action":"debut","heure":"00:01"},{"action":"fin","heure":"00:02"}]','Fin implicite interdite',4,gen_random_uuid());assert not (r->>'ok')::boolean,'ne ferme pas';
+ r:=public.pointage_pointer(et,j,'reprise',4,gen_random_uuid());assert (r->>'ok')::boolean,r::text;
+ ev:='[{"action":"debut","heure":"00:01"},{"action":"pause","heure":"00:02"},{"action":"reprise","heure":"00:03"}]';
+ r:=public.admin_formulaire_pointage(atok,e,j,ev,'Reprise corrigée',5,gen_random_uuid());assert (r->>'ok')::boolean,r::text;
+ r:=public.pointage_pointer(et,j,'fin',6,gen_random_uuid());assert (r->>'ok')::boolean,r::text;
+ select * into p from public.pointages where employe_id=e and jour=j;
+ assert p.pointe_etat='termine' and jsonb_array_length(p.pointe_evenements)=4,'journée finie par technicien';
+ assert (select count(*)=3 from public.pointage_corrections where employe_id=e and etat='acceptee'),'trois corrections tracées';
+ assert not exists(select 1 from public.pointage_corrections where employe_id=e and etat='attente'),'aucun blocage';
+end $$;
+rollback;

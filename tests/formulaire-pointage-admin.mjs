@@ -32,5 +32,10 @@ try{
  await pg.evaluate(()=>{essai.p.pointe_evenements=essai.p.pointe_evenements.slice(0,1);essai.p.pointe_etat='travail';S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
  assert.equal(await pg.locator('#mj-md').inputValue(),'08:00');assert.equal(await pg.locator('#mj-mf').inputValue(),'');
  assert.equal(await pg.locator('#mj-approuver').isVisible(),false,'incomplet à enregistrer avant validation');
+ assert.equal(await pg.locator('#mj-mf').isDisabled(),true,'pas de fin inventée');
+ await pg.locator('#mj-md').fill('07:45');await pg.locator('#mj-save').click();
+ await pg.waitForFunction(()=>essai.appels.filter(x=>x.fn==='admin_formulaire_pointage').length===2);
+ const correction=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_formulaire_pointage').at(-1).a);
+ assert.equal(correction.p_evenements.length,1);assert.equal(correction.p_evenements[0].action,'debut');assert.equal(correction.p_evenements[0].heure,'07:45');
  assert.deepEqual(erreurs,[]);console.log('✓ Formulaire habituel : heures préremplies, secondes préservées, remarque, validation et recorrection, journée incomplète');
 }finally{await nav.close();}
