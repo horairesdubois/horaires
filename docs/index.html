@@ -3829,8 +3829,23 @@ function peindrePointe() {
   carte.querySelector('[data-pointe-absence]')?.addEventListener('click',()=>ouvrirJour(S.moi.id,jour,true));
   carte.querySelectorAll('[data-incomplet]').forEach(b=>b.onclick=()=>ouvrirPointe(S.moi.id,b.dataset.incomplet));
 }
+function confirmationPointe(action,donnees,maintenant){
+ if(action==='debut'&&donnees?.etat==='vide'){
+  const heure=Number(new Intl.DateTimeFormat('fr-CH',{timeZone:'Europe/Zurich',hour:'2-digit',hourCycle:'h23'}).formatToParts(new Date(maintenant)).find(p=>p.type==='hour').value);
+  if(heure<8)return 'Il est avant 8h00. Tu commences bien à travailler maintenant ?';
+ }
+ if(action==='reprise'&&donnees?.etat==='pause'){
+  const dernier=donnees.evenements.at(-1),duree=maintenant-Date.parse(dernier?.at);
+  if(dernier?.action==='pause'&&duree>=0&&duree<60000)return 'Tu reprends déjà ? Ta pause a duré moins d’une minute. Confirme que tu reprends bien le travail maintenant.';
+ }
+ return '';
+}
 async function envoyerPointe(action) {
  if(POINTE.occupe)return;
+ if(!POINTE.requete){
+  const question=confirmationPointe(action,POINTE.donnees,POINTE.horloge+Date.now()-POINTE.recuLocal);
+  if(question&&!confirm(question))return;
+ }
  const token=S.token;
  if(!POINTE.requete){POINTE.requete={p_jour:POINTE.jour,p_action:action,p_version:POINTE.donnees.version,p_requete:crypto.randomUUID()};pointeStockage(POINTE.requete);}
  POINTE.occupe=true;POINTE.erreur='';peindrePointe();
