@@ -11,7 +11,8 @@ try{
   const rep=o=>new Response(JSON.stringify(o),{status:200});
   window.fetch=async(u,o)=>{const fn=String(u).split('/rpc/')[1],a=JSON.parse(o?.body||'{}');essai.appels.push({fn,a});
    if(fn==='admin_donnees')return rep({ok:true,employes:[admin,emp],pointages:[essai.p],pointage_demandes:essai.c.etat==='attente'?[essai.c]:[],aujourdhui:'2026-10-12',entreprise:'Essai'});
-   if(fn==='pointage_lire')return rep({ok:true,jour:essai.p.jour,pointage:essai.p,evenements:events,etat:'termine',version:essai.p.pointe_version,corrections:[essai.c]});
+   if(fn==='pointage_lire')return rep({ok:true,jour:essai.p.jour,pointage:essai.p,evenements:essai.p.pointe_evenements,etat:essai.p.pointe_etat,version:essai.p.pointe_version,corrections:[essai.c]});
+   if(fn==='admin_pointage_enregistrer'){essai.p.pointe_evenements=a.p_evenements.map(e=>({action:e.action,at:'2026-10-12T'+e.heure+'+02:00'}));essai.p.pointe_etat='termine';essai.p.pointe_segments=[[480,990]];essai.p.approuve=false;essai.p.pointe_version++;return rep({ok:true});}
    if(fn==='pointage_decider'){essai.c.etat=a.p_accepter?'acceptee':'refusee';essai.p.pointe_attente=false;essai.p.pointe_version++;return rep({ok:true});}
    if(fn==='admin_decider_heures'){essai.p.approuve=true;essai.p.minutes_refusees=360-a.p_minutes_approuvees;return rep({ok:true});}
    if(fn==='journal_lire')return rep({ok:true,lignes:[],acteurs:[]});
@@ -28,6 +29,19 @@ try{
  await pg.locator('[data-minutes-pointe]').fill('340');await pg.locator('[data-motif-decision]').fill('20 minutes non retenues');await pg.locator('[data-decider-pointe]').click();
  await pg.waitForFunction(()=>essai.p.approuve);assert.equal(await pg.evaluate(()=>essai.p.minutes_refusees),20);
  assert.equal(await pg.evaluate(()=>essai.appels.find(x=>x.fn==='admin_decider_heures').a.p_version),'v2');
+ assert.equal(await pg.locator('[data-editer-pointe]').innerText(),'Modifier les heures');
+ await pg.evaluate(()=>{essai.p.pointe_etat='pause';essai.p.pointe_evenements=essai.p.pointe_evenements.slice(0,1);});
+ await pg.evaluate(()=>ouvrirPointe('E1','2026-10-12'));await pg.waitForSelector('[data-editer-pointe]');
+ assert.ok(!(await pg.locator('#pointe-contenu').innerText()).includes('Demander une correction'));
+ await pg.locator('[data-editer-pointe]').click();await pg.locator('[data-ajouter-pointe]').click();
+ await pg.locator('.pointe-edition input').nth(1).fill('16:30:00');
+ await pg.locator('[data-envoyer-correction]').click();await pg.waitForSelector('[data-decider-pointe]');
+ assert.equal(await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_pointage_enregistrer').length),1);
+ assert.equal(await pg.evaluate(()=>essai.p.approuve),false);
+ await pg.locator('[data-decider-pointe]').click();await pg.waitForFunction(()=>essai.p.approuve);
+ await pg.locator('[data-editer-pointe]').click();await pg.locator('.pointe-edition input').nth(1).fill('16:00:00');
+ await pg.locator('[data-envoyer-correction]').click();await pg.waitForFunction(()=>essai.appels.filter(x=>x.fn==='admin_pointage_enregistrer').length===2);
+ await pg.waitForSelector('[data-decider-pointe]');
  await pg.locator('#pointe-fermer').click();await pg.locator('[data-ong="export"]').click();assert.equal(await pg.locator('#pointe-demandes-admin').isHidden(),true);
  assert.deepEqual(erreurs,[]);console.log('✓ Back-office : demandes visibles, motif protégé, correction préalable, décision partielle versionnée et retour à l’export');
 }finally{await navigateur.close();}
