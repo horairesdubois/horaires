@@ -31,7 +31,7 @@ try{
  assert.equal(await pg.evaluate(()=>essai.appels.find(x=>x.fn==='admin_decider_heures').a.p_version),'v2');
  assert.equal(await pg.locator('[data-editer-pointe]').innerText(),'Modifier les heures');
  await pg.evaluate(()=>{essai.p.pointe_etat='pause';essai.p.pointe_evenements=essai.p.pointe_evenements.slice(0,1);});
- await pg.evaluate(()=>ouvrirPointe('E1','2026-10-12'));await pg.waitForSelector('[data-editer-pointe]');
+ await pg.evaluate(()=>ouvrirPointe('E1','2026-10-12',true));await pg.waitForSelector('[data-editer-pointe]');
  assert.ok(!(await pg.locator('#pointe-contenu').innerText()).includes('Demander une correction'));
  await pg.locator('[data-editer-pointe]').click();await pg.locator('[data-ajouter-pointe]').click();
  await pg.locator('.pointe-edition input').nth(1).fill('16:30:00');
