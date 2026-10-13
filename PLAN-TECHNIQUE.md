@@ -2888,3 +2888,18 @@ harnais). Migration appliquée, quatre suites SQL rejouées avec rollback ; les
 d'essai n'est conservé. IDs DOM, fonctions en double, syntaxe JavaScript et diff
 vérifiés. Les avertissements Supabase concernent le modèle RPC authentifié
 existant et le prototype bastion hors périmètre ; aucun nouveau droit ajouté.
+
+### 2026-10-13 — Journée continue sans pause de midi
+
+Une saisie 08:00–12:00 puis 12:00–20:30 créait une pause et une reprise à la même
+heure ; l'analyse chronologique stricte les rejetait. Le formulaire administratif
+fusionne désormais les deux plages jointives en début/fin, sans modifier le
+calcul des durées ni affaiblir le contrôle SQL des chevauchements. Après
+rechargement, une seule plage 08:00–20:30 représente les 12h30 continues.
+Une vraie pause de quelques secondes déjà enregistrée et laissée inchangée est
+conservée, même si ses deux bornes affichent la même minute.
+
+Régression reproduite avant correction. Trois suites navigateur passent :
+correction des journées passées, formulaire administratif et back-office pointage.
+SQL avec rollback : 750 minutes, validation, export sans pause inventée,
+chevauchement refusé sans modification. Aucune heure de Sami n'a été changée.
