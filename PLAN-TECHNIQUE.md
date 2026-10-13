@@ -2852,3 +2852,39 @@ en pause ». Non ou Échap n'enregistre rien. À une heure pile, aucune confirma
 Le dialogue empêche les doubles appuis et se ferme en cas de changement de session.
 Les pauses restent libres, aucune heure n'est déduite automatiquement. La question
 avant 8h00 et la reprise après perte réseau restent inchangées.
+
+### 2026-10-13 — Compléter une journée passée restée en pause
+
+Le back-office ne pouvait pas corriger le lundi 12 octobre : les deux événements
+réels, début à 21:11:04 et pause à 21:11:56, laissaient la journée en pause. La
+protection destinée au pointage du jour bloquait aussi les champs manquants des
+journées passées, côté formulaire et côté RPC. Le refus a été reproduit en SQL
+avec une copie fictive de cette séquence, dans une transaction annulée.
+
+La protection de continuation ne s'applique désormais qu'à la journée actuelle
+(date serveur Europe/Zurich). Pour un jour passé, le bureau peut compléter ou
+remplacer les plages matin/après-midi, enregistrer une journée terminée, valider
+puis corriger à nouveau. Un message indique qu'il faut compléter la journée.
+Les secondes sont conservées par champ, y compris quand une pause devient la fin
+sans changer l'heure affichée. Les événements d'origine et l'attribution des
+corrections restent dans l'historique. Aucune heure réelle n'est remplacée par
+les valeurs des essais.
+
+La migration a été créée par la CLI puis classée après 20261013123000, dont
+l'horodatage de classement dépasse l'heure effective de création. Cela évite
+qu'un rejeu complet rétablisse par erreur l'ancienne restriction.
+
+Contrôles SQL transactionnels : cas bloqué puis 8h, validation, recorrection à
+7h30, matin seul, export, origine conservée, droits admin uniquement, conflits,
+ordre des heures, idempotence et journal. Les scénarios de correction en cours
+et de continuation début/pause/reprise/fin restent valides. Les essais navigateur
+couvrent aussi les quatre champs, le total, les secondes, la saisie incomplète
+et l'écran mobile.
+
+Vérification finale : les 21 scénarios navigateur sont passés (le nouveau test a
+été rejoué après ajout de l'acceptation du dialogue natif de validation dans son
+harnais). Migration appliquée, quatre suites SQL rejouées avec rollback ; les
+245 journées réelles ont conservé la même empreinte avant/après. Aucun compte
+d'essai n'est conservé. IDs DOM, fonctions en double, syntaxe JavaScript et diff
+vérifiés. Les avertissements Supabase concernent le modèle RPC authentifié
+existant et le prototype bastion hors périmètre ; aucun nouveau droit ajouté.
