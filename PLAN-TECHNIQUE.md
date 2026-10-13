@@ -2823,3 +2823,22 @@ sont inchangés, le client recharge la version et réessaie une seule fois avec 
 même identifiant de reçu. Aucun rejeu automatique si un autre appareil a ajouté
 un pointage. Le test mobile combine cette correction concurrente avec une réponse
 réseau perdue et vérifie qu'une seule pause est enregistrée.
+
+### 2026-10-13 — Confirmations simples aux pointages inhabituels
+
+Avant le premier début de journée uniquement, si l'horloge serveur extrapolée
+est avant 08:00 en Europe/Zurich, demander : « Il est avant 8h00. Tu commences
+bien à travailler maintenant ? ». À 08:00 pile et après, aucune question.
+
+Lors d'une reprise moins de 60 secondes après un début de pause, demander :
+« Tu reprends déjà ? Ta pause a duré moins d’une minute. Confirme que tu reprends
+bien le travail maintenant. ». Ce seuil vise deux appuis successifs ; aucune
+heure de pause obligatoire, aucune durée imposée ou déduite automatiquement.
+Une minute ou plus, même l'après-midi, suit le parcours habituel. La confirmation
+existante de fin de journée reste inchangée. Annuler ne crée aucun événement.
+
+Les questions interviennent avant la création de la requête ; un rejeu réseau
+déjà confirmé ne redemande rien et conserve le même reçu. Les vrais horodatages
+et durées restent calculés comme avant, sans transformer une pause courte en zéro.
+Tests : acceptation/refus, seuil 08:00 suisse été/hiver sur navigateur américain,
+seuil de 60 secondes, pause décalée, double clic et réponse réseau perdue.
