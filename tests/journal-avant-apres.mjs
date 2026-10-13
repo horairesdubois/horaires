@@ -1,5 +1,6 @@
 // Le journal doit dire CE QUI a changé, pas seulement qu'il y a eu un changement.
 // Lancer : npm i playwright && node tests/journal-avant-apres.mjs
+import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const A = { id:'A1', prenom:'Back Office', nom:'', role:'admin', actif:true, demo:false,
@@ -119,4 +120,30 @@ const barre = await pg.evaluate(() =>
     getComputedStyle(e).textDecorationLine).join(','));
 console.log('l’état précédent est barré :', barre);
 await pg.screenshot({ path: new URL('../work/essais/journal.png', import.meta.url).pathname, fullPage: true });
+await pg.evaluate(()=>{
+ const base={jour:'mardi 13 octobre',qui:'Steve',role:'employe',acteur_id:'E1',cible:'2026-10-13',detail:{}};
+ S.journal=[{...base,action:'pointage_pause',heure:'12:00:04'},
+ {...base,action:'retour_app',heure:'11:59:58'}, {...base,action:'connexion',heure:'07:58:10'},
+ {...base,action:'pointage_debut',heure:'08:00:03'},
+ {...base,qui:'Sami <img src=x>',acteur_id:'E2',action:'consultation_ecran',heure:'07:57:00'},
+ {...base,action:'connexion_echouee',heure:'07:56:00'},
+ {...base,jour:'lundi 12 octobre',action:'connexion',heure:'08:00:00'}];renderJournal();
+});
+assert.equal(await pg.locator('.jr-pointage').count(),2);
+assert.equal(await pg.locator('.jr-i').count(),0);
+assert.equal(await pg.locator('.jr-secondaires').count(),3);
+assert.equal(await pg.locator('.jr-secondaires[open]').count(),0);
+assert.equal(await pg.locator('#ong-journal img').count(),0,'noms échappés');
+assert.equal(await pg.locator('.jr-principale').count(),3,'échec connexion reste visible');
+assert.equal(await pg.locator('.jr-secondaire:visible').count(),0);
+await pg.locator('.jr-secondaires summary').first().click();
+assert.equal(await pg.locator('.jr-secondaire:visible').count(),2,'détails exacts accessibles');
+await pg.locator('.jr-secondaires summary').first().click();
+assert.equal(await pg.locator('.jr-pointage .jr-h').first().innerText(),'12:00:04');
+assert.ok(await pg.locator('.jr-pointage .jr-intitule').first().evaluate(e=>Number(getComputedStyle(e).fontWeight)>=700));
+assert.ok(await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'pas de débordement mobile');
+await pg.screenshot({path:new URL('../work/essais/journal-groupe-mobile.png',import.meta.url).pathname,fullPage:true});
+await pg.setViewportSize({width:1280,height:900});
+await pg.locator('#ong-journal').screenshot({path:new URL('../work/essais/journal-groupe-bureau.png',import.meta.url).pathname});
+console.log('✓ Pointages accentués, zéro icône, groupes par jour/personne, détails conservés, noms protégés et mobile');
 await nav.close();

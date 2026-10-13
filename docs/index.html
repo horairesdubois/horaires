@@ -333,8 +333,18 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 .jr-jour:first-of-type{margin-top:0}
 .jr-l{display:flex;align-items:baseline;gap:10px;background:var(--carte);border-radius:10px;
   padding:9px 12px;margin-bottom:5px;box-shadow:0 1px 2px rgba(15,23,42,.05);font-size:14px}
-.jr-h{font-variant-numeric:tabular-nums;color:var(--gris);font-size:13px;flex:none;width:42px}
-.jr-i{flex:none}
+.jr-h{font-variant-numeric:tabular-nums;color:var(--gris);font-size:13px;flex:none;width:64px}
+.jr-principale .jr-intitule{font-weight:650}
+.jr-pointage{border-left:3px solid #047857;background:#edf8f2}
+.jr-pointage .jr-intitule,.jr-pointage .jr-h{font-weight:750;color:#064e3b}
+.jr-secondaires{margin:8px 0 16px;border:1px solid var(--ligne);border-radius:10px;padding:10px 12px}
+.jr-secondaires summary{cursor:pointer;color:var(--gris);font-size:13px;list-style:none}
+.jr-secondaires summary::-webkit-details-marker{display:none}
+.jr-secondaires summary::after{content:'Afficher';display:block;text-align:right;font-weight:600;margin-top:6px}
+.jr-secondaires[open] summary::after{content:'Masquer'}
+.jr-secondaires .jr-l{margin-top:8px;font-size:13px}
+.jr-secondaires .jr-groupe-detail{display:block;margin-top:4px;font-size:12px}
+.jr-info{font-size:12px;color:var(--gris);margin:8px 0 12px}
 .jr-t{flex:1;min-width:0}
 .jr-t b{font-weight:600}
 .jr-r{flex:none;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
@@ -2052,6 +2062,16 @@ async function chargerJournal() {
   if (r && r.ok) S.jrActeurs = r.acteurs || [];
   renderJournal();
 }
+// Liste fermée : une action nouvelle reste visible par défaut.
+const JR_SECONDAIRES={connexion:'connexions',deconnexion:'déconnexions',ouverture:'ouvertures',ouverture_app:'ouvertures',retour_app:'retours dans l’app',consultation:'consultations',consultation_ecran:'consultations',message_lu:'lectures de messages',message_auto:'rappels automatiques'};
+function jrSecondaire(e){return Object.hasOwn(JR_SECONDAIRES,e.action);}
+function jrLigne(e){
+ const d=JR[e.action]||['',x=>x.action+(x.cible?' '+x.cible:'')],auto=(e.detail||{}).par==='systeme';
+ const pointe=['pointage_debut','pointage_pause','pointage_reprise','pointage_fin'].includes(e.action);
+ return '<div class="jr-l '+(jrSecondaire(e)?'jr-secondaire':'jr-principale')+(pointe?' jr-pointage':'')+'"><span class="jr-h">'+esc(e.heure)+'</span>'+
+  '<span class="jr-t"><span class="jr-intitule"><b>'+esc(auto?'Le système':e.action==='connexion_echouee'?'Quelqu’un':e.qui)+'</b> '+esc(d[1](e))+'</span>'+jrChips(e)+jrBloc(e)+'</span>'+
+  '<span class="jr-r '+esc(e.role)+'">'+esc(e.role||'—')+'</span></div>';
+}
 function renderJournal() {
   const c = $('ong-journal');
   // La fenêtre se compte en jours civils genevois : « Aujourd'hui » s'arrête à
@@ -2076,19 +2096,26 @@ function renderJournal() {
       ? 'Aucune action de cette personne sur la période.'
       : 'Aucune action enregistrée sur cette période.') + '</div>';
   } else {
-    let jourCourant = '';
-    for (const e of lignes) {
-      if (e.jour !== jourCourant) { jourCourant = e.jour; html += '<div class="jr-jour">' + esc(e.jour) + '</div>'; }
-      const d = JR[e.action] || ['•', x => x.action + (x.cible ? ' ' + x.cible : '')];
-      const icone = typeof d[0] === 'function' ? d[0](e) : d[0];
-      const auto = (e.detail || {}).par === 'systeme';
-      html += '<div class="jr-l"><span class="jr-h">' + esc(e.heure) + '</span>' +
-        '<span class="jr-i">' + icone + '</span>' +
-        '<span class="jr-t"><b>' + esc(auto ? 'Le système'
-          : e.action === 'connexion_echouee' ? 'Quelqu’un' : e.qui) + '</b> ' +
-        esc(d[1](e)) + jrChips(e) + jrBloc(e) + '</span>' +
-        '<span class="jr-r ' + esc(e.role) + '">' + esc(e.role || '—') + '</span></div>';
+    html += '<p class="jr-info">Pointages en gras sur fond vert. Connexions et consultations regroupées par personne et par jour.</p>';
+    const jours=new Map();
+    for(const e of lignes){if(!jours.has(e.jour))jours.set(e.jour,[]);jours.get(e.jour).push(e);}
+    for(const [jour,evenements] of jours){
+      html+='<div class="jr-jour">'+esc(jour)+'</div>';
+      const groupes=new Map();
+      for(const e of evenements){
+        if(!jrSecondaire(e)){html+=jrLigne(e);continue;}
+        const cle=e.acteur_id||JSON.stringify([e.qui,e.role]);
+        if(!groupes.has(cle))groupes.set(cle,[]);groupes.get(cle).push(e);
+      }
+      for(const groupe of groupes.values()){
+        const heures=groupe.map(e=>e.heure).filter(Boolean).sort(),comptes=new Map();
+        for(const e of groupe){const lib=JR_SECONDAIRES[e.action];comptes.set(lib,(comptes.get(lib)||0)+1);}
+        html+='<details class="jr-secondaires"><summary><b>'+esc(groupe[0].qui||'Utilisateur')+'</b> · '+groupe.length+' activité'+(groupe.length>1?'s':'')+' secondaire'+(groupe.length>1?'s':'')+
+          '<span class="jr-groupe-detail">'+esc(Array.from(comptes,([lib,n])=>n+' '+(n===1?lib.replace(/^(\S+)s\b/,'$1'):lib)).join(' · '))+(heures.length?' · '+esc(heures[0])+(heures.at(-1)!==heures[0]?' – '+esc(heures.at(-1)):''):'')+'</span></summary>'+groupe.map(jrLigne).join('')+'</details>';
+      }
     }
+    if(lignes.length>=400)html+='<p class="jr-info">Les 400 événements les plus récents de cette sélection sont affichés. Réduisez la période ou filtrez une personne pour consulter plus précisément.</p>';
+
   }
   c.innerHTML = html;
   c.querySelectorAll('[data-jr]').forEach(b => b.addEventListener('click', () => {

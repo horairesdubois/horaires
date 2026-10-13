@@ -2761,3 +2761,20 @@ validation puis recorrection à 450 minutes, nouvelle validation, export UTC
 avec secondes, rejeu, accès technicien/compta refusé, version périmée, atomicité
 avec demande en attente et attribution du journal. Essai navigateur ajouté au
 parcours de back-office pour compléter puis modifier après validation.
+
+### 2026-10-13 — Journal centré sur les actions importantes
+
+Suppression des icônes dans les lignes. Les quatre pointages réels (début,
+pause, reprise, fin) sont en gras sur fond vert discret ; les autres actions
+principales restent visibles, notamment les corrections, validations, messages,
+exports et échecs de connexion. Une action inconnue reste visible par défaut.
+Les connexions réussies, ouvertures, retours, consultations, lectures et rappels
+automatiques sont repliés par personne et journée, avec compte et plage horaire.
+Un clic affiche toutes les lignes originales. Aucun événement n'est supprimé
+ni modifié en base. Au sein d'un jour, les actions principales précèdent les
+groupes secondaires ; leur ordre serveur est conservé. La limite existante de
+400 événements est signalée lorsqu'elle est atteinte.
+
+Tests navigateur : accentuation, absence d'icônes, regroupement séparé par
+personne et jour, ouverture/repli, conservation des heures, échappement des noms
+et absence de débordement sur téléphone ; avant/après des corrections conservé.
