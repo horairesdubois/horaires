@@ -4104,10 +4104,12 @@ function panneauEtapesPointe(d,cible){
   const existants=r.evenements.map((e,i)=>({e,i})).filter(x=>x.e.action===a);
   let html=existants.map(({e,i})=>ligne(a,i,pointeHeure(e.at,true),!attente,'Enregistré')).join('');
   if(!existants.length||suivants.includes(a)){
-   const actif=suivants.includes(a)&&!attente;
+   const repriseManquante=a==='reprise'&&r.etat==='termine'&&r.evenements.at(-2)?.action==='pause'&&!existants.length;
+   const actif=(suivants.includes(a)||repriseManquante)&&!attente;
    let heure=heureDef(a);
    if(existants.length&&heure<=pointeHeure(r.evenements.at(-1).at))heure='';
    html+=ligne(a,-1,heure,actif,existants.length?'Nouveau pointage':'À pointer');
+   if(repriseManquante&&!attente)html+='<p class="muet">Ajoutez la reprise entre la pause et la fin. La journée restera terminée.</p>';
    if(!actif&&!existants.length)html+='<p class="muet">'+(r.etat==='termine'?'Non enregistré sur cette journée.':a==='reprise'?'Disponible après le début de pause.':'Disponible après le début de journée.')+'</p>';
   }
   return '<div class="pointe-etape"><h4>'+lib[a]+'</h4>'+html+'</div>';
@@ -4122,7 +4124,18 @@ async function envoyerPointeAdmin(bouton){
  if(!d.ajoutEnAttente){
   if(!heure.value){erreur.textContent='Choisissez l’heure du pointage.';heure.focus();return;}
   const indice=Number(bouton.dataset.indiceAdmin);
-  d.ajoutEnAttente={fn:indice>=0?'admin_modifier_heure_pointage':'admin_pointer',args:{p_employe:d.emp,p_jour:d.jour,p_heure:heure.value,p_version:d.donnees.version,p_requete:crypto.randomUUID(),...(indice>=0?{p_indice:indice}:{p_action:bouton.dataset.pointerAdmin})}};
+  const r=d.donnees,repriseManquante=indice<0&&bouton.dataset.pointerAdmin==='reprise'&&r.etat==='termine'&&r.evenements.at(-2)?.action==='pause'&&!r.evenements.some(e=>e.action==='reprise');
+  if(repriseManquante){
+   const h=heure.value.length===5?heure.value+':00':heure.value;
+   if(h<pointeHeure(r.evenements.at(-2).at,true)||h>pointeHeure(r.evenements.at(-1).at,true)){
+    erreur.textContent='La reprise doit se situer entre le début de pause et la fin de journée. Corrigez d’abord le début de pause si nécessaire.';heure.focus();return;
+   }
+   const requete=crypto.randomUUID(),evenements=[...r.evenements];
+   evenements.splice(evenements.length-1,0,{action:'reprise',heure:heure.value});
+   d.ajoutEnAttente={fn:'admin_pointage_enregistrer',args:{p_employe:d.emp,p_jour:d.jour,p_evenements:evenements,p_motif:'Reprise manquante ajoutée par le back-office',p_version:r.version,p_requete:requete}};
+  }else{
+   d.ajoutEnAttente={fn:indice>=0?'admin_modifier_heure_pointage':'admin_pointer',args:{p_employe:d.emp,p_jour:d.jour,p_heure:heure.value,p_version:r.version,p_requete:crypto.randomUUID(),...(indice>=0?{p_indice:indice}:{p_action:bouton.dataset.pointerAdmin})}};
+  }
  }
  d.controlesAvant??=[...zone.querySelectorAll('button,input,select,textarea')].map(e=>[e,e.disabled]);
  const controles=d.controlesAvant,libelle=Number(bouton.dataset.indiceAdmin)>=0?'Corriger':'Enregistrer';
@@ -4133,7 +4146,7 @@ async function envoyerPointeAdmin(bouton){
   d.ajoutEnAttente=null;d.controlesAvant=null;
   if(!r.ok){
    erreur.textContent=r.erreur;erreur.scrollIntoView({block:'nearest'});
-   if(r.code==='conflit'){zone.querySelector('[data-actualiser-admin]').hidden=false;zone.querySelector('[data-actualiser-admin]').disabled=false;}
+   if(r.code==='conflit'||r.erreur==='Les pointages ont changé. Rechargez avant de corriger.'){zone.querySelector('[data-actualiser-admin]').hidden=false;zone.querySelector('[data-actualiser-admin]').disabled=false;}
    else controles.forEach(([e,disabled])=>e.disabled=disabled);
    bouton.textContent=libelle;return;
   }
