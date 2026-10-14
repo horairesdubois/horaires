@@ -3014,3 +3014,18 @@ rejeu après pointage du technicien, refus des autres rôles, versions périmée
 heures incohérentes. Essais d'écran : quatre étapes toujours visibles, saisie et
 correction individuelles, prochain bouton téléphone à chaque étape, téléphone
 resté ouvert, réponse perdue, concurrence et largeur mobile.
+
+## Reprise oubliée après la fin de journée — 14 octobre 2026
+
+Le panneau ne proposait que les prochaines actions : une journée terminée avec
+un début, une pause et une fin rendait la reprise manquante inaccessible. La ligne
+Reprise peut désormais insérer cette heure entre la pause et la fin, en utilisant
+admin_pointage_enregistrer, déjà déployée. Les autres événements sont repris
+à l'identique et la journée reste terminée. Aucun changement de schéma ni de droits.
+Le contrôle chronologique reste côté serveur ; le formulaire explique aussi
+qu'une pause incorrecte doit être corrigée avant d'ajouter la reprise.
+Le reçu de requête est conservé lors d'une réponse perdue et un conflit de version
+propose de recharger. Le test SQL reprise_manquante_terminee.sql annule toutes
+ses écritures. Le cas réel de Sami du 14 octobre a aussi été essayé dans une
+transaction annulée : ajout valide, heure invalide, version périmée, rejeu et
+conservation exacte des autres pointages. Aucune heure réelle n'a été changée.
