@@ -27,6 +27,16 @@ await pg.addInitScript(()=>{
 });
 await pg.goto(new URL('../app/index.html',import.meta.url).href);
 await pg.waitForSelector('[data-pointe-action="debut"]');
+// Le téléphone resté ouvert suit aussi les événements saisis par le bureau.
+for(const [action,etat,suivant] of [['debut','travail','pause'],['pause','pause','reprise'],['reprise','travail','pause'],['fin','termine',null]]){
+ await pg.evaluate(async({action,etat})=>{essai.events.push({action,at:'2026-10-12T06:00:00Z'});essai.etat=etat;essai.version++;await actualiserPointeTechnicien();},{action,etat});
+ assert.equal(await pg.locator('[data-pointe-action]').count(),suivant?1:0);
+ if(suivant)assert.equal(await pg.locator('[data-pointe-action]').getAttribute('data-pointe-action'),suivant);
+}
+const lecturePendantAction=await pg.evaluate(async()=>{const n=essai.appels.length;POINTE.occupe=true;await actualiserPointeTechnicien();POINTE.occupe=false;return essai.appels.length-n;});
+assert.equal(lecturePendantAction,0,'pas de rafraîchissement pendant un pointage');
+await pg.evaluate(async()=>{essai.events=[];essai.etat='vide';essai.version=0;await actualiserPointeTechnicien();});
+
 assert.equal(await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 mkdirSync(new URL('../work/essais/',import.meta.url),{recursive:true});
 await pg.screenshot({path:new URL('../work/essais/pointage-mobile-debut.png',import.meta.url).pathname,fullPage:true});
