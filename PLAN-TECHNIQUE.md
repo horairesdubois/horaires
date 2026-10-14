@@ -2942,3 +2942,41 @@ Les calculs passent aussi avec TZ=America/Los_Angeles. Migration appliquée puis
 scénario SQL rejoué avec rollback : 245 pointages et empreinte identique avant/
 après. Les avertissements de sécurité existants ont été examinés ; la nouvelle
 RPC suit le même modèle de session applicative et refuse les autres rôles.
+
+## 2026-10-14 — Pointer un événement isolé depuis le back-office
+
+Demande : régulariser un oubli sans obliger le responsable à remplir une journée
+complète et laisser le technicien continuer ses pointages normalement.
+Dans la fenêtre d'une journée vide ou en cours, le bouton « Pointer pour le
+technicien » ouvre une saisie d'un seul événement. Les choix suivent l'état réel :
+début ; pause ou fin ; reprise ou fin. L'heure habituelle du collaborateur est
+proposée et reste modifiable. Une explication annonce l'action suivante possible.
+Seul le back-office voit et utilise ce formulaire.
+
+RPC admin_pointer : authentification et rôle admin, cible technicien avec pointage
+activé, verrou par collaborateur, version obligatoire, date/heure non futures et
+machine d'états commune au téléphone. Les événements antérieurs, leurs secondes
+et leurs identifiants sont conservés. Une journée manuelle, terminée, approuvée
+ou avec correction en attente reste dans son circuit de correction existant.
+L'ajout passe par une correction immédiatement acceptée : avant/après et auteur
+back-office restent traçables, sans attribuer l'ajout au technicien.
+
+Le reçu est contrôlé avant la version : une réponse perdue peut être vérifiée
+après un nouveau pointage du technicien sans écraser sa suite. Le formulaire
+conserve la même requête et bloque sa modification pendant cette vérification.
+En cas de version périmée, il demande d'actualiser, sans soumission automatique.
+Aucun droit de table ou policy RLS ajouté. Les avis Supabase sur les RPC anon
+SECURITY DEFINER correspondent au modèle de sessions applicatives existant ;
+les tests confirment le refus des sessions absentes, employés et fiduciaires.
+Les avis search_path du prototype bastion restent hors du périmètre.
+
+Tests : séquence complète et fin depuis pause, reprise/pause réellement permises
+au technicien après une saisie admin, heure choisie et secondes préservées,
+concurrence, rejeu après continuation, réponse perdue, dates/heures invalides,
+jour manuel, autre technicien intact, mobile et rôles. Les scénarios SQL utilisent
+uniquement des comptes fictifs dans des transactions annulées.
+
+Validation finale : 24 scénarios d'interface réussis ; scénario unitaire rejoué
+après ajustement du champ horaire mobile. SQL étendu rejoué avec rollback et
+absence de comptes d'essai persistants vérifiée. Contrôles syntaxe, identifiants,
+fonctions dupliquées et diff sans anomalie.
