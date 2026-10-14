@@ -2,46 +2,70 @@ import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 const nav=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
 try{
- const pg=await nav.newPage({viewport:{width:1280,height:950}}),erreurs=[];pg.on('pageerror',e=>erreurs.push(e.message));
+ const pg=await nav.newPage({viewport:{width:1280,height:1000}}),erreurs=[];pg.on('pageerror',e=>erreurs.push(e.message));
  await pg.addInitScript(()=>{
  const admin={id:'A',prenom:'Bureau',role:'admin'},emp={id:'E',prenom:'Technicien',nom:'Essai',role:'employe',pointage_actif:true};
  localStorage.setItem('hor_token','test');localStorage.setItem('hor_moi',JSON.stringify(admin));
- window.essai={appels:[],p:null,perdre:false,conflit:false};const rep=x=>new Response(JSON.stringify(x));
+ window.essai={appels:[],p:null,perdre:false,conflit:false,recus:{}};const rep=x=>new Response(JSON.stringify(x));
  window.fetch=async(u,o)=>{const fn=String(u).split('/rpc/')[1],a=JSON.parse(o?.body||'{}');essai.appels.push({fn,a});
- const lire=()=>({ok:true,jour:'2026-10-14',aujourdhui:'2026-10-14',pointage:essai.p,evenements:essai.p?.pointe_evenements||[],etat:essai.p?.pointe_etat||'vide',version:essai.p?.pointe_version||0,corrections:[],incomplets:[]});
+ const lire=()=>({ok:true,jour:'2026-10-14',aujourdhui:'2026-10-14',serveur:'2026-10-14T18:00:00+02:00',pointage:essai.p,evenements:essai.p?.pointe_evenements||[],etat:essai.p?.pointe_etat||'vide',version:essai.p?.pointe_version||0,corrections:[],incomplets:[]});
  if(fn==='admin_donnees')return rep({ok:true,employes:[admin,emp],pointages:essai.p?[essai.p]:[],aujourdhui:'2026-10-14'});
  if(fn==='pointage_lire')return rep(lire());
- if(fn==='admin_pointer'){
+ if(fn==='admin_pointer'||fn==='admin_modifier_heure_pointage'){
   if(essai.conflit)return rep({ok:false,code:'conflit',erreur:'Un pointage a changé entre-temps.'});
   essai.p??={employe_id:'E',jour:'2026-10-14',matin_type:'travail',apm_type:'travail',pointe_evenements:[],pointe_segments:[],pointe_version:0};
-  if(!essai.p.pointe_evenements.some(e=>e.id===a.p_requete)){essai.p.pointe_evenements.push({id:a.p_requete,action:a.p_action,at:'2026-10-14T'+a.p_heure+':00+02:00'});essai.p.pointe_version++;essai.p.pointe_etat={debut:'travail',pause:'pause',reprise:'travail',fin:'termine'}[a.p_action];}
+  if(!essai.recus[a.p_requete]){
+   const at='2026-10-14T'+a.p_heure+(a.p_heure.length===5?':00':'')+'+02:00';
+   if(fn==='admin_pointer'){essai.p.pointe_evenements.push({id:a.p_requete,action:a.p_action,at});essai.p.pointe_etat={debut:'travail',pause:'pause',reprise:'travail',fin:'termine'}[a.p_action];}
+   else essai.p.pointe_evenements[a.p_indice].at=at;
+   essai.p.pointe_version++;essai.recus[a.p_requete]=true;
+  }
   if(essai.perdre){essai.perdre=false;throw new Error('Réponse perdue');}return rep(lire());
  }
  return rep({ok:true,lignes:[],acteurs:[],retards:[]});};
  });
+ const ligne=(a,indice=-1)=>pg.locator('.pointe-heure-ligne').filter({has:pg.locator('[data-pointer-admin="'+a+'"][data-indice-admin="'+indice+'"]')});
+ const saisir=async(a,h,v,indice=-1)=>{const l=ligne(a,indice);await l.locator('input').fill(h);await l.locator('button').click();await pg.waitForFunction(v=>pointeDialogue?.donnees?.version===v,v);};
+ const suite=async(action)=>{
+  // Le rendu téléphone utilise exactement les événements reçus après la saisie admin.
+  const obtenu=await pg.evaluate(()=>{
+   const ancien={moi:S.moi,jour:S.jourSel},r=pointeDialogue.donnees;S.moi={id:'E',role:'employe',pointage_actif:true};S.jourSel=r.jour;
+   Object.assign(POINTE,{donnees:r,jour:r.jour,horloge:Date.parse(r.serveur),recuLocal:Date.now(),occupe:false,requete:null});$('pointe-carte').hidden=false;peindrePointe();
+   const bouton=$('pointe-carte').querySelector('[data-pointe-action]'),fin=$('pointe-carte').querySelector('[data-pointe-fin]');
+   S.moi=ancien.moi;S.jourSel=ancien.jour;
+   return {action:bouton?.dataset.pointeAction||null,fin:!!fin};
+  });assert.equal(obtenu.action,action);assert.equal(obtenu.fin,action==='pause'||action==='reprise');
+ };
  await pg.goto(process.env.HORAIRES_TEST_URL||new URL('../app/index.html',import.meta.url).href);await pg.waitForSelector('#v-admin:not([hidden])');
- await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-14');});await pg.locator('#mj-pointer').click();
- await pg.waitForSelector('[data-pointer-admin]');
- assert.equal(await pg.locator('[data-heure-admin]').inputValue(),'08:00');
- assert.deepEqual(await pg.locator('[data-action-admin] option').evaluateAll(es=>es.map(e=>e.value)),['debut']);
- await pg.locator('[data-heure-admin]').fill('07:45');await pg.evaluate(()=>essai.perdre=true);await pg.locator('[data-pointer-admin]').click();
- await pg.waitForFunction(()=>document.querySelector('[data-pointer-admin]').textContent==='Vérifier / réessayer');
- assert.equal(await pg.locator('[data-heure-admin]').isDisabled(),true,'requête conservée après perte réseau');
- await pg.locator('[data-pointer-admin]').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===1);
- assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),1);
- const appels=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_pointer').map(x=>x.a));assert.deepEqual(appels[0],appels[1]);assert.equal(appels[0].p_heure,'07:45');
- assert.deepEqual(await pg.locator('[data-action-admin] option').evaluateAll(es=>es.map(e=>e.value)),['pause','fin']);
- await pg.evaluate(()=>essai.conflit=true);await pg.locator('[data-pointer-admin]').click();await pg.waitForSelector('[data-actualiser-admin]:not([hidden])');
- assert.equal(await pg.locator('[data-pointer-admin]').isDisabled(),true,'conflit : pas de rejeu automatique');
- await pg.evaluate(()=>essai.conflit=false);await pg.locator('[data-actualiser-admin]').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===1&&!document.querySelector('[data-pointer-admin]').disabled);
- await pg.locator('[data-heure-admin]').fill('12:00');await pg.locator('[data-pointer-admin]').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.etat==='pause');
- assert.deepEqual(await pg.locator('[data-action-admin] option').evaluateAll(es=>es.map(e=>e.value)),['reprise','fin']);
- await pg.setViewportSize({width:390,height:664});await pg.screenshot({path:'work/essais/pointage-unitaire-mobile.png',fullPage:true});
- assert.equal(await pg.evaluate(()=>document.querySelector('.pointe-dialogue').scrollWidth<=document.querySelector('.pointe-dialogue').clientWidth),true,'pas de débordement mobile');
- await pg.locator('[data-pointer-admin]').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===3);
- await pg.locator('[data-action-admin]').selectOption('fin');await pg.locator('[data-pointer-admin]').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.etat==='termine');
- assert.equal(await pg.locator('[data-pointer-admin]').count(),0,'pas d’ajout sur journée terminée');
+ await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-14');});await pg.locator('#mj-pointer').click();await pg.waitForSelector('[data-pointer-admin]');
+ assert.deepEqual(await pg.locator('.pointe-etape h4').allTextContents(),['Début de journée','Début de pause','Reprise du travail','Fin de journée']);
+ assert.equal(await ligne('debut').locator('input').inputValue(),'08:00');
+ for(const a of ['pause','reprise','fin'])assert.equal(await ligne(a).locator('button').isDisabled(),true);
+ await suite('debut');
+ await ligne('debut').locator('input').fill('07:45');await pg.evaluate(()=>essai.perdre=true);await ligne('debut').locator('button').click();
+ await pg.waitForFunction(()=>document.querySelector('[data-pointer-admin="debut"]').textContent==='Vérifier / réessayer');
+ assert.equal(await ligne('debut').locator('input').isDisabled(),true);
+ await ligne('debut').locator('button').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===1);
+ const appels=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_pointer').map(x=>x.a));assert.deepEqual(appels[0],appels[1]);
+ assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),1);await suite('pause');
+ await saisir('debut','08:00',2,0);await suite('pause');
+ assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),1,'corriger le début ne crée pas la pause');
+ assert.match(await pg.locator('.pointe-suite').innerText(),/Prendre une pause/);
+ await pg.setViewportSize({width:390,height:664});await pg.screenshot({path:'work/essais/quatre-etapes-mobile.png',fullPage:true});
+ assert.equal(await pg.evaluate(()=>document.querySelector('.pointe-dialogue').scrollWidth<=document.querySelector('.pointe-dialogue').clientWidth),true);
+ await pg.evaluate(()=>essai.conflit=true);await ligne('pause').locator('button').click();await pg.waitForSelector('[data-actualiser-admin]:not([hidden])');
+ assert.equal(await ligne('pause').locator('button').isDisabled(),true);
+ await pg.evaluate(()=>essai.conflit=false);await pg.locator('[data-actualiser-admin]').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===2&&!document.querySelector('[data-pointer-admin="pause"]').disabled);
+ await saisir('pause','12:00',3);await suite('reprise');
+ await saisir('pause','12:05',4,1);await suite('reprise');
+ await saisir('reprise','13:00',5);await suite('pause');
+ await saisir('reprise','13:05',6,2);await suite('pause');
+ await saisir('fin','17:00',7);await suite(null);
+ await saisir('fin','17:15',8,3);await suite(null);
+ assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),4);
+ assert.equal(await pg.locator('[data-indice-admin="-1"]').count(),0,'journée terminée : seules les corrections sont proposées');
+ assert.equal(await pg.locator('.pointe-etape').count(),4,'les quatre étapes restent visibles');
  await pg.evaluate(()=>{S.moi.role='compta';peindreDialoguePointe();ouvrirJour('E','2026-10-14');});
  assert.equal(await pg.locator('#mj-pointer').isVisible(),false);assert.equal(await pg.locator('[data-pointer-admin]').count(),0);
- assert.deepEqual(erreurs,[]);console.log('✓ Pointage isolé : heure choisie, toutes les transitions, réponse perdue, concurrence, mobile, accès back-office');
+ assert.deepEqual(erreurs,[]);console.log('✓ Quatre étapes visibles, saisie/correction isolée de chacune, boutons téléphone cohérents, réseau/conflit et mobile');
 }finally{await nav.close();}

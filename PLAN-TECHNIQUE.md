@@ -2980,3 +2980,37 @@ Validation finale : 24 scénarios d'interface réussis ; scénario unitaire rejo
 après ajustement du champ horaire mobile. SQL étendu rejoué avec rollback et
 absence de comptes d'essai persistants vérifiée. Contrôles syntaxe, identifiants,
 fonctions dupliquées et diff sans anomalie.
+
+## 2026-10-14 — Quatre étapes visibles et correction séparée
+
+Clarification du propriétaire : voir les quatre étapes et modifier chacune
+séparément, en conservant leur ordre logique. Le sélecteur masquant les étapes
+suivantes est remplacé par quatre groupes permanents : début, pause, reprise,
+fin. Chaque heure enregistrée possède son bouton Corriger ; chaque prochaine
+action possible possède son bouton Enregistrer. Une étape encore impossible
+reste visible, désactivée et expliquée. En cas de pauses multiples, chaque
+événement reste modifiable dans son groupe et une nouvelle pause/reprise peut
+être ajoutée sans perdre les anciennes. L'écran annonce le prochain bouton
+que verra le technicien. Les corrections restent accessibles après la fin.
+
+La nouvelle RPC admin_modifier_heure_pointage remplace uniquement le timestamp
+à l'indice demandé, sous verrou et contrôle de version. Elle conserve les actions,
+identifiants et autres timestamps à l'identique, ainsi que l'état de la journée.
+La machine d'états existante contrôle la chronologie. Les reçus empêchent un
+rejeu de supprimer la suite pointée par le technicien. Authentification admin,
+cible et date sont contrôlées ; historique avant/après et auteur conservés.
+Une correction d'une journée approuvée impose un nouveau contrôle, annoncé à
+l'écran. Les droits de table et les politiques RLS restent inchangés.
+
+Le téléphone visible se rafraîchit désormais toutes les 15 secondes lorsqu'il
+est au repos : une intervention du bureau devient visible sans rechargement
+manuel. Les lectures de fond ne remplacent pas l'écran lors d'une erreur réseau
+et ne peuvent pas écraser une action en cours ; une nouvelle action invalide les
+lectures antérieures. Les fenêtres de correction et demandes restent protégées.
+
+Essais SQL annulés : modification isolée de chacune des quatre bornes, conservation
+des autres événements et identifiants, reprise après intervention du bureau,
+rejeu après pointage du technicien, refus des autres rôles, versions périmées et
+heures incohérentes. Essais d'écran : quatre étapes toujours visibles, saisie et
+correction individuelles, prochain bouton téléphone à chaque étape, téléphone
+resté ouvert, réponse perdue, concurrence et largeur mobile.

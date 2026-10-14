@@ -791,6 +791,12 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .pointe-saisie label{display:block;text-align:left;margin:12px 0}
 .pointe-saisie input[type="time"]{display:block;width:100%;min-height:44px;padding:10px 12px;margin-top:4px;border:1px solid var(--ligne);border-radius:10px;background:var(--carte);color:var(--texte);font:inherit}
 .pointe-saisie>p{margin:10px 0}
+.pointe-etape{text-align:left;border-top:1px solid var(--ligne);padding:12px 0}
+.pointe-etape h4{font-size:15px;margin-bottom:6px}
+.pointe-heure-ligne{display:flex;align-items:center;gap:8px;margin:6px 0}
+.pointe-heure-ligne label{flex:1;min-width:0;margin:0}
+.pointe-heure-ligne .btn{padding:12px;font-size:14px;flex-shrink:0}
+.pointe-saisie .pointe-suite{font-weight:600;color:var(--texte);text-align:left}
 </style>
 </head>
 <body>
@@ -942,7 +948,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
       <div class="mj-total" id="mj-total"></div>
     </div>
 
-    <button class="btn sec large" id="mj-pointer" type="button" hidden>Pointer pour le technicien</button>
+    <button class="btn sec large" id="mj-pointer" type="button" hidden>Pointer / corriger un pointage</button>
     <div class="mj-corps">
       <div class="demi">
         <div class="demi-l">
@@ -2343,7 +2349,7 @@ function ouvrirJour(empId, jour, absence=false) {
   $('mj-pointage-historique').hidden=!MJ.pointeOriginal;
   $('mj-pointage-historique').onclick=()=>{fermerJour();ouvrirPointe(empId,jour,true);};
   const ciblePointe=S.employes.find(e=>e.id===empId);
-  $('mj-pointer').hidden=!(admin&&ciblePointe?.pointage_actif&&jour>='2026-10-12'&&jour<=S.auj&&(!p||p.pointe_evenements)&&p?.pointe_etat!=='termine'&&!p?.approuve);
+  $('mj-pointer').hidden=!(admin&&ciblePointe?.pointage_actif&&jour>='2026-10-12'&&jour<=S.auj&&(!p||p.pointe_evenements));
   $('mj-pointer').onclick=()=>{fermerJour();ouvrirPointe(empId,jour,true);};
   MJ.requetePointe=null;MJ.signaturePointe=null;
   MJ.pointeChamps={};
@@ -3931,17 +3937,17 @@ function pointeStockage(valeur) {
   const cle='pointe_requete_'+S.moi.id;
   try { if(valeur===null)sessionStorage.removeItem(cle); else if(valeur!==undefined)sessionStorage.setItem(cle,JSON.stringify(valeur)); else return JSON.parse(sessionStorage.getItem(cle)||'null'); } catch(e) { return null; }
 }
-async function chargerPointe() {
+async function chargerPointe(silencieux=false) {
   if(!S.moi?.pointage_actif || S.moi.role!=='employe')return;
   if(POINTE.token!==S.token){reinitialiserPointe();POINTE.token=S.token;}
   const seq=++POINTE.sequence,jour=S.jourSel||S.auj||aujourdhui(),token=S.token;
   try {
     const r=await rpc('pointage_lire',{p_token:token,p_jour:jour});
-    if(seq!==POINTE.sequence||token!==S.token)return;
+    if(seq!==POINTE.sequence||token!==S.token||(silencieux&&(POINTE.occupe||POINTE.requete)))return;
     if(!r.ok)throw new Error(r.erreur);
     POINTE.donnees=r;POINTE.jour=jour;POINTE.horloge=Date.parse(r.serveur);POINTE.recuLocal=Date.now();
     S.auj=r.aujourdhui;POINTE.requete=POINTE.requete||pointeStockage();peindrePointe();
-  }catch(e){if(seq===POINTE.sequence){$('pointe-carte').textContent=e.message+' — réessayez en actualisant.';}}
+  }catch(e){if(!silencieux&&seq===POINTE.sequence){$('pointe-carte').textContent=e.message+' — réessayez en actualisant.';}}
 }
 function pointeTotalEnCours(r) {
   let n=jourMin(r.pointage);const dernier=r.evenements.at(-1);
@@ -4015,7 +4021,7 @@ async function envoyerPointe(action) {
   }
  }
  if(!POINTE.requete){POINTE.requete={p_jour:POINTE.jour,p_action:action,p_version:POINTE.donnees.version,p_requete:crypto.randomUUID()};pointeStockage(POINTE.requete);}
- POINTE.occupe=true;POINTE.erreur='';peindrePointe();
+ POINTE.occupe=true;POINTE.sequence++;POINTE.erreur='';peindrePointe();
  try{
   let r=await rpc('pointage_pointer',{p_token:token,...POINTE.requete});
   if(token!==S.token)return;
@@ -4063,19 +4069,17 @@ async function ouvrirPointe(emp,jour,detail=false) {
 }
 function peindreDialoguePointe() {
  const d=pointeDialogue,r=d.donnees,p=r.pointage,admin=S.moi.role==='admin',attente=r.corrections.some(c=>c.etat==='attente');
- const cible=S.employes.find(e=>e.id===d.emp),actions={vide:['debut'],travail:['pause','fin'],pause:['reprise','fin']}[r.etat]||[];
- const ajout=admin&&cible?.pointage_actif&&d.jour>='2026-10-12'&&d.jour<=(r.aujourdhui||S.auj)&&(!p||p.pointe_evenements)&&!p?.approuve&&!attente&&actions.length;
- $('pointe-contenu').innerHTML=(ajout?'<section class="pointe-panel pointe-saisie"><h3>Pointer pour '+esc(nomComplet(cible))+'</h3><p>Ajoutez un seul pointage à l’heure choisie. Le technicien pourra enregistrer les suivants sur son téléphone.</p><label>Pointage<select data-action-admin>'+actions.map(a=>'<option value="'+a+'">'+esc(POINTE_LIB[a])+'</option>').join('')+'</select></label><label>Heure<input type="time" data-heure-admin required></label><p class="muet" data-suite-admin></p><button class="btn large" data-pointer-admin>Enregistrer ce pointage</button><p role="status" data-erreur-admin></p><button class="js-lien" data-actualiser-admin hidden>Actualiser les pointages</button></section>':'')+'<p style="margin:12px 0"><strong>'+fmtMin(jourMin(p))+'</strong> · '+esc(p?libDecisionHeures(p):'Aucun pointage')+'</p>'+
+ const cible=S.employes.find(e=>e.id===d.emp);
+ const saisie=admin&&cible?.pointage_actif&&d.jour>='2026-10-12'&&d.jour<=(r.aujourdhui||S.auj)&&(!p||p.pointe_evenements);
+ $('pointe-contenu').innerHTML=(saisie?panneauEtapesPointe(d,cible):'')+'<p style="margin:12px 0"><strong>'+fmtMin(jourMin(p))+'</strong> · '+esc(p?libDecisionHeures(p):'Aucun pointage')+'</p>'+
   r.evenements.map(e=>'<div class="pointe-ligne"><span>'+esc(POINTE_LIB[e.action])+'</span><strong>'+pointeHeure(e.at,true)+'</strong></div>').join('')+
   r.corrections.map(c=>'<div class="pointe-correction"><strong>Correction '+esc(c.auteur===S.moi.id&&admin&&c.etat==='acceptee'?'enregistrée':{attente:'en attente',acceptee:'acceptée',refusee:'refusée'}[c.etat])+'</strong><p>'+esc(c.motif)+'</p><pre>Avant : '+esc(pointeTexteEvents(c.avant))+'\nDemandé : '+esc(pointeTexteEvents(c.proposition))+'</pre>'+(c.reponse?'<p>Réponse : '+esc(c.reponse)+'</p>':'')+(admin&&c.etat==='attente'?'<label>Réponse / motif du refus<input data-reponse="'+c.id+'" maxlength="500"></label><div class="pointe-actions"><button class="btn" data-accepter="'+c.id+'">Accepter la correction</button><button class="btn sec" data-refuser="'+c.id+'">Refuser</button></div>':'')+'</div>').join('')+
   (!estCompta() && (admin || (!attente && r.etat==='termine'))?'<button class="btn sec" data-editer-pointe>'+ (admin?'Modifier les heures':'Demander une correction')+'</button><div data-editeur-pointe hidden>'+ (admin?'':'<p class="pointe-avertissement">Toute correction doit être justifiée et validée par le responsable. Les heures originales sont conservées.</p>')+'<div data-lignes-pointe></div>'+(admin?'<button class="js-lien" data-ajouter-pointe>+ Ajouter un pointage</button>':'')+'<label>'+ (admin?'Note (facultative)':'Motif de la correction')+'<textarea data-motif-pointe maxlength="'+(admin?486:500)+'"></textarea></label><button class="btn large" data-envoyer-correction>'+ (admin?'Enregistrer les heures':'Demander la correction')+'</button></div>':'')+
   (!admin&&!estCompta()?'<p class="pointe-avertissement">Les pointages doivent être effectués au moment exact. Pour un pointage manquant, adressez une demande au responsable.</p><button class="btn sec" data-demande-responsable>Faire une demande</button>':'')+
   (admin&&p&&r.etat==='termine'&&!attente?'<hr style="margin:18px 0"><h3>Contrôler les heures</h3><label>Minutes à approuver (total : '+jourMin(p)+')<input data-minutes-pointe type="number" min="0" max="'+jourMin(p)+'" value="'+(p.approuve?minutesApprouvees(p):jourMin(p))+'"></label><label>Motif d’un éventuel refus<textarea data-motif-decision maxlength="500"></textarea></label><button class="btn" data-decider-pointe>Valider cette décision</button>':'')+'<p role="status" data-erreur-pointe></p>';
  const contenu=$('pointe-contenu');
- if(ajout){
-  const proposer=()=>{const action=contenu.querySelector('[data-action-admin]').value;contenu.querySelector('[data-heure-admin]').value=(cible[{debut:'matin_debut_def',pause:'matin_fin_def',reprise:'apm_debut_def',fin:'apm_fin_def'}[action]]||{debut:'08:00',pause:'12:00',reprise:'13:00',fin:'17:00'}[action]);contenu.querySelector('[data-suite-admin]').textContent={debut:'Ensuite : le technicien pourra prendre sa pause ou terminer sa journée.',pause:'Ensuite : le technicien pourra reprendre le travail ou terminer sa journée.',reprise:'Ensuite : le technicien pourra prendre une pause ou terminer sa journée.',fin:'La journée sera terminée.'}[action];};
-  proposer();contenu.querySelector('[data-action-admin]').onchange=proposer;
-  contenu.querySelector('[data-pointer-admin]').onclick=envoyerPointeAdmin;
+ if(saisie){
+  contenu.querySelectorAll('[data-pointer-admin]').forEach(b=>b.onclick=()=>envoyerPointeAdmin(b));
   contenu.querySelector('[data-actualiser-admin]').onclick=()=>ouvrirPointe(d.emp,d.jour,true);
  }
  contenu.querySelector('[data-demande-responsable]')?.addEventListener('click',()=>ouvrirDemandePointe(d.jour));
@@ -4090,37 +4094,61 @@ function peindreDialoguePointe() {
  contenu.querySelectorAll('[data-accepter],[data-refuser]').forEach(b=>b.onclick=async()=>{const id=b.dataset.accepter||b.dataset.refuser;await agirDialoguePointe('pointage_decider',{p_demande:id,p_accepter:!!b.dataset.accepter,p_reponse:contenu.querySelector('[data-reponse="'+id+'"]').value});});
  contenu.querySelector('[data-decider-pointe]')?.addEventListener('click',async()=>{const value=contenu.querySelector('[data-minutes-pointe]').value;if(value===''){toast('Indiquez les minutes à approuver');return;}await agirDialoguePointe('admin_decider_heures',{p_employe:d.emp,p_jour:d.jour,p_minutes_approuvees:Number(value),p_motif:contenu.querySelector('[data-motif-decision]').value,p_version:p.version_decision});});
 }
-async function envoyerPointeAdmin(){
+function panneauEtapesPointe(d,cible){
+ const r=d.donnees,attente=r.corrections.some(c=>c.etat==='attente');
+ const suivants={vide:['debut'],travail:['pause','fin'],pause:['reprise','fin']}[r.etat]||[];
+ const lib={debut:'Début de journée',pause:'Début de pause',reprise:'Reprise du travail',fin:'Fin de journée'};
+ const heureDef=a=>cible[{debut:'matin_debut_def',pause:'matin_fin_def',reprise:'apm_debut_def',fin:'apm_fin_def'}[a]]||{debut:'08:00',pause:'12:00',reprise:'13:00',fin:'17:00'}[a];
+ const ligne=(a,indice,heure,actif,texte)=>'<div class="pointe-heure-ligne" data-etape-action="'+a+'"><label><span class="muet">'+texte+'</span><input type="time" step="1" data-heure-admin aria-label="Heure · '+lib[a]+(indice>=0?' · pointage '+(indice+1):' · nouveau')+'" value="'+esc(heure)+'" '+(!actif?'disabled':'')+'></label><button class="btn" data-pointer-admin="'+a+'" data-indice-admin="'+indice+'" '+(!actif?'disabled':'')+'>'+ (indice>=0?'Corriger':'Enregistrer')+'</button></div>';
+ const etapes=Object.keys(lib).map(a=>{
+  const existants=r.evenements.map((e,i)=>({e,i})).filter(x=>x.e.action===a);
+  let html=existants.map(({e,i})=>ligne(a,i,pointeHeure(e.at,true),!attente,'Enregistré')).join('');
+  if(!existants.length||suivants.includes(a)){
+   const actif=suivants.includes(a)&&!attente;
+   let heure=heureDef(a);
+   if(existants.length&&heure<=pointeHeure(r.evenements.at(-1).at))heure='';
+   html+=ligne(a,-1,heure,actif,existants.length?'Nouveau pointage':'À pointer');
+   if(!actif&&!existants.length)html+='<p class="muet">'+(r.etat==='termine'?'Non enregistré sur cette journée.':a==='reprise'?'Disponible après le début de pause.':'Disponible après le début de journée.')+'</p>';
+  }
+  return '<div class="pointe-etape"><h4>'+lib[a]+'</h4>'+html+'</div>';
+ }).join('');
+ const suite={vide:'Commencer ma journée',travail:'Prendre une pause',pause:'Reprendre le travail',termine:'Journée terminée'}[r.etat];
+ return '<section class="pointe-panel pointe-saisie"><h3>Pointages de '+esc(nomComplet(cible))+'</h3><p>Chaque bouton enregistre uniquement l’heure de sa ligne.</p><p class="pointe-suite">'+(r.etat==='termine'?'Sur le téléphone : ':'Prochain bouton du technicien : ')+esc(suite)+'</p>'+ (attente?'<p class="pointe-avertissement">Traitez la correction en attente ci-dessous avant de modifier les heures.</p>':'')+(r.pointage?.approuve?'<p class="pointe-avertissement">Une correction remettra cette journée à contrôler.</p>':'')+etapes+'<p role="status" data-erreur-admin></p><button class="js-lien" data-actualiser-admin hidden>Actualiser les pointages</button></section>';
+}
+async function envoyerPointeAdmin(bouton){
  const d=pointeDialogue;if(!d||d.occupe||S.moi.role!=='admin')return;
- const zone=$('pointe-contenu'),bouton=zone.querySelector('[data-pointer-admin]'),erreur=zone.querySelector('[data-erreur-admin]'),token=S.token;
- const action=zone.querySelector('[data-action-admin]'),heure=zone.querySelector('[data-heure-admin]');
+ const zone=$('pointe-contenu'),erreur=zone.querySelector('[data-erreur-admin]'),token=S.token;
+ const heure=bouton.closest('.pointe-heure-ligne').querySelector('[data-heure-admin]');
  if(!d.ajoutEnAttente){
   if(!heure.value){erreur.textContent='Choisissez l’heure du pointage.';heure.focus();return;}
-  d.ajoutEnAttente={p_employe:d.emp,p_jour:d.jour,p_action:action.value,p_heure:heure.value,p_version:d.donnees.version,p_requete:crypto.randomUUID()};
+  const indice=Number(bouton.dataset.indiceAdmin);
+  d.ajoutEnAttente={fn:indice>=0?'admin_modifier_heure_pointage':'admin_pointer',args:{p_employe:d.emp,p_jour:d.jour,p_heure:heure.value,p_version:d.donnees.version,p_requete:crypto.randomUUID(),...(indice>=0?{p_indice:indice}:{p_action:bouton.dataset.pointerAdmin})}};
  }
- d.occupe=true;erreur.textContent='';zone.querySelectorAll('button,input,select,textarea').forEach(e=>e.disabled=true);bouton.textContent='Enregistrement…';
+ d.controlesAvant??=[...zone.querySelectorAll('button,input,select,textarea')].map(e=>[e,e.disabled]);
+ const controles=d.controlesAvant,libelle=Number(bouton.dataset.indiceAdmin)>=0?'Corriger':'Enregistrer';
+ d.occupe=true;erreur.textContent='';controles.forEach(([e])=>e.disabled=true);bouton.textContent='Enregistrement…';
  try{
-  const r=await rpc('admin_pointer',{p_token:token,...d.ajoutEnAttente});
+  const r=await rpc(d.ajoutEnAttente.fn,{p_token:token,...d.ajoutEnAttente.args});
   if(token!==S.token||pointeDialogue!==d)return;
-  d.ajoutEnAttente=null;
+  d.ajoutEnAttente=null;d.controlesAvant=null;
   if(!r.ok){
-   erreur.textContent=r.erreur;
+   erreur.textContent=r.erreur;erreur.scrollIntoView({block:'nearest'});
    if(r.code==='conflit'){zone.querySelector('[data-actualiser-admin]').hidden=false;zone.querySelector('[data-actualiser-admin]').disabled=false;}
-   else zone.querySelectorAll('button,input,select,textarea').forEach(e=>e.disabled=false);
-   bouton.textContent='Enregistrer ce pointage';return;
+   else controles.forEach(([e,disabled])=>e.disabled=disabled);
+   bouton.textContent=libelle;return;
   }
   toast('✓ Pointage enregistré');await charger();
   if(token===S.token&&pointeDialogue===d)await ouvrirPointe(d.emp,d.jour,true);
  }catch(e){
   if(token===S.token&&pointeDialogue===d){
    erreur.textContent=d.ajoutEnAttente?'Confirmation non reçue. Réessayez pour vérifier ce même pointage sans doublon.':e.message;
-   bouton.disabled=false;bouton.textContent=d.ajoutEnAttente?'Vérifier / réessayer':'Enregistrer ce pointage';
+   erreur.scrollIntoView({block:'nearest'});bouton.disabled=false;bouton.textContent=d.ajoutEnAttente?'Vérifier / réessayer':libelle;
   }
  }finally{d.occupe=false;}
 }
 function lireEditionPointe(){pointeDialogue.edition=Array.from($('pointe-contenu').querySelectorAll('.pointe-edition')).map(row=>({action:row.querySelector('select').value,heure:row.querySelector('input').value}));}
 function peindreEditionPointe(){const d=pointeDialogue,zone=$('pointe-contenu').querySelector('[data-lignes-pointe]');zone.innerHTML=d.edition.map((e,i)=>'<div class="pointe-edition"><select '+(S.moi.role==='admin'?'':'disabled')+' aria-label="Action '+(i+1)+'">'+Object.entries(POINTE_LIB).map(([k,v])=>'<option value="'+k+'" '+(k===e.action?'selected':'')+'>'+v+'</option>').join('')+'</select><input type="time" step="1" aria-label="Heure '+(i+1)+'" value="'+esc(e.heure)+'">'+(S.moi.role==='admin'?'<button data-retirer="'+i+'" aria-label="Retirer le pointage '+(i+1)+'">✕</button>':'')+'</div>').join('');zone.querySelectorAll('[data-retirer]').forEach(b=>b.onclick=()=>{lireEditionPointe();d.edition.splice(Number(b.dataset.retirer),1);peindreEditionPointe();});}
-async function agirDialoguePointe(fn,args){const d=pointeDialogue;if(d.occupe)return;d.occupe=true;$('pointe-contenu').querySelectorAll('button').forEach(b=>b.disabled=true);try{const r=await rpc(fn,{p_token:S.token,...args});if(!r.ok)throw new Error(r.erreur);toast('✓ Enregistré');await charger();if(pointeDialogue===d)await ouvrirPointe(d.emp,d.jour,true);}catch(e){if(pointeDialogue===d){$('pointe-contenu').querySelector('[data-erreur-pointe]').textContent=e.message;$('pointe-contenu').querySelectorAll('button').forEach(b=>b.disabled=false);}}finally{d.occupe=false;}}
+async function agirDialoguePointe(fn,args){const d=pointeDialogue;if(d.occupe)return;d.occupe=true;const boutons=[...$('pointe-contenu').querySelectorAll('button')].map(b=>[b,b.disabled]);boutons.forEach(([b])=>b.disabled=true);try{const r=await rpc(fn,{p_token:S.token,...args});if(!r.ok)throw new Error(r.erreur);toast('✓ Enregistré');await charger();if(pointeDialogue===d)await ouvrirPointe(d.emp,d.jour,true);}catch(e){if(pointeDialogue===d){$('pointe-contenu').querySelector('[data-erreur-pointe]').textContent=e.message;boutons.forEach(([b,disabled])=>b.disabled=disabled);}}finally{d.occupe=false;}}
 function peindreDemandesPointe(){const zone=$('pointe-demandes-admin'),d=S.pointageDemandes||[];zone.hidden=S.moi.role!=='admin'||S.ongletAdmin!=='equipe'||!d.length;zone.innerHTML=d.length?'<div class="pointe-avertissement"><strong>'+d.length+' correction(s) de pointage à traiter</strong>'+d.map(c=>'<button class="js-lien" data-dem-pointe="'+esc(c.id)+'">'+esc(c.employe)+' · '+esc(c.jour)+' · '+esc(c.motif)+'</button>').join('')+'</div>':'';zone.querySelectorAll('[data-dem-pointe]').forEach(b=>b.onclick=()=>{const c=d.find(x=>x.id===b.dataset.demPointe);ouvrirPointe(c.employe_id,c.jour,true);});}
 function ajouterFeuillePointages(wb,ids){const lignes=[['Employé','Date','Action','Heure (Europe/Zurich)','Horodatage complet','Version de la journée','État']];for(const p of S.pointages.filter(p=>ids.includes(p.employe_id)&&p.pointe_evenements)){const emp=S.employes.find(e=>e.id===p.employe_id);for(const e of p.pointe_evenements)lignes.push([nomComplet(emp),p.jour,POINTE_LIB[e.action],pointeHeure(e.at,true),e.at,p.pointe_version,libDecisionHeures(p)]);}if(lignes.length>1){const ws=XLSX.utils.aoa_to_sheet(lignes);ws['!cols']=[26,14,26,28,32,24,38].map(wch=>({wch}));XLSX.utils.book_append_sheet(wb,ws,'Détail des pointages');}}
 Object.assign(JR,{
@@ -4128,7 +4156,15 @@ Object.assign(JR,{
  pointage_correction_demandee:['✎',e=>'a demandé une correction du '+e.cible+jrQui(e)],pointage_correction_acceptee:['✓',e=>'a accepté une correction du '+e.cible+jrQui(e)],pointage_correction_refusee:['✕',e=>'a refusé une correction du '+e.cible+jrQui(e)],
  ouverture_app:['📱',()=> 'a ouvert l’application (déclaré par le navigateur)'],retour_app:['📱',()=> 'est revenu dans l’application (déclaré par le navigateur)'],consultation_ecran:['👁',e=>'a consulté '+e.cible]
 });
+let verificationPointeEnCours=false;
+async function actualiserPointeTechnicien(){
+ if(verificationPointeEnCours||document.hidden||S.moi?.role!=='employe'||!S.moi.pointage_actif||POINTE.occupe||POINTE.requete||pointeDialogue||$('pointe-carte').hidden||$('voile-jour').classList.contains('ouvert'))return;
+ verificationPointeEnCours=true;
+ try{await chargerPointe(true);}finally{verificationPointeEnCours=false;}
+}
 function initPointe(){
+ // Une intervention du bureau met aussi à jour un téléphone resté ouvert.
+ setInterval(actualiserPointeTechnicien,15000);
  $('pointe-fermer').onclick=()=>{pointeDialogue=null;$('voile-pointe').classList.remove('ouvert');};
  $('voile-pointe').addEventListener('click',e=>{if(e.target===$('voile-pointe'))$('pointe-fermer').click();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('pointe-fermer').click();});
