@@ -27,7 +27,7 @@ try{
  });
  await pg.goto(new URL('../app/index.html',import.meta.url).href);
  await pg.waitForSelector('#v-admin:not([hidden])');
- await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-12');});
+ await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-12',true);});
  const champs=['mj-md','mj-mf','mj-ad','mj-af'];
  for(const id of champs)assert.equal(await pg.locator('#'+id).isEnabled(),true,'champ passé modifiable : '+id);
  assert.equal(await pg.locator('#mj-ad').inputValue(),'21:11');
@@ -44,7 +44,7 @@ try{
  assert.equal(await pg.locator('#mj-total').innerText(),'8h00');
  assert.deepEqual(await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_formulaire_pointage').at(-1).a.p_evenements.map(e=>e.action)),['debut','pause','reprise','fin']);
  await pg.locator('#mj-approuver').click();await pg.waitForFunction(()=>essai.p.approuve);
- await pg.evaluate(()=>ouvrirJour('E','2026-10-12'));
+ await pg.evaluate(()=>ouvrirJour('E','2026-10-12',true));
  await pg.locator('#mj-af').fill('16:30');await pg.locator('#mj-save').click();
  await pg.waitForFunction(()=>MJ.pointeOriginal?.pointe_version===5);
  assert.equal(await pg.locator('#mj-total').innerText(),'7h30');assert.equal(await pg.evaluate(()=>essai.p.approuve),false);
@@ -65,9 +65,9 @@ try{
  assert.equal(await pg.locator('#mj-ad').inputValue(),'');
  assert.equal(await pg.locator('#mj-af').inputValue(),'');
  await pg.locator('#mj-approuver').click();await pg.waitForFunction(()=>essai.p.approuve);
- await pg.evaluate(()=>ouvrirJour('E','2026-10-12'));
+ await pg.evaluate(()=>ouvrirJour('E','2026-10-12',true));
  // Une vraie pause courte conserve ses secondes même si les minutes sont égales.
- await pg.evaluate(()=>{Object.assign(essai.p,{pointe_evenements:[{action:'debut',at:'2026-10-12T08:00:00+02:00'},{action:'pause',at:'2026-10-12T12:00:10+02:00'},{action:'reprise',at:'2026-10-12T12:00:40+02:00'},{action:'fin',at:'2026-10-12T20:30:00+02:00'}]});S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
+ await pg.evaluate(()=>{Object.assign(essai.p,{pointe_evenements:[{action:'debut',at:'2026-10-12T08:00:00+02:00'},{action:'pause',at:'2026-10-12T12:00:10+02:00'},{action:'reprise',at:'2026-10-12T12:00:40+02:00'},{action:'fin',at:'2026-10-12T20:30:00+02:00'}]});S.pointages=[essai.p];ouvrirJour('E','2026-10-12',true);});
  await pg.locator('#mj-save').click();await pg.waitForFunction(()=>MJ.pointeOriginal?.pointe_version===8);
  const courte=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_formulaire_pointage').at(-1).a.p_evenements);
  assert.equal(courte.length,4,'une vraie pause de 30 secondes inchangée reste conservée');
@@ -75,7 +75,7 @@ try{
  assert.equal(courte[2].at,'2026-10-12T12:00:40+02:00');
  // Retour au cas initial sur téléphone, puis journée laissée au travail.
  await pg.setViewportSize({width:390,height:664});
- await pg.evaluate(()=>{essai.p.pointe_etat='travail';essai.p.pointe_evenements=[{action:'debut',at:'2026-10-12T06:00:00Z'}];S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
+ await pg.evaluate(()=>{essai.p.pointe_etat='travail';essai.p.pointe_evenements=[{action:'debut',at:'2026-10-12T06:00:00Z'}];S.pointages=[essai.p];ouvrirJour('E','2026-10-12',true);});
  for(const id of champs)assert.equal(await pg.locator('#'+id).isEnabled(),true);
  assert.equal(await pg.locator('#mj-defaut').isVisible(),true);
  assert.equal(await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'pas de débordement mobile');

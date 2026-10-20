@@ -134,6 +134,8 @@ async function ecran(role, largeur = 390) {
 async function ouvrir(page, date) {
   await page.evaluate(j => ouvrirJour('E1', j), date);
   await page.locator('#voile-jour.ouvert').waitFor({ state: 'visible' });
+  const options=page.locator('#voile-jour details').filter({has:page.locator('#mj-decision')});
+  if(await options.isVisible())await options.locator('summary').click();
 }
 async function verrouille(page, message) {
   for (const id of ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem', 'mj-statut-m', 'mj-statut-a']) {

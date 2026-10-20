@@ -3029,3 +3029,39 @@ propose de recharger. Le test SQL reprise_manquante_terminee.sql annule toutes
 ses écritures. Le cas réel de Sami du 14 octobre a aussi été essayé dans une
 transaction annulée : ajout valide, heure invalide, version périmée, rejeu et
 conservation exacte des autres pointages. Aucune heure réelle n'a été changée.
+
+
+## 2026-10-20 — Revue guidée du back-office, mobile (préparée, non publiée)
+
+Aperçu « Contrôle guidé » validé par le propriétaire, avec exigence d’utilisation
+sur téléphone. Les journées pointées ouvrent directement leurs quatre étapes.
+Navigation jour précédent/suivant dans le mois sélectionné ; aucun passage futur.
+Les questions libres réutilisent `message_ecrire`, avec employé, date et mois
+exacts. Les brouillons restent disponibles lors de la navigation dans la session.
+Aucune migration ni réécriture de données ; les RPC de correction isolée, versions,
+requêtes idempotentes et journal d’origine sont conservés.
+
+La durée de validation s’affiche en heures/minutes. Le bouton principal valide
+la journée ; la validation partielle et le refus restent sous une option dédiée.
+Les changements d’heure non enregistrés empêchent une validation et demandent
+confirmation avant navigation. Un pointage dont la réponse réseau est perdue doit
+être vérifié avec la même requête avant de quitter.
+
+Le bilan par période ajoute une évolution hebdomadaire, les dépassements retenus,
+à examiner et non retenus, leur part des heures réalisées et l’équivalent en jours
+de huit heures. Le graphique montre les douze dernières semaines de la période ;
+les totaux couvrent toute la période. Seules des semaines complètes, terminées et
+sans données manquantes/incomplètes servent à la comparaison et à la moyenne.
+Le solde contractuel, les majorations et les paiements/récupérations ne sont pas
+assimilés aux dépassements journaliers. Les heures retenues sont la partie de la
+durée approuvée au-delà de la base journalière.
+
+Essais dédiés : `tests/revue-guidee-mobile.mjs` (320, 390, 768 et 1280 px ; question
+sans changement de pointage, brouillon, navigation, garde de correction, validation
+totale et partielle, anciennes journées manuelles). Publication en attente d’un
+accord explicite, selon la convention du projet.
+
+Vérification locale terminée : les 25 fichiers d’essais passent après les reprises
+ciblées des parcours adaptés. Syntaxe JavaScript, identifiants DOM, doublons de
+fonctions, génération de `docs/index.html` et `git diff --check` validés. Chrome
+avec données simulées, sans écriture en production ; aucune migration SQL.

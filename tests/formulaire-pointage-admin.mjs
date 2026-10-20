@@ -15,7 +15,7 @@ try{
  return rep({ok:true,lignes:[],acteurs:[],retards:[]});};
  });
  await pg.goto(new URL('../app/index.html',import.meta.url).href);await pg.waitForSelector('#v-admin:not([hidden])');
- await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-12');});
+ await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-12',true);});
  assert.equal(await pg.locator('#voile-jour').evaluate(e=>e.classList.contains('ouvert')),true);
  assert.equal(await pg.locator('#voile-pointe').evaluate(e=>e.classList.contains('ouvert')),false);
  for(const [id,v] of [['mj-md','08:00'],['mj-mf','12:00'],['mj-ad','13:00'],['mj-af','17:00']])assert.equal(await pg.locator('#'+id).inputValue(),v);
@@ -28,8 +28,8 @@ try{
  assert.equal(appel.p_evenements[3].heure,'17:30');assert.equal(appel.p_remarque,'Chantier terminé');
  assert.equal(await pg.locator('#mj-total').innerText(),'8h30');
  await pg.locator('#mj-approuver').click();await pg.waitForFunction(()=>essai.p.approuve);
- await pg.evaluate(()=>ouvrirJour('E','2026-10-12'));assert.equal(await pg.locator('#mj-af').isEnabled(),true);
- await pg.evaluate(()=>{essai.p.pointe_evenements=essai.p.pointe_evenements.slice(0,1);essai.p.pointe_etat='travail';S.auj='2026-10-12';S.pointages=[essai.p];ouvrirJour('E','2026-10-12');});
+ await pg.evaluate(()=>ouvrirJour('E','2026-10-12',true));assert.equal(await pg.locator('#mj-af').isEnabled(),true);
+ await pg.evaluate(()=>{essai.p.pointe_evenements=essai.p.pointe_evenements.slice(0,1);essai.p.pointe_etat='travail';S.auj='2026-10-12';S.pointages=[essai.p];ouvrirJour('E','2026-10-12',true);});
  assert.equal(await pg.locator('#mj-md').inputValue(),'08:00');assert.equal(await pg.locator('#mj-mf').inputValue(),'');
  assert.equal(await pg.locator('#mj-approuver').isVisible(),false,'incomplet à enregistrer avant validation');
  assert.equal(await pg.locator('#mj-mf').isDisabled(),true,'pas de fin inventée');
