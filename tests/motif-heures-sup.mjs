@@ -86,9 +86,10 @@ async function ouvrir(role) {
   await pg.setViewportSize({width:390,height:664});
   await pg.screenshot({path:'work/essais/explications-revue-mobile.png'});
   await pg.evaluate(() => { fermerDetails(); ouvrirJour('E1', '2026-09-02'); });
-  assert(await pg.locator('#mj-explication').isVisible());
+  assert(await pg.locator('#voile-jour [data-question-jour]').isVisible());
   const avant = await pg.evaluate(() => window.__appels.filter(a => a.nom === 'message_ecrire').length);
-  await pg.locator('#mj-explication').click();
+  await pg.locator('#voile-jour [data-question-jour]').fill('Pouvez-vous préciser la raison des heures supplémentaires ?');
+  await pg.locator('#voile-jour [data-envoyer-question]').click();
   await pg.waitForFunction(n => window.__appels.filter(a => a.nom === 'message_ecrire').length > n, avant);
   assert.equal(await pg.evaluate(() => window.__appels.filter(a => ['admin_approuver','enregistrer_jour','admin_repondre_demande'].includes(a.nom)).length), 0, 'La question ne modifie ni ne valide les horaires');
   assert.equal(await pg.evaluate(() => S.pointages[0].approuve), false);

@@ -798,6 +798,11 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .pointe-heure-ligne .btn{padding:12px;font-size:14px;flex-shrink:0}
 .pointe-saisie .pointe-suite{font-weight:600;color:var(--texte);text-align:left}
 </style>
+<style>
+.revue-navigation{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:8px;margin:12px 0}.revue-navigation span{text-align:center;font-weight:600}.revue-navigation small{display:block;font-size:12px;font-weight:400;color:var(--gris)}.revue-navigation .btn{min-width:44px;min-height:44px;padding:10px}.revue-employe{font-weight:600}.revue-etapes{display:flex;gap:8px;margin:16px 0}.revue-etapes .btn{flex:1;white-space:normal;font-size:14px}.revue-etapes [aria-pressed=true]{background:var(--bleu);color:white}.revue-question textarea,.revue-validation textarea{display:block;width:100%;min-height:90px;padding:12px;border:1px solid var(--ligne);border-radius:10px;font:inherit;font-size:16px;margin:8px 0}.revue-validation{border-top:1px solid var(--ligne);margin-top:20px;padding-top:16px}.revue-validation summary,.revue-avance summary{padding:14px 0;min-height:44px;color:var(--bleu);cursor:pointer}.revue-validation .btn{margin-top:14px;white-space:normal}.revue-controle .pointe-saisie{background:transparent;padding:0}.revue-controle .pointe-etape .btn{font-size:14px;white-space:normal}.revue-controle [hidden],.revue-question[hidden]{display:none!important}.revue-indicateurs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.revue-indicateurs span{background:var(--fond);padding:12px;border-radius:10px;font-size:13px}.revue-indicateurs b{display:block;font-size:22px;color:var(--bleu)}.revue-tendance{margin:24px 0}.revue-semaine{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;margin:14px 0;font-size:13px}.revue-barre{grid-column:1/-1;height:9px;background:var(--ligne);border-radius:5px;overflow:hidden}.revue-barre i{display:block;height:100%;background:var(--bleu)}.pointe-dialogue input,.pointe-dialogue label{min-width:0;max-width:100%}.pointe-dialogue .decision-duree{display:flex;gap:12px}.pointe-dialogue .decision-duree input{display:block;width:100%;font-size:16px;padding:10px}.revue-question{margin:16px 0}.pointe-dialogue{overscroll-behavior:contain;padding-bottom:max(24px,env(safe-area-inset-bottom))}
+@media(max-width:540px){.revue-indicateurs{grid-template-columns:1fr}.revue-etapes{flex-direction:column}.revue-navigation{grid-template-columns:44px minmax(0,1fr) 44px}.pointe-dialogue{width:100%;max-width:100%;max-height:94dvh;padding:20px 14px}.pointe-dialogue h2{padding-right:28px}.pointe-heure-ligne{flex-wrap:wrap}.pointe-heure-ligne label{flex:1;min-width:125px}.pointe-heure-ligne .btn{max-width:100%}.revue-validation .btn{min-height:48px}.revue-navigation .btn{min-height:44px}.revue-question .btn{width:100%}}
+
+</style>
 </head>
 <body>
 
@@ -1068,7 +1073,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
           <div class="bilan-mesure">Solde de la période<strong id="bp-solde"></strong><small>Heures réalisées − heures dues</small></div>
         </div>
         <div class="bilan-precisions"><span>Heures réalisées : <b id="bp-travail"></b></span><span>Heures dues : <b id="bp-dues"></b></span></div>
-        <p class="muet" id="bp-etat"></p>
+        <p class="muet" id="bp-etat"></p><div id="bp-tendance"></div>
         <details><summary>Voir le détail par jour</summary><div class="defile"><table aria-label="Détail du bilan par période"><thead><tr><th>Date / état</th><th>Réalisées</th><th>Dues</th><th>Sup</th><th>Solde</th></tr></thead><tbody id="bp-jours"></tbody></table></div></details>
       </div>
     </section>
@@ -2340,6 +2345,8 @@ function majAlerteSup() {
 }
 function ouvrirJour(empId, jour, absence=false) {
   let p = (ptgMap()[empId] || {})[jour] || null;
+  const cibleGuide=S.employes.find(e=>e.id===empId);
+  if(S.moi.role==='admin'&&!absence&&cibleGuide?.pointage_actif&&jour>='2026-10-12'&&jour<=S.auj&&(!p||p.pointe_evenements)){ouvrirPointe(empId,jour,true);return;}
   if ((p && p.pointe_evenements && S.moi.role!=='admin') || (!absence && !p && S.moi.pointage_actif && S.moi.role==='employe' && jour>='2026-10-12' && jour<=S.auj)) { ouvrirPointe(empId,jour); return; }
   const admin = S.moi.role === 'admin';
   ['mj-plus1','mj-zero-m','mj-zero-a'].forEach(id=>$(id).hidden=false);
@@ -2452,6 +2459,7 @@ function ouvrirJour(empId, jour, absence=false) {
     }
   }
   $('voile-jour').classList.add('ouvert');
+  installerRevueJourManuel(admin);
 }
 function fermerJour() { $('voile-jour').classList.remove('ouvert'); }
 /* Trois états possibles quand la journée est verrouillée : rien de demandé,
@@ -2564,7 +2572,7 @@ async function sauverJour() {
     const employe = MJ.empId, jour = MJ.jour;
     fermerJour(); toast(admin ? (MJ.pointeEnCours?'✓ Corrigé — le technicien peut continuer à pointer':'✓ Enregistré — vous pouvez approuver directement') : '✓ Enregistré');
     await charger();
-    if (admin) ouvrirJour(employe, jour);
+    if (admin) ouvrirJour(employe, jour, true);
   } catch (e) { toast(e.message); }
   finally { $('mj-save').disabled = false; }
 }
@@ -2593,7 +2601,7 @@ function majDecisionHeures() {
   $('mj-decision-save').disabled = minutes === null;
   if (S.moi && S.moi.role === 'admin' && MJ.pointage && !MJ.approuve && MJ.pointage.demande_etat !== 'attente') {
     $('mj-approuver').disabled = minutes === null;
-    $('mj-approuver').textContent = '✓ Valider cette décision';
+    $('mj-approuver').textContent = minutes===jourMin(MJ.pointage)?'Valider la journée · '+fmtMin(minutes):'Valider '+fmtMin(minutes)+' · refuser '+fmtMin(jourMin(MJ.pointage)-minutes);
   }
 }
 async function enregistrerDecisionHeures() {
@@ -3327,6 +3335,7 @@ function peindreBilanPeriode(lignes,debut,fin,auj) {
   $('bp-etat').textContent=(etats.length?'Bilan provisoire : '+etats.join(' · ')+'. ':'')+'Calcul sur les heures saisies, selon les mêmes règles que la revue mensuelle.'+
     (b.refusees?' Dont '+fmtMin(b.refusees)+' refusées, non déduites de ces totaux.':'')+(b.futurs?' Les jours futurs sont exclus.':'');
   $('bp-jours').innerHTML=b.jours.map(j=>'<tr><td>'+j.iso.split('-').reverse().join('.')+'<small>'+esc(j.etat)+'</small></td><td>'+fmtMin(j.travail)+'</td><td>'+fmtMin(j.dues)+'</td><td>'+fmtMin(j.sup)+'</td><td>'+fmtSolde(j.solde)+'</td></tr>').join('');
+  $('bp-tendance').innerHTML=htmlTendanceHeures(lignes,debut,fin,auj);
   $('bp-resultat').hidden=false;$('bp-erreur').hidden=true;
 }
 function preparerBilanPeriode(empId,recharger) {
@@ -4072,11 +4081,11 @@ function peindreDialoguePointe() {
  const cible=S.employes.find(e=>e.id===d.emp);
  const saisie=admin&&cible?.pointage_actif&&d.jour>='2026-10-12'&&d.jour<=(r.aujourdhui||S.auj)&&(!p||p.pointe_evenements);
  $('pointe-contenu').innerHTML=(saisie?panneauEtapesPointe(d,cible):'')+'<p style="margin:12px 0"><strong>'+fmtMin(jourMin(p))+'</strong> · '+esc(p?libDecisionHeures(p):'Aucun pointage')+'</p>'+
-  r.evenements.map(e=>'<div class="pointe-ligne"><span>'+esc(POINTE_LIB[e.action])+'</span><strong>'+pointeHeure(e.at,true)+'</strong></div>').join('')+
+  (saisie?[]:r.evenements).map(e=>'<div class="pointe-ligne"><span>'+esc(POINTE_LIB[e.action])+'</span><strong>'+pointeHeure(e.at,true)+'</strong></div>').join('')+
   r.corrections.map(c=>'<div class="pointe-correction"><strong>Correction '+esc(c.auteur===S.moi.id&&admin&&c.etat==='acceptee'?'enregistrée':{attente:'en attente',acceptee:'acceptée',refusee:'refusée'}[c.etat])+'</strong><p>'+esc(c.motif)+'</p><pre>Avant : '+esc(pointeTexteEvents(c.avant))+'\nDemandé : '+esc(pointeTexteEvents(c.proposition))+'</pre>'+(c.reponse?'<p>Réponse : '+esc(c.reponse)+'</p>':'')+(admin&&c.etat==='attente'?'<label>Réponse / motif du refus<input data-reponse="'+c.id+'" maxlength="500"></label><div class="pointe-actions"><button class="btn" data-accepter="'+c.id+'">Accepter la correction</button><button class="btn sec" data-refuser="'+c.id+'">Refuser</button></div>':'')+'</div>').join('')+
   (!estCompta() && (admin || (!attente && r.etat==='termine'))?'<button class="btn sec" data-editer-pointe>'+ (admin?'Modifier les heures':'Demander une correction')+'</button><div data-editeur-pointe hidden>'+ (admin?'':'<p class="pointe-avertissement">Toute correction doit être justifiée et validée par le responsable. Les heures originales sont conservées.</p>')+'<div data-lignes-pointe></div>'+(admin?'<button class="js-lien" data-ajouter-pointe>+ Ajouter un pointage</button>':'')+'<label>'+ (admin?'Note (facultative)':'Motif de la correction')+'<textarea data-motif-pointe maxlength="'+(admin?486:500)+'"></textarea></label><button class="btn large" data-envoyer-correction>'+ (admin?'Enregistrer les heures':'Demander la correction')+'</button></div>':'')+
   (!admin&&!estCompta()?'<p class="pointe-avertissement">Les pointages doivent être effectués au moment exact. Pour un pointage manquant, adressez une demande au responsable.</p><button class="btn sec" data-demande-responsable>Faire une demande</button>':'')+
-  (admin&&p&&r.etat==='termine'&&!attente?'<hr style="margin:18px 0"><h3>Contrôler les heures</h3><label>Minutes à approuver (total : '+jourMin(p)+')<input data-minutes-pointe type="number" min="0" max="'+jourMin(p)+'" value="'+(p.approuve?minutesApprouvees(p):jourMin(p))+'"></label><label>Motif d’un éventuel refus<textarea data-motif-decision maxlength="500"></textarea></label><button class="btn" data-decider-pointe>Valider cette décision</button>':'')+'<p role="status" data-erreur-pointe></p>';
+  (admin&&p&&r.etat==='termine'&&!attente?htmlDecisionPointe(p):'')+'<p role="status" data-erreur-pointe></p>';
  const contenu=$('pointe-contenu');
  if(saisie){
   contenu.querySelectorAll('[data-pointer-admin]').forEach(b=>b.onclick=()=>envoyerPointeAdmin(b));
@@ -4092,14 +4101,135 @@ function peindreDialoguePointe() {
   await agirDialoguePointe(admin?'admin_pointage_enregistrer':'pointage_corriger',{p_jour:d.jour,p_employe:d.emp,p_evenements:d.edition,p_motif:motif,p_version:r.version,p_requete:d.requete});
  });
  contenu.querySelectorAll('[data-accepter],[data-refuser]').forEach(b=>b.onclick=async()=>{const id=b.dataset.accepter||b.dataset.refuser;await agirDialoguePointe('pointage_decider',{p_demande:id,p_accepter:!!b.dataset.accepter,p_reponse:contenu.querySelector('[data-reponse="'+id+'"]').value});});
- contenu.querySelector('[data-decider-pointe]')?.addEventListener('click',async()=>{const value=contenu.querySelector('[data-minutes-pointe]').value;if(value===''){toast('Indiquez les minutes à approuver');return;}await agirDialoguePointe('admin_decider_heures',{p_employe:d.emp,p_jour:d.jour,p_minutes_approuvees:Number(value),p_motif:contenu.querySelector('[data-motif-decision]').value,p_version:p.version_decision});});
+ contenu.querySelector('[data-decider-pointe]')?.addEventListener('click',async()=>{
+  if(revuePointeModifiee(true)){toast('Enregistrez ou annulez la correction d’heure avant de valider.');return;}
+  const h=contenu.querySelector('[data-decision-h]'),m=contenu.querySelector('[data-decision-m]');
+  const min=Number(h.value)*60+Number(m.value),motif=contenu.querySelector('[data-motif-decision]').value.trim();
+  if(h.value===''||m.value===''||!h.checkValidity()||!m.checkValidity()||!Number.isInteger(min)||min<0||min>jourMin(p)){toast('Indiquez une durée entre 0h00 et '+fmtMin(jourMin(p)));return;}
+  if(min<jourMin(p)&&!confirm('Valider '+fmtMin(min)+' et refuser '+fmtMin(jourMin(p)-min)+' ?'))return;
+  await agirDialoguePointe('admin_decider_heures',{p_employe:d.emp,p_jour:d.jour,p_minutes_approuvees:min,p_motif:motif,p_version:p.version_decision});
+ });
+ if(admin)installerRevuePointe(d,cible);
+
 }
+/* Revue guidée : aucune écriture de pointage pour naviguer ou poser une question. */
+const REVUE_QUESTIONS={token:null,brouillons:new Map(),envois:new Set()};
+function cleQuestionJour(emp,jour){
+ if(REVUE_QUESTIONS.token!==S.token){REVUE_QUESTIONS.token=S.token;REVUE_QUESTIONS.brouillons.clear();REVUE_QUESTIONS.envois.clear();}
+ return emp+'|'+jour;
+}
+function htmlQuestionJour(emp,jour){
+ const cle=cleQuestionJour(emp,jour);
+ return '<section class="revue-question"><h3>Question sur cette journée</h3><label>Votre question<textarea data-question-jour maxlength="2000" rows="3" placeholder="Écrire à l’employé…">'+esc(REVUE_QUESTIONS.brouillons.get(cle)||'')+'</textarea></label><p class="muet">La date est jointe au message dans l’onglet Questions de l’employé. Les heures restent inchangées.</p><button class="btn sec" data-envoyer-question>Envoyer la question</button><p role="status" data-question-statut></p></section>';
+}
+function lierQuestionJour(zone,emp,jour){
+ const champ=zone.querySelector('[data-question-jour]'),btn=zone.querySelector('[data-envoyer-question]'),statut=zone.querySelector('[data-question-statut]'),cle=cleQuestionJour(emp,jour),token=S.token;
+ champ.oninput=()=>REVUE_QUESTIONS.brouillons.set(cle,champ.value);
+ btn.disabled=REVUE_QUESTIONS.envois.has(cle);
+ btn.onclick=async()=>{
+  const texte=champ.value.trim();if(!texte){statut.textContent='Écrivez votre question.';champ.focus();return;}
+  if(REVUE_QUESTIONS.envois.has(cle))return;
+  REVUE_QUESTIONS.envois.add(cle);btn.disabled=true;champ.disabled=true;statut.textContent='Envoi…';
+  try{
+   const r=await rpc('message_ecrire',{p_token:token,p_employe:emp,p_jour:jour,p_annee:Number(jour.slice(0,4)),p_mois:Number(jour.slice(5,7)),p_texte:texte});
+   if(!r.ok)throw new Error(r.erreur||'Envoi impossible');
+   if(S.token!==token)return;
+   if((REVUE_QUESTIONS.brouillons.get(cle)||'').trim()===texte)REVUE_QUESTIONS.brouillons.delete(cle);champ.value='';statut.textContent='✓ Question envoyée · retrouvez la réponse dans Questions.';
+   // Si la journée a changé pendant l’envoi, ne pas effacer un nouveau brouillon.
+   document.querySelectorAll('[data-question-cle]').forEach(el=>{if(el.dataset.questionCle===cle){const c=el.querySelector('[data-question-jour]');if(c&&c.value===texte)c.value='';}});
+   S.detCharge=null;chargerMessages();
+  }catch(e){statut.textContent='Envoi non confirmé : '+e.message+'. Votre texte est conservé. Vérifiez Questions avant de réessayer.';}
+  finally{REVUE_QUESTIONS.envois.delete(cle);btn.disabled=false;champ.disabled=false;document.querySelectorAll('[data-question-cle]').forEach(el=>{if(el.dataset.questionCle===cle)el.querySelector('[data-envoyer-question]').disabled=false;});}
+ };
+ zone.dataset.questionCle=cle;
+}
+function htmlNavigationRevue(jour){
+ const jours=joursDuMois(Number(jour.slice(0,4)),Number(jour.slice(5,7))),i=jours.findIndex(j=>j.iso===jour);
+ return '<nav class="revue-navigation" aria-label="Parcourir les journées de cet employé"><button class="btn sec" data-revue-jour="'+(jours[i-1]?.iso||'')+'" aria-label="Jour précédent" '+(i===0?'disabled':'')+'>←</button><span>'+esc(libJour(jour))+'<small>Journées du mois sélectionné</small></span><button class="btn sec" data-revue-jour="'+(jours[i+1]?.iso||'')+'" aria-label="Jour suivant" '+(!jours[i+1]||jours[i+1].iso>S.auj?'disabled':'')+'>→</button></nav>';
+}
+function htmlDecisionPointe(p){
+ const min=p.approuve?minutesApprouvees(p):jourMin(p);
+ return '<section class="revue-validation"><h3>3. Valider la journée</h3>'+htmlDecisionHeures(p)+'<details data-decision-avancee><summary>Validation partielle ou refus</summary><p>Choisissez la durée à valider. Le reste sera refusé, sans effacer les pointages.</p><div class="decision-duree"><label>Heures<input data-decision-h type="number" inputmode="numeric" min="0" max="24" step="1" value="'+Math.floor(min/60)+'"></label><label>Minutes<input data-decision-m type="number" inputmode="numeric" min="0" max="59" step="1" value="'+min%60+'"></label></div><label>Motif du refus<textarea data-motif-decision maxlength="500">'+esc(p.motif_refus||'')+'</textarea></label></details><button class="btn large" data-decider-pointe '+(p.approuve?'disabled':'')+'>'+(p.approuve?'Journée déjà validée':'Valider la journée · '+fmtMin(min))+'</button></section>';
+}
+function revuePointeModifiee(heuresSeulement=false){
+ const zone=$('pointe-contenu');
+ if(pointeDialogue?.donnees&&S.moi?.role==='admin'&&zone.querySelector('[data-editeur-pointe]:not([hidden])')){
+  const edition=Array.from(zone.querySelectorAll('.pointe-edition')).map(row=>({action:row.querySelector('select').value,heure:row.querySelector('input').value}));
+  const origine=pointeDialogue.donnees.evenements.map(e=>({action:e.action,heure:pointeHeure(e.at,true)}));
+  if(JSON.stringify(edition)!==JSON.stringify(origine))return true;
+ }
+
+ return !!pointeDialogue&&Array.from(zone.querySelectorAll('[data-revue-initial]')).some(el=>(!heuresSeulement||el.matches('[data-heure-admin],.pointe-edition input,.pointe-edition select,[data-motif-pointe]'))&&el.value!==el.dataset.revueInitial);
+}
+function installerRevuePointe(d,cible){
+ const zone=$('pointe-contenu');
+ const controle=document.createElement('section');controle.className='revue-controle';
+ // Les actions existantes conservent leurs écouteurs et leurs contrôles de version.
+ while(zone.firstChild)controle.append(zone.firstChild);
+ const validation=controle.querySelector('.revue-validation');
+ const resume=Array.from(controle.children).find(el=>el.tagName==='P'&&el.querySelector('strong'));if(resume)controle.prepend(resume);
+ const panneau=controle.querySelector('.pointe-saisie');
+ if(panneau){panneau.querySelector('h3').hidden=true;const aide=panneau.querySelector(':scope > p:not([class])');if(aide)aide.hidden=true;if(d.donnees.etat==='termine')panneau.querySelector('.pointe-suite').hidden=true;}
+
+ const nav=document.createElement('div');nav.innerHTML=htmlNavigationRevue(d.jour)+'<p class="revue-employe">'+esc(cible?nomComplet(cible):'')+'</p><div class="revue-etapes"><button class="btn sec" data-revue-etape="controle" aria-pressed="true">1. Vérifier les heures</button><button class="btn sec" data-revue-etape="question" aria-pressed="false">2. Poser une question</button></div>';
+ zone.append(nav,controle);
+ const question=document.createElement('div');question.hidden=true;question.innerHTML=htmlQuestionJour(d.emp,d.jour);zone.append(question);lierQuestionJour(question,d.emp,d.jour);
+ if(validation)zone.append(validation);
+ // L’éditeur complet reste disponible pour plusieurs pauses, sans doubler le parcours principal.
+ const editer=controle.querySelector('[data-editer-pointe]'),editeur=controle.querySelector('[data-editeur-pointe]');
+ if(editer&&editeur&&controle.querySelector('.pointe-saisie')){const avances=document.createElement('details');avances.className='revue-avance';const titre=document.createElement('summary');titre.textContent='Plusieurs pauses / correction complète';avances.append(titre,editer,editeur);controle.append(avances);}
+ if(cible){const absence=document.createElement('button');absence.className='js-lien';absence.textContent='Horaire manuel, absence ou remarque';absence.onclick=()=>{if(d.occupe||d.ajoutEnAttente)return;if(revuePointeModifiee()&&!confirm('Quitter sans enregistrer vos changements ?'))return;$('pointe-fermer').click();if(!pointeDialogue)ouvrirJour(d.emp,d.jour,true);};controle.append(absence);}
+ zone.querySelectorAll('[data-revue-etape]').forEach(b=>b.onclick=()=>{const q=b.dataset.revueEtape==='question';controle.hidden=q;question.hidden=!q;zone.querySelectorAll('[data-revue-etape]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
+ zone.querySelectorAll('[data-revue-jour]').forEach(b=>b.onclick=()=>{
+  if(d.occupe||d.ajoutEnAttente){toast('Terminez l’enregistrement en cours.');return;}
+  if(revuePointeModifiee()&&!confirm('Changer de jour sans enregistrer vos changements d’heure ou de décision ?'))return;
+  ouvrirJour(d.emp,b.dataset.revueJour);
+ });
+ zone.querySelectorAll('input,select,textarea:not([data-question-jour])').forEach(el=>el.dataset.revueInitial=el.value);
+ if(validation){
+  const bouton=validation.querySelector('[data-decider-pointe]');
+  validation.querySelectorAll('input,textarea').forEach(el=>el.addEventListener('input',()=>{
+   const h=validation.querySelector('[data-decision-h]'),m=validation.querySelector('[data-decision-m]'),min=Number(h.value)*60+Number(m.value),total=jourMin(d.donnees.pointage);
+   bouton.disabled=h.value===''||m.value===''||!h.checkValidity()||!m.checkValidity()||min>total;
+   bouton.textContent=min===total?'Valider la journée · '+fmtMin(min):'Valider '+fmtMin(min)+' · refuser '+fmtMin(Math.max(0,total-min));
+  }));
+ }
+}
+function installerRevueJourManuel(admin){
+ $('voile-jour').querySelector('[data-revue-manuelle]')?.remove();
+ if(!admin)return;
+ const nav=document.createElement('div');nav.dataset.revueManuelle='';nav.innerHTML=htmlNavigationRevue(MJ.jour)+htmlQuestionJour(MJ.empId,MJ.jour);$('voile-jour').querySelector('.mj-tete').after(nav);
+ lierQuestionJour(nav,MJ.empId,MJ.jour);
+ const initial=()=>JSON.stringify(['mj-md','mj-mf','mj-ad','mj-af','mj-rem','mj-statut-m','mj-statut-a','mj-decision-h','mj-decision-m','mj-decision-motif'].map(id=>$(id).value));
+ const etat=initial();nav.querySelectorAll('[data-revue-jour]').forEach(b=>b.onclick=()=>{if(initial()!==etat&&!confirm('Changer de jour sans enregistrer vos modifications ?'))return;const emp=MJ.empId;fermerJour();ouvrirJour(emp,b.dataset.revueJour);});
+ $('mj-explication').hidden=true;
+ let details=$('mj-decision').parentElement;
+ if(!details.matches('details')){details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Validation partielle ou refus';details.append(summary);$('mj-decision').before(details);details.append($('mj-decision'));}
+ details.open=false;details.hidden=$('mj-decision').hidden;
+ $('mj-save').textContent='Enregistrer les changements d’heure';
+}
+function htmlTendanceHeures(lignes,debut,fin,auj){
+ const b=calculerBilanPeriode(lignes,debut,fin,auj),map=Object.fromEntries(lignes.map(p=>[p.jour,p])),semaines=new Map();
+ let retenues=0,attente=0;
+ for(const j of b.jours){
+  const p=map[j.iso];if(p?.approuve)retenues+=Math.max(0,minutesApprouvees(p)-(j.travail-j.sup));else attente+=j.sup;
+  const lundi=new Date(j.iso+'T12:00:00Z');lundi.setUTCDate(lundi.getUTCDate()-((j.js+6)%7));const cle=lundi.toISOString().slice(0,10);
+  if(!semaines.has(cle))semaines.set(cle,{debut:cle,jours:[],sup:0,incertain:false});const sem=semaines.get(cle);sem.jours.push(j);sem.sup+=j.sup;
+  if(j.etat==='Sans saisie'||j.etat==='Pointage incomplet')sem.incertain=true;
+ }
+ const toutes=[...semaines.values()],completes=toutes.filter(s=>s.jours.length===7&&s.jours.at(-1).iso<auj&&!s.incertain),recentes=toutes.slice(-12),max=Math.max(1,...recentes.map(s=>s.sup));
+ const delta=completes.length>=2?completes.at(-1).sup-completes.at(-2).sup:null;
+ const tendance=delta===null?'Deux semaines complètes et renseignées sont nécessaires pour comparer.':(delta===0?'Stable':delta>0?'En hausse de '+fmtMin(delta):'En baisse de '+fmtMin(-delta))+' entre les semaines du '+libJour(completes.at(-2).debut)+' et du '+libJour(completes.at(-1).debut)+'.';
+ return '<section class="revue-tendance"><h3>Évolution des heures supplémentaires</h3><div class="revue-indicateurs"><span><b>'+fmtMin(retenues)+'</b> retenues après validation</span><span><b>'+fmtMin(attente)+'</b> à examiner</span><span><b>'+fmtMin(Math.max(0,b.sup-retenues-attente))+'</b> non retenues</span></div><p>'+esc(tendance)+'</p><p class="muet">'+(b.travail?(b.sup/b.travail*100).toLocaleString('fr-CH',{maximumFractionDigits:1})+' % des heures réalisées · ':'')+(b.sup/480).toLocaleString('fr-CH',{maximumFractionDigits:2})+' journée(s) de 8 h'+(completes.length?' · Moyenne : '+fmtMin(Math.round(completes.reduce((n,s)=>n+s.sup,0)/completes.length))+' par semaine complète':'')+'</p><div class="revue-semaines">'+recentes.map(s=>'<div class="revue-semaine"><span>'+esc(libJour(s.jours[0].iso))+' – '+esc(libJour(s.jours.at(-1).iso))+(s.jours.length<7||s.jours.at(-1).iso>=auj?' · partielle':'')+(s.incertain?' · à compléter':'')+'</span><strong>'+fmtMin(s.sup)+'</strong><div class="revue-barre"><i style="width:'+Math.round(s.sup/max*100)+'%"></i></div></div>').join('')+'</div>'+(toutes.length>12?'<p class="muet">Graphique : les 12 dernières semaines de la période. Totaux calculés sur toute la période.</p>':'')+'<p class="muet">Les heures retenues correspondent à la durée validée au-delà de la base journalière. Les pointages incomplets et les jours manquants rendent le bilan provisoire. Ces dépassements ne sont pas le solde contractuel, ni un montant à payer : les récupérations, paiements et majorations ne sont pas déduits ici.</p></section>';
+}
+
 function panneauEtapesPointe(d,cible){
  const r=d.donnees,attente=r.corrections.some(c=>c.etat==='attente');
  const suivants={vide:['debut'],travail:['pause','fin'],pause:['reprise','fin']}[r.etat]||[];
  const lib={debut:'Début de journée',pause:'Début de pause',reprise:'Reprise du travail',fin:'Fin de journée'};
  const heureDef=a=>cible[{debut:'matin_debut_def',pause:'matin_fin_def',reprise:'apm_debut_def',fin:'apm_fin_def'}[a]]||{debut:'08:00',pause:'12:00',reprise:'13:00',fin:'17:00'}[a];
- const ligne=(a,indice,heure,actif,texte)=>'<div class="pointe-heure-ligne" data-etape-action="'+a+'"><label><span class="muet">'+texte+'</span><input type="time" step="1" data-heure-admin aria-label="Heure · '+lib[a]+(indice>=0?' · pointage '+(indice+1):' · nouveau')+'" value="'+esc(heure)+'" '+(!actif?'disabled':'')+'></label><button class="btn" data-pointer-admin="'+a+'" data-indice-admin="'+indice+'" '+(!actif?'disabled':'')+'>'+ (indice>=0?'Corriger':'Enregistrer')+'</button></div>';
+ const ligne=(a,indice,heure,actif,texte)=>'<div class="pointe-heure-ligne" data-etape-action="'+a+'"><label><span class="muet">'+texte+'</span><input type="time" step="1" data-heure-admin aria-label="Heure · '+lib[a]+(indice>=0?' · pointage '+(indice+1):' · nouveau')+'" value="'+esc(heure)+'" '+(!actif?'disabled':'')+'></label><button class="btn sec" data-pointer-admin="'+a+'" data-indice-admin="'+indice+'" '+(!actif?'disabled':'')+'>'+ (indice>=0?'Enregistrer cette heure':'Enregistrer ce pointage')+'</button></div>';
+
  const etapes=Object.keys(lib).map(a=>{
   const existants=r.evenements.map((e,i)=>({e,i})).filter(x=>x.e.action===a);
   let html=existants.map(({e,i})=>ligne(a,i,pointeHeure(e.at,true),!attente,'Enregistré')).join('');
@@ -4121,6 +4251,9 @@ async function envoyerPointeAdmin(bouton){
  const d=pointeDialogue;if(!d||d.occupe||S.moi.role!=='admin')return;
  const zone=$('pointe-contenu'),erreur=zone.querySelector('[data-erreur-admin]'),token=S.token;
  const heure=bouton.closest('.pointe-heure-ligne').querySelector('[data-heure-admin]');
+ if(!d.ajoutEnAttente&&Array.from(zone.querySelectorAll('[data-heure-admin]')).some(e=>e!==heure&&e.dataset.revueInitial!==undefined&&e.value!==e.dataset.revueInitial)){
+  erreur.textContent='Corrigez une heure à la fois : rétablissez les autres champs avant d’enregistrer cette ligne.';return;
+ }
  if(!d.ajoutEnAttente){
   if(!heure.value){erreur.textContent='Choisissez l’heure du pointage.';heure.focus();return;}
   const indice=Number(bouton.dataset.indiceAdmin);
@@ -4138,7 +4271,7 @@ async function envoyerPointeAdmin(bouton){
   }
  }
  d.controlesAvant??=[...zone.querySelectorAll('button,input,select,textarea')].map(e=>[e,e.disabled]);
- const controles=d.controlesAvant,libelle=Number(bouton.dataset.indiceAdmin)>=0?'Corriger':'Enregistrer';
+ const controles=d.controlesAvant,libelle=Number(bouton.dataset.indiceAdmin)>=0?'Enregistrer cette heure':'Enregistrer ce pointage';
  d.occupe=true;erreur.textContent='';controles.forEach(([e])=>e.disabled=true);bouton.textContent='Enregistrement…';
  try{
   const r=await rpc(d.ajoutEnAttente.fn,{p_token:token,...d.ajoutEnAttente.args});
@@ -4178,7 +4311,7 @@ async function actualiserPointeTechnicien(){
 function initPointe(){
  // Une intervention du bureau met aussi à jour un téléphone resté ouvert.
  setInterval(actualiserPointeTechnicien,15000);
- $('pointe-fermer').onclick=()=>{pointeDialogue=null;$('voile-pointe').classList.remove('ouvert');};
+ $('pointe-fermer').onclick=()=>{if(S.moi?.role==='admin'&&(pointeDialogue?.occupe||pointeDialogue?.ajoutEnAttente)){toast('Terminez la vérification de l’enregistrement avant de fermer.');return;}if(revuePointeModifiee()&&!confirm('Quitter sans enregistrer les changements d’heure ou de décision ?'))return;pointeDialogue=null;$('voile-pointe').classList.remove('ouvert');};
  $('voile-pointe').addEventListener('click',e=>{if(e.target===$('voile-pointe'))$('pointe-fermer').click();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('pointe-fermer').click();});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.moi){noterActivite('retour_app',S.moi.role==='employe'?(S.vueEmp||'aujourdhui'):'back office');if(!pointeDialogue)charger();}});
