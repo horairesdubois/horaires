@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+const nav=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
+try {
+ const pg=await nav.newPage(),erreurs=[];pg.on('pageerror',e=>erreurs.push(e.message));
+ await pg.addInitScript(()=>{
+  const admin={id:'A',prenom:'Bureau',role:'admin'},emp={id:'E',prenom:'Alex',role:'employe',actif:true},autre={id:'F',prenom:'Camille',role:'employe',actif:true};
+  const jour=(date,extra={})=>({employe_id:'E',jour:date,matin_type:'travail',matin_debut:'08:00',matin_fin:'12:00',apm_type:'travail',apm_debut:'13:00',apm_fin:'17:00',approuve:true,pointe_etat:'termine',pointe_evenements:[{action:'debut',at:date+'T06:00:00Z'},{action:'fin',at:date+'T15:00:00Z'}],...extra});
+  const data=[jour('2026-10-01'),jour('2026-10-02',{approuve:false}),jour('2026-10-05',{pointe_etat:'travail'}),jour('2026-10-06',{pointe_attente:true}),jour('2026-10-07',{employe_id:'F',approuve:false}),jour('2026-10-08',{minutes_refusees:60}),jour('2026-10-30')];
+  localStorage.setItem('hor_token','test');localStorage.setItem('hor_moi',JSON.stringify(admin));
+  window.essai={vide:false,appels:[],fichiers:[]};
+  const rep=x=>new Response(JSON.stringify(x));
+  window.fetch=async(u,o)=>{const fn=String(u).split('/rpc/')[1],a=JSON.parse(o?.body||'{}');essai.appels.push({fn,a});
+   if(fn==='admin_donnees')return rep({ok:true,employes:[admin,emp,autre],pointages:data,aujourdhui:'2026-10-22'});
+   if(fn==='pointage_exporter_valides')return rep({ok:true,pointages:essai.vide?[]:data,aujourdhui:'2026-10-22'});
+   return rep({ok:true,messages:[],lignes:[],acteurs:[],retards:[]});
+  };
+  window.XLSX={utils:{book_new:()=>({SheetNames:[],Sheets:{}}),aoa_to_sheet:lignes=>({lignes}),book_append_sheet:(wb,ws,n)=>{wb.SheetNames.push(n);wb.Sheets[n]=ws;}},writeFile:(wb,nom)=>essai.fichiers.push({wb,nom})};
+ });
+ await pg.goto(process.env.HORAIRES_TEST_URL||new URL('../app/index.html',import.meta.url).href);
+ await pg.waitForSelector('#v-admin:not([hidden])');
+ await pg.evaluate(async()=>{S.annee=2026;S.mois=10;await charger();S.ongletAdmin='export';renderAdmin();});
+ const avant=await pg.evaluate(()=>JSON.stringify(S.pointages));
+ await pg.locator('#btn-export').click();await pg.waitForFunction(()=>essai.fichiers.length===1);
+ const f=await pg.evaluate(()=>essai.fichiers[0]);
+ assert.match(f.nom,/jours-valides/);assert.ok(!f.wb.SheetNames.includes('Camille'));
+ const lignes=f.wb.Sheets.Alex.lignes.filter(r=>/^\d{2}\.\d{2}\.2026$/.test(r[0]?.v));
+ assert.deepEqual(lignes.map(r=>r[0].v),['01.10.2026','08.10.2026']);
+ const recap=f.wb.Sheets[f.wb.SheetNames[0]].lignes[5].map(c=>c?.v);
+ assert.equal(recap[3],'16:00');assert.equal(recap[5],process.env.HORAIRES_DUES_ATTENDUES||'16:48');assert.equal(recap.at(-2),'15:00');assert.equal(recap.at(-1),'1:00');
+ const details=f.wb.Sheets['Détail des pointages'].lignes.slice(1);
+ assert.deepEqual([...new Set(details.map(r=>r[1]))],['2026-10-01','2026-10-08']);
+ assert.equal(await pg.evaluate(()=>JSON.stringify(S.pointages)),avant);
+ await pg.evaluate(()=>essai.vide=true);await pg.locator('#btn-export').click();await pg.waitForFunction(()=>!document.getElementById('btn-export').disabled);
+ assert.equal(await pg.evaluate(()=>essai.fichiers.length),1);
+ assert.match(await pg.locator('#toast').innerText(),/Aucune journée validée/);
+ await pg.evaluate(()=>{essai.vide=false;S.moi.role='compta';S.lecture=true;renderExport();});
+ await pg.locator('#btn-export').click();await pg.waitForFunction(()=>essai.fichiers.length===2);
+ await pg.setViewportSize({width:390,height:664});
+ assert.equal(await pg.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.deepEqual(erreurs,[]);
+ console.log('✓ Mois incomplet : jours validés seuls, totaux limités, détails filtrés, refus conservés, écran intact, sélection vide, fiduciaire et mobile');
+} finally {await nav.close();}

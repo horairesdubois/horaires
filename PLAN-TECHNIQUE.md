@@ -3065,3 +3065,12 @@ Vérification locale terminée : les 25 fichiers d’essais passent après les r
 ciblées des parcours adaptés. Syntaxe JavaScript, identifiants DOM, doublons de
 fonctions, génération de `docs/index.html` et `git diff --check` validés. Chrome
 avec données simulées, sans écriture en production ; aucune migration SQL.
+
+
+## Export des jours validés d’un mois incomplet — 22 octobre 2026
+
+À la demande du propriétaire, l’export Excel porte sur les journées approuvées, terminées et sans correction en attente. La nouvelle fonction `pointage_exporter_valides` conserve les contrôles admin/compta et exclut les comptes démo et les dates futures. L’ancienne fonction reste disponible pour les anciennes pages.
+
+Chaque collaborateur est calculé sur ses seuls jours exportés ; les autres dates ne créent pas de déficit. Le récapitulatif, les décisions et les événements utilisent le même instantané, sans remplacer les pointages affichés. Le titre et le nom du fichier précisent le périmètre partiel. Une sélection sans journée validée affiche un message sans télécharger de fichier.
+
+Validation : test navigateur `export-jours-valides.mjs` (mois incomplet, totaux, refus, détails, absence de données, fiduciaire et mobile), contrôles JavaScript et test SQL sur octobre réel dans une transaction annulée (résultat conforme, accès sans session et technicien refusés). Les changements locaux antérieurs de calcul et de revue ne sont pas inclus dans cette publication.

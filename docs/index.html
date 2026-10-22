@@ -3537,8 +3537,8 @@ function renderExport() {
         '<button class="btn sec" id="btn-save-entreprise">Enregistrer le nom</button></div>') +
     '<div class="carte"><div style="font-weight:700;margin-bottom:6px">Collaborateurs à inclure — ' + MOIS[S.mois - 1] + ' ' + S.annee + '</div>' +
     '<div class="exp-choix">' + choix + '</div>' +
-    '<button class="btn large" id="btn-export">📥 Télécharger le fichier Excel du mois</button>' +
-    '<div class="muet centre" style="margin-top:8px">Un onglet récapitulatif + un onglet détaillé par collaborateur, avec les heures majorées selon la CCT de sa branche (.xlsx)</div></div>';
+    '<button class="btn large" id="btn-export">📥 Télécharger les jours validés du mois</button>' +
+    '<div class="muet centre" style="margin-top:8px">Uniquement les journées validées, même si le mois est incomplet. Totaux limités aux jours exportés. Un onglet récapitulatif + un onglet détaillé par collaborateur, avec les heures majorées selon la CCT de sa branche (.xlsx)</div></div>';
   if (S.lecture) { $('btn-export').addEventListener('click', exporterExcel); return; }
   $('btn-save-entreprise').addEventListener('click', async () => {
     try {
@@ -3696,8 +3696,8 @@ function premierJourOuvreSemaine(iso) {
 const dueDuJour = iso =>
   BASE_CONTRAT_MIN + (premierJourOuvreSemaine(iso) === iso ? COMPLEMENT_SEMAINE_MIN : 0);
 
-function feuilleEmploye(emp, map, jours, titreMois) {
-  const auj = S.auj || aujourdhui();
+function feuilleEmploye(emp, map, jours, titreMois, dateReference) {
+  const auj = dateReference || S.auj || aujourdhui();
   const lignes = jours.map(j => map[j.iso]).filter(Boolean);
   const totApprouvees = lignes.reduce((n,p) => n + minutesApprouvees(p), 0);
   const totRefusees = lignes.reduce((n,p) => n + minutesRefusees(p), 0);
@@ -3839,6 +3839,11 @@ function feuilleEmploye(emp, map, jours, titreMois) {
   ws['!merges'] = [0, 1, 2, 3].map(r => ({ s: { r, c: 0 }, e: { r, c: nCol - 1 } }));
   return { ws, totMin: totTrav, totCred, totDues, totPlus, totMoins, totMaj, solde, absCnt, valide, nApp, present, jt, cct, totApprouvees, totRefusees };
 }
+function jourValideExport(p) {
+  const incomplet=p.pointe_etat ? p.pointe_etat!=='termine' :
+    ['matin','apm'].some(k=>p[k+'_type']==='travail'&&!!p[k+'_debut']!==!!p[k+'_fin']);
+  return p.approuve && !incomplet && !p.pointe_attente;
+}
 async function exporterExcel() {
   if (chargeTerminee !== chargeSeq) { toast('Attendez le chargement complet du mois avant d’exporter.'); return; }
   const version = chargeSeq, annee = S.annee, mois = S.mois;
@@ -3853,16 +3858,17 @@ async function exporterExcel() {
     if (version !== chargeSeq || chargeTerminee !== chargeSeq || annee !== S.annee || mois !== S.mois) {
       throw new Error('Les données ou le mois ont changé pendant la préparation. Relancez l’export.');
     }
-    const frais=await rpc('pointage_exporter',{p_token:S.token,p_annee:annee,p_mois:mois,p_employes:ids});
+    const frais=await rpc('pointage_exporter_valides',{p_token:S.token,p_annee:annee,p_mois:mois,p_employes:ids});
     if(!frais.ok)throw new Error(frais.erreur);
     if(!Array.isArray(frais.pointages))throw new Error('La vérification des heures a échoué. Réessayez.');
     if(version!==chargeSeq||annee!==S.annee||mois!==S.mois)throw new Error('Le mois a changé. Relancez l’export.');
-    S.pointages=S.pointages.filter(p=>!ids.includes(p.employe_id)).concat(frais.pointages);S.auj=frais.aujourdhui;
-    const map = ptgMap();
-    const problemes=S.pointages.filter(p=>ids.includes(p.employe_id)&&p.pointe_etat&&(p.pointe_etat!=='termine'||p.pointe_attente));
-    if(problemes.length) throw new Error('Export suspendu : '+problemes.length+' journée(s) pointée(s) à terminer ou à corriger.');
-    const jours = joursDuMois(S.annee, S.mois);
-    const titreMois = MOIS[S.mois - 1] + ' ' + S.annee;
+    // Instantané local : un export partiel ne doit pas effacer les jours de l’écran.
+    const pointagesExport=frais.pointages.filter(p=>ids.includes(p.employe_id)&&jourValideExport(p)&&p.jour<=frais.aujourdhui&&p.jour.startsWith(annee+'-'+String(mois).padStart(2,'0')+'-'));
+    if(!pointagesExport.length)throw new Error('Aucune journée validée à exporter pour cette sélection.');
+    const map = {};
+    for(const p of pointagesExport)(map[p.employe_id] ||= {})[p.jour]=p;
+    const jours = joursDuMois(annee, mois);
+    const titreMois = MOIS[mois - 1] + ' ' + annee + ' — jours validés uniquement';
     const wb = XLSX.utils.book_new();
     const enTetesR = ['Employé', 'Métier', 'CCT applicable', 'Heures saisies', 'Heures créditées',
       'Heures dues', 'Heures sup saisies (application)', 'Écart contractuel en −', 'Solde contractuel', 'Jours travaillés',
@@ -3879,8 +3885,9 @@ async function exporterExcel() {
     const feuilles = [];
     for (const id of ids) {
       const emp = S.employes.find(e => e.id === id);
-      if (!emp) continue;
-      const f = feuilleEmploye(emp, map[id] || {}, jours, titreMois);
+      if (!emp || !map[id]) continue;
+      const joursValides=jours.filter(j=>map[id][j.iso]);
+      const f = feuilleEmploye(emp, map[id], joursValides, titreMois, frais.aujourdhui);
       feuilles.push({ emp, ws: f.ws });
       const autres = Object.entries(f.absCnt).filter(([t]) => !['vacances', 'maladie', 'accident'].includes(t))
         .reduce((somme, [, n]) => somme + n, 0);
@@ -3916,8 +3923,8 @@ async function exporterExcel() {
       XLSX.utils.book_append_sheet(wb, f.ws, n);
     }
     ajouterFeuilleDecisions(wb, ids, map, jours);
-    ajouterFeuillePointages(wb,ids);
-    const nomFichier = 'Horaires_' + S.annee + '-' + String(S.mois).padStart(2, '0') +
+    ajouterFeuillePointages(wb,ids,pointagesExport);
+    const nomFichier = 'Horaires_jours-valides_' + S.annee + '-' + String(S.mois).padStart(2, '0') +
       (S.entreprise ? '_' + S.entreprise.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') : '') + '.xlsx';
     XLSX.writeFile(wb, nomFichier);
     toast('✓ Fichier Excel téléchargé');
@@ -3925,9 +3932,9 @@ async function exporterExcel() {
     // central de la fiduciaire : ce qu'elle emporte, et quand. On le déclare.
     rpc('journal_noter', { p_token: S.token, p_action: 'export',
       p_cible: String(S.mois).padStart(2, '0') + '.' + S.annee,
-      p_detail: { n: ids.length } }).catch(() => {});
+      p_detail: { n: feuilles.length, jours: pointagesExport.length, perimetre: 'jours_valides' } }).catch(() => {});
   } catch (e) { toast(e.message, 4000); }
-  finally { btn.disabled = false; btn.textContent = '📥 Télécharger le fichier Excel du mois'; }
+  finally { btn.disabled = false; btn.textContent = '📥 Télécharger les jours validés du mois'; }
 }
 
 /* Pointage réel, version 2026-10-12. Aucune réussite optimiste : reçu serveur obligatoire. */
@@ -4296,7 +4303,7 @@ function lireEditionPointe(){pointeDialogue.edition=Array.from($('pointe-contenu
 function peindreEditionPointe(){const d=pointeDialogue,zone=$('pointe-contenu').querySelector('[data-lignes-pointe]');zone.innerHTML=d.edition.map((e,i)=>'<div class="pointe-edition"><select '+(S.moi.role==='admin'?'':'disabled')+' aria-label="Action '+(i+1)+'">'+Object.entries(POINTE_LIB).map(([k,v])=>'<option value="'+k+'" '+(k===e.action?'selected':'')+'>'+v+'</option>').join('')+'</select><input type="time" step="1" aria-label="Heure '+(i+1)+'" value="'+esc(e.heure)+'">'+(S.moi.role==='admin'?'<button data-retirer="'+i+'" aria-label="Retirer le pointage '+(i+1)+'">✕</button>':'')+'</div>').join('');zone.querySelectorAll('[data-retirer]').forEach(b=>b.onclick=()=>{lireEditionPointe();d.edition.splice(Number(b.dataset.retirer),1);peindreEditionPointe();});}
 async function agirDialoguePointe(fn,args){const d=pointeDialogue;if(d.occupe)return;d.occupe=true;const boutons=[...$('pointe-contenu').querySelectorAll('button')].map(b=>[b,b.disabled]);boutons.forEach(([b])=>b.disabled=true);try{const r=await rpc(fn,{p_token:S.token,...args});if(!r.ok)throw new Error(r.erreur);toast('✓ Enregistré');await charger();if(pointeDialogue===d)await ouvrirPointe(d.emp,d.jour,true);}catch(e){if(pointeDialogue===d){$('pointe-contenu').querySelector('[data-erreur-pointe]').textContent=e.message;boutons.forEach(([b,disabled])=>b.disabled=disabled);}}finally{d.occupe=false;}}
 function peindreDemandesPointe(){const zone=$('pointe-demandes-admin'),d=S.pointageDemandes||[];zone.hidden=S.moi.role!=='admin'||S.ongletAdmin!=='equipe'||!d.length;zone.innerHTML=d.length?'<div class="pointe-avertissement"><strong>'+d.length+' correction(s) de pointage à traiter</strong>'+d.map(c=>'<button class="js-lien" data-dem-pointe="'+esc(c.id)+'">'+esc(c.employe)+' · '+esc(c.jour)+' · '+esc(c.motif)+'</button>').join('')+'</div>':'';zone.querySelectorAll('[data-dem-pointe]').forEach(b=>b.onclick=()=>{const c=d.find(x=>x.id===b.dataset.demPointe);ouvrirPointe(c.employe_id,c.jour,true);});}
-function ajouterFeuillePointages(wb,ids){const lignes=[['Employé','Date','Action','Heure (Europe/Zurich)','Horodatage complet','Version de la journée','État']];for(const p of S.pointages.filter(p=>ids.includes(p.employe_id)&&p.pointe_evenements)){const emp=S.employes.find(e=>e.id===p.employe_id);for(const e of p.pointe_evenements)lignes.push([nomComplet(emp),p.jour,POINTE_LIB[e.action],pointeHeure(e.at,true),e.at,p.pointe_version,libDecisionHeures(p)]);}if(lignes.length>1){const ws=XLSX.utils.aoa_to_sheet(lignes);ws['!cols']=[26,14,26,28,32,24,38].map(wch=>({wch}));XLSX.utils.book_append_sheet(wb,ws,'Détail des pointages');}}
+function ajouterFeuillePointages(wb,ids,pointages=S.pointages){const lignes=[['Employé','Date','Action','Heure (Europe/Zurich)','Horodatage complet','Version de la journée','État']];for(const p of pointages.filter(p=>ids.includes(p.employe_id)&&p.pointe_evenements)){const emp=S.employes.find(e=>e.id===p.employe_id);for(const e of p.pointe_evenements)lignes.push([nomComplet(emp),p.jour,POINTE_LIB[e.action],pointeHeure(e.at,true),e.at,p.pointe_version,libDecisionHeures(p)]);}if(lignes.length>1){const ws=XLSX.utils.aoa_to_sheet(lignes);ws['!cols']=[26,14,26,28,32,24,38].map(wch=>({wch}));XLSX.utils.book_append_sheet(wb,ws,'Détail des pointages');}}
 Object.assign(JR,{
  pointage_debut:['▶',e=>'a commencé sa journée du '+e.cible],pointage_pause:['Ⅱ',e=>'a commencé une pause le '+e.cible],pointage_reprise:['▶',e=>'a repris le travail le '+e.cible],pointage_fin:['✓',e=>'a terminé sa journée du '+e.cible],
  pointage_correction_demandee:['✎',e=>'a demandé une correction du '+e.cible+jrQui(e)],pointage_correction_acceptee:['✓',e=>'a accepté une correction du '+e.cible+jrQui(e)],pointage_correction_refusee:['✕',e=>'a refusé une correction du '+e.cible+jrQui(e)],

@@ -30,7 +30,7 @@ ${morceau('function ptgMap()','function sessionPerdue()')}
 var chargeSeq=1,chargeTerminee=1,attenteModule=null,avis=[];
 var bouton={disabled:false,innerHTML:'',textContent:''};
 const $=id=>id==='btn-export'?bouton:{querySelectorAll:()=>[{dataset:{id:'E1'}},{dataset:{id:'D1'}}]};
-const toast=s=>avis.push(s);const rpc=fn=>Promise.resolve(fn==='pointage_exporter'?{ok:true,pointages:S.pointages.filter(p=>p.jour.startsWith(S.annee+'-'+String(S.mois).padStart(2,'0'))),aujourdhui:S.auj}:{ok:true});
+const toast=s=>avis.push(s);const rpc=fn=>Promise.resolve(fn==='pointage_exporter_valides'?{ok:true,pointages:S.pointages.filter(p=>p.jour.startsWith(S.annee+'-'+String(S.mois).padStart(2,'0'))),aujourdhui:S.auj}:{ok:true});
 const chargerXLSX=()=>attenteModule||Promise.resolve();
 ${morceau('function ajouterFeuilleDecisions(','function chargerXLSX(')}
 ${morceau('const BORD','/* Pointage réel, version')}
@@ -46,20 +46,20 @@ assert.match(nom,/2026-09/);
 const lignes=n=>xlsx?xlsx.utils.sheet_to_json(livre.Sheets[n],{header:1,defval:''}):livre.Sheets[n].lignes.map(r=>r.map(c=>c&&typeof c==='object'?c.v:c??''));
 const detail=lignes('Test'),recap=lignes('Récapitulatif septembre')[5],decisions=lignes('Décisions sur les heures');
 const tot=detail.find(r=>r[0]==='TOTAUX DU MOIS');
-assert.equal(tot[7],'50:05');assert.equal(recap[3],'50:05');
+assert.equal(tot[7],'30:03');assert.equal(recap[3],'30:03');
 assert.equal(tot.at(-2),'19:01');assert.equal(recap[21],'19:01');
 assert.equal(tot.at(-1),'11:02');assert.equal(recap[22],'11:02');
 assert.equal(tot[11],recap[6]);
-assert.equal(decisions.length,7);
+assert.equal(decisions.length,5);
 assert.equal(detail.find(r=>r[0]==='07.09.2026')[7],'0:00');
-assert.equal(decisions.find(r=>r[1]==='2026-09-04')[4],'');
-assert.equal(decisions.find(r=>r[1]==='2026-09-05')[2],'À confirmer par l’employé');
+assert.equal(decisions.find(r=>r[1]==='2026-09-04'),undefined);
+assert.equal(decisions.find(r=>r[1]==='2026-09-05'),undefined);
 assert.equal(decisions.find(r=>r[1]==='2026-09-06')[4],'0:00');
 // Vraie sérialisation facultative avec le module identique à celui de production.
 if(xlsx){
  const bytes=Buffer.from(xlsx.write(livre,{bookType:'xlsx',type:'array'}));
  const relu=xlsx.read(bytes.toString('base64'),{type:'base64'});
- assert.equal(xlsx.utils.sheet_to_json(relu.Sheets.Test,{header:1}).find(r=>r[0]==='TOTAUX DU MOIS')[7],'50:05');
+ assert.equal(xlsx.utils.sheet_to_json(relu.Sheets.Test,{header:1}).find(r=>r[0]==='TOTAUX DU MOIS')[7],'30:03');
  if(process.env.HORAIRES_SORTIE_XLSX)writeFileSync(process.env.HORAIRES_SORTIE_XLSX,bytes);
 }
 // Navigation/rafraîchissement en cours : aucun fichier produit.
@@ -79,5 +79,5 @@ await vm.runInContext("S.annee=2026;S.mois=10;S.auj='2026-10-12';S.pointages=[po
 const ligneP=lignes('Test').find(r=>r[0]==='12.10.2026');assert.equal(ligneP[7],'7:00');assert.equal(ligneP.at(-2),'6:40');assert.equal(ligneP.at(-1),'0:20');
 const detailP=lignes('Détail des pointages');assert.equal(detailP.length,7);assert.equal(detailP[1][3],'01:00:17');assert.equal(detailP[6][4],'2026-10-12T09:00:42+02:00');
 if(xlsx){const bytes=Buffer.from(xlsx.write(livre,{bookType:'xlsx',type:'array'}));const relu=xlsx.read(bytes.toString('base64'),{type:'base64'});assert.equal(xlsx.utils.sheet_to_json(relu.Sheets.Test,{header:1}).find(r=>r[0]==='12.10.2026')[7],'7:00');}
-livre=null;await vm.runInContext("pointe.pointe_etat='travail';exporterExcel()",ctx);assert.equal(livre,null);assert.match(vm.runInContext('avis.at(-1)',ctx),/Export suspendu/);
+livre=null;await vm.runInContext("pointe.pointe_etat='travail';exporterExcel()",ctx);assert.equal(livre,null);assert.match(vm.runInContext('avis.at(-1)',ctx),/Aucune journée validée/);
 console.log('✓ Pointages Excel : 3 plages, 7h00 saisies, 6h40 approuvées + 20 min refusées, secondes originales et blocage journée incomplète');
