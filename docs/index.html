@@ -797,6 +797,7 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .pointe-heure-ligne label{flex:1;min-width:0;margin:0}
 .pointe-heure-ligne .btn{padding:12px;font-size:14px;flex-shrink:0}
 .pointe-saisie .pointe-suite{font-weight:600;color:var(--texte);text-align:left}
+.revue-controle .pointe-edition{grid-template-columns:minmax(0,1fr) 44px;padding:12px 0;border-bottom:1px solid var(--ligne)}.revue-controle .pointe-edition select{grid-column:1}.revue-controle .pointe-edition input{grid-column:1;grid-row:2;border:1px solid var(--ligne);border-radius:10px;padding:12px}.revue-controle .pointe-edition button{grid-column:2;grid-row:2;min-height:44px}
 </style>
 <style>
 .revue-navigation{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:8px;margin:12px 0}.revue-navigation span{text-align:center;font-weight:600}.revue-navigation small{display:block;font-size:12px;font-weight:400;color:var(--gris)}.revue-navigation .btn{min-width:44px;min-height:44px;padding:10px}.revue-employe{font-weight:600}.revue-etapes{display:flex;gap:8px;margin:16px 0}.revue-etapes .btn{flex:1;white-space:normal;font-size:14px}.revue-etapes [aria-pressed=true]{background:var(--bleu);color:white}.revue-question textarea,.revue-validation textarea{display:block;width:100%;min-height:90px;padding:12px;border:1px solid var(--ligne);border-radius:10px;font:inherit;font-size:16px;margin:8px 0}.revue-validation{border-top:1px solid var(--ligne);margin-top:20px;padding-top:16px}.revue-validation summary,.revue-avance summary{padding:14px 0;min-height:44px;color:var(--bleu);cursor:pointer}.revue-validation .btn{margin-top:14px;white-space:normal}.revue-controle .pointe-saisie{background:transparent;padding:0}.revue-controle .pointe-etape .btn{font-size:14px;white-space:normal}.revue-controle [hidden],.revue-question[hidden]{display:none!important}.revue-indicateurs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.revue-indicateurs span{background:var(--fond);padding:12px;border-radius:10px;font-size:13px}.revue-indicateurs b{display:block;font-size:22px;color:var(--bleu)}.revue-tendance{margin:24px 0}.revue-semaine{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;margin:14px 0;font-size:13px}.revue-barre{grid-column:1/-1;height:9px;background:var(--ligne);border-radius:5px;overflow:hidden}.revue-barre i{display:block;height:100%;background:var(--bleu)}.pointe-dialogue input,.pointe-dialogue label{min-width:0;max-width:100%}.pointe-dialogue .decision-duree{display:flex;gap:12px}.pointe-dialogue .decision-duree input{display:block;width:100%;font-size:16px;padding:10px}.revue-question{margin:16px 0}.pointe-dialogue{overscroll-behavior:contain;padding-bottom:max(24px,env(safe-area-inset-bottom))}
@@ -4086,9 +4087,10 @@ async function ouvrirPointe(emp,jour,detail=false) {
 function peindreDialoguePointe() {
  const d=pointeDialogue,r=d.donnees,p=r.pointage,admin=S.moi.role==='admin',attente=r.corrections.some(c=>c.etat==='attente');
  const cible=S.employes.find(e=>e.id===d.emp);
- const saisie=admin&&cible?.pointage_actif&&d.jour>='2026-10-12'&&d.jour<=(r.aujourdhui||S.auj)&&(!p||p.pointe_evenements);
+ // Un seul éditeur pour le back-office, y compris les journées en cours.
+ const saisie=false;
  $('pointe-contenu').innerHTML=(saisie?panneauEtapesPointe(d,cible):'')+'<p style="margin:12px 0"><strong>'+fmtMin(jourMin(p))+'</strong> · '+esc(p?libDecisionHeures(p):'Aucun pointage')+'</p>'+
-  (saisie?[]:r.evenements).map(e=>'<div class="pointe-ligne"><span>'+esc(POINTE_LIB[e.action])+'</span><strong>'+pointeHeure(e.at,true)+'</strong></div>').join('')+
+  (admin||saisie?[]:r.evenements).map(e=>'<div class="pointe-ligne"><span>'+esc(POINTE_LIB[e.action])+'</span><strong>'+pointeHeure(e.at,true)+'</strong></div>').join('')+
   r.corrections.map(c=>'<div class="pointe-correction"><strong>Correction '+esc(c.auteur===S.moi.id&&admin&&c.etat==='acceptee'?'enregistrée':{attente:'en attente',acceptee:'acceptée',refusee:'refusée'}[c.etat])+'</strong><p>'+esc(c.motif)+'</p><pre>Avant : '+esc(pointeTexteEvents(c.avant))+'\nDemandé : '+esc(pointeTexteEvents(c.proposition))+'</pre>'+(c.reponse?'<p>Réponse : '+esc(c.reponse)+'</p>':'')+(admin&&c.etat==='attente'?'<label>Réponse / motif du refus<input data-reponse="'+c.id+'" maxlength="500"></label><div class="pointe-actions"><button class="btn" data-accepter="'+c.id+'">Accepter la correction</button><button class="btn sec" data-refuser="'+c.id+'">Refuser</button></div>':'')+'</div>').join('')+
   (!estCompta() && (admin || (!attente && r.etat==='termine'))?'<button class="btn sec" data-editer-pointe>'+ (admin?'Modifier les heures':'Demander une correction')+'</button><div data-editeur-pointe hidden>'+ (admin?'':'<p class="pointe-avertissement">Toute correction doit être justifiée et validée par le responsable. Les heures originales sont conservées.</p>')+'<div data-lignes-pointe></div>'+(admin?'<button class="js-lien" data-ajouter-pointe>+ Ajouter un pointage</button>':'')+'<label>'+ (admin?'Note (facultative)':'Motif de la correction')+'<textarea data-motif-pointe maxlength="'+(admin?486:500)+'"></textarea></label><button class="btn large" data-envoyer-correction>'+ (admin?'Enregistrer les heures':'Demander la correction')+'</button></div>':'')+
   (!admin&&!estCompta()?'<p class="pointe-avertissement">Les pointages doivent être effectués au moment exact. Pour un pointage manquant, adressez une demande au responsable.</p><button class="btn sec" data-demande-responsable>Faire une demande</button>':'')+
@@ -4109,14 +4111,30 @@ function peindreDialoguePointe() {
  });
  contenu.querySelectorAll('[data-accepter],[data-refuser]').forEach(b=>b.onclick=async()=>{const id=b.dataset.accepter||b.dataset.refuser;await agirDialoguePointe('pointage_decider',{p_demande:id,p_accepter:!!b.dataset.accepter,p_reponse:contenu.querySelector('[data-reponse="'+id+'"]').value});});
  contenu.querySelector('[data-decider-pointe]')?.addEventListener('click',async()=>{
-  if(revuePointeModifiee(true)){toast('Enregistrez ou annulez la correction d’heure avant de valider.');return;}
+  if(revuePointeModifiee(true)){toast('Enregistrez les heures avec « Enregistrer sans valider », puis validez la journée.');return;}
   const h=contenu.querySelector('[data-decision-h]'),m=contenu.querySelector('[data-decision-m]');
   const min=Number(h.value)*60+Number(m.value),motif=contenu.querySelector('[data-motif-decision]').value.trim();
   if(h.value===''||m.value===''||!h.checkValidity()||!m.checkValidity()||!Number.isInteger(min)||min<0||min>jourMin(p)){toast('Indiquez une durée entre 0h00 et '+fmtMin(jourMin(p)));return;}
   if(min<jourMin(p)&&!confirm('Valider '+fmtMin(min)+' et refuser '+fmtMin(jourMin(p)-min)+' ?'))return;
   await agirDialoguePointe('admin_decider_heures',{p_employe:d.emp,p_jour:d.jour,p_minutes_approuvees:min,p_motif:motif,p_version:p.version_decision});
  });
- if(admin)installerRevuePointe(d,cible);
+ if(admin){
+  installerRevuePointe(d,cible);
+  const editeur=contenu.querySelector('[data-editeur-pointe]');
+  if(editeur){
+   editeur.hidden=false;
+   contenu.querySelector('[data-editer-pointe]').remove();
+   peindreEditionPointe();
+   contenu.querySelector('.revue-controle').prepend(editeur);
+   const save=editeur.querySelector('[data-envoyer-correction]');
+   save.textContent='Enregistrer sans valider';save.classList.add('sec');
+   const validation=contenu.querySelector('.revue-validation');
+   if(validation)validation.insertBefore(save,validation.querySelector('[data-decider-pointe]'));
+   const aide=document.createElement('p');aide.className='muet';
+   aide.textContent='Modifiez les heures ci-dessous, puis enregistrez vos changements.';
+   editeur.prepend(aide);
+  }
+ }
 
 }
 /* Revue guidée : aucune écriture de pointage pour naviguer ou poser une question. */
@@ -4156,7 +4174,7 @@ function htmlNavigationRevue(jour){
 }
 function htmlDecisionPointe(p){
  const min=p.approuve?minutesApprouvees(p):jourMin(p);
- return '<section class="revue-validation"><h3>3. Valider la journée</h3>'+htmlDecisionHeures(p)+'<details data-decision-avancee><summary>Validation partielle ou refus</summary><p>Choisissez la durée à valider. Le reste sera refusé, sans effacer les pointages.</p><div class="decision-duree"><label>Heures<input data-decision-h type="number" inputmode="numeric" min="0" max="24" step="1" value="'+Math.floor(min/60)+'"></label><label>Minutes<input data-decision-m type="number" inputmode="numeric" min="0" max="59" step="1" value="'+min%60+'"></label></div><label>Motif du refus<textarea data-motif-decision maxlength="500">'+esc(p.motif_refus||'')+'</textarea></label></details><button class="btn large" data-decider-pointe '+(p.approuve?'disabled':'')+'>'+(p.approuve?'Journée déjà validée':'Valider la journée · '+fmtMin(min))+'</button></section>';
+ return '<section class="revue-validation"><h3>Enregistrement et validation</h3>'+htmlDecisionHeures(p)+'<details data-decision-avancee><summary>Validation partielle ou refus</summary><p>Choisissez la durée à valider. Le reste sera refusé, sans effacer les pointages.</p><div class="decision-duree"><label>Heures<input data-decision-h type="number" inputmode="numeric" min="0" max="24" step="1" value="'+Math.floor(min/60)+'"></label><label>Minutes<input data-decision-m type="number" inputmode="numeric" min="0" max="59" step="1" value="'+min%60+'"></label></div><label>Motif du refus<textarea data-motif-decision maxlength="500">'+esc(p.motif_refus||'')+'</textarea></label></details><button class="btn large" data-decider-pointe '+(p.approuve?'disabled':'')+'>'+(p.approuve?'Journée déjà validée':'Valider la journée · '+fmtMin(min))+'</button></section>';
 }
 function revuePointeModifiee(heuresSeulement=false){
  const zone=$('pointe-contenu');
@@ -4182,10 +4200,7 @@ function installerRevuePointe(d,cible){
  zone.append(nav,controle);
  const question=document.createElement('div');question.hidden=true;question.innerHTML=htmlQuestionJour(d.emp,d.jour);zone.append(question);lierQuestionJour(question,d.emp,d.jour);
  if(validation)zone.append(validation);
- // L’éditeur complet reste disponible pour plusieurs pauses, sans doubler le parcours principal.
- const editer=controle.querySelector('[data-editer-pointe]'),editeur=controle.querySelector('[data-editeur-pointe]');
- if(editer&&editeur&&controle.querySelector('.pointe-saisie')){const avances=document.createElement('details');avances.className='revue-avance';const titre=document.createElement('summary');titre.textContent='Plusieurs pauses / correction complète';avances.append(titre,editer,editeur);controle.append(avances);}
- if(cible){const absence=document.createElement('button');absence.className='js-lien';absence.textContent='Horaire manuel, absence ou remarque';absence.onclick=()=>{if(d.occupe||d.ajoutEnAttente)return;if(revuePointeModifiee()&&!confirm('Quitter sans enregistrer vos changements ?'))return;$('pointe-fermer').click();if(!pointeDialogue)ouvrirJour(d.emp,d.jour,true);};controle.append(absence);}
+ if(cible&&!d.donnees.evenements.length){const absence=document.createElement('button');absence.className='js-lien';absence.textContent='Absence ou remarque';absence.onclick=()=>{if(d.occupe||d.ajoutEnAttente)return;if(revuePointeModifiee()&&!confirm('Quitter sans enregistrer vos changements ?'))return;$('pointe-fermer').click();if(!pointeDialogue)ouvrirJour(d.emp,d.jour,true);};controle.append(absence);}
  zone.querySelectorAll('[data-revue-etape]').forEach(b=>b.onclick=()=>{const q=b.dataset.revueEtape==='question';controle.hidden=q;question.hidden=!q;zone.querySelectorAll('[data-revue-etape]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
  zone.querySelectorAll('[data-revue-jour]').forEach(b=>b.onclick=()=>{
   if(d.occupe||d.ajoutEnAttente){toast('Terminez l’enregistrement en cours.');return;}

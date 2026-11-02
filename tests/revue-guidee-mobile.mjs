@@ -43,6 +43,10 @@ try{
  assert.equal(await pg.locator('#voile-jour').evaluate(e=>e.classList.contains('ouvert')),false);
  assert.equal(await pg.locator('[data-minutes-pointe]').count(),0);
  assert.match(await pg.locator('[data-decider-pointe]').innerText(),/9h30/);
+ assert.equal(await pg.locator('[data-editer-pointe]').count(),0);
+ assert.equal(await pg.locator('[data-pointer-admin]').count(),0);
+ assert.equal(await pg.locator('.pointe-edition input').count(),4);
+ assert.equal(await pg.locator('[data-envoyer-correction]').innerText(),'Enregistrer sans valider');
  const before=await pg.evaluate(()=>JSON.stringify(essai.p));
  await pg.locator('[data-revue-etape="question"]').click();
  await pg.locator('[data-question-jour]').fill('Pourquoi cette fin tardive ?');
@@ -58,7 +62,7 @@ try{
  await pg.locator('[data-revue-etape="question"]').click();
  assert.equal(await pg.locator('[data-question-jour]').inputValue(),'Brouillon à conserver');
  await pg.locator('[data-revue-etape="controle"]').click();
- const heure=pg.locator('[data-heure-admin]').first();await heure.fill('08:15:00');
+ const heure=pg.locator('.pointe-edition input').first();await heure.fill('08:15:00');
  pg.once('dialog',d=>d.dismiss());await pg.locator('[data-revue-jour="2026-10-13"]').click();
  assert.equal(await pg.evaluate(()=>pointeDialogue.jour),'2026-10-14');
  await pg.locator('[data-decider-pointe]').click();
