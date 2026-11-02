@@ -3074,3 +3074,12 @@ avec données simulées, sans écriture en production ; aucune migration SQL.
 Chaque collaborateur est calculé sur ses seuls jours exportés ; les autres dates ne créent pas de déficit. Le récapitulatif, les décisions et les événements utilisent le même instantané, sans remplacer les pointages affichés. Le titre et le nom du fichier précisent le périmètre partiel. Une sélection sans journée validée affiche un message sans télécharger de fichier.
 
 Validation : test navigateur `export-jours-valides.mjs` (mois incomplet, totaux, refus, détails, absence de données, fiduciaire et mobile), contrôles JavaScript et test SQL sur octobre réel dans une transaction annulée (résultat conforme, accès sans session et technicien refusés). Les changements locaux antérieurs de calcul et de revue ne sont pas inclus dans cette publication.
+
+
+## 2026-11-02 — Éditeur unique du back-office et traitement des questions
+
+À la demande du propriétaire, les pointages sont directement modifiables dans un seul éditeur, en tête de la revue. Les boutons de sauvegarde par heure et le second accès « Plusieurs pauses / correction complète » disparaissent du parcours ; ajout et retrait de pointages restent dans cet éditeur, y compris pour plusieurs pauses. Enregistrement sans validation et validation sont regroupés, explicitement distincts. Une modification non enregistrée bloque la validation. La saisie manuelle alternative ne reste accessible que pour une journée sans événement (absence). Les droits employés et comptabilité restent inchangés.
+
+Tests : revue mobile, corrections groupées, plusieurs pauses, réessai idempotent après perte réseau, conflit de version, validation totale/partielle et absence de contrôles d’édition pour la comptabilité. Le test mobile employé fixe désormais son horloge au jour des données simulées pour fonctionner indépendamment du mois réel.
+
+Questions : deux régularisations de Steve (29 et 30 octobre) traitées via les fonctions métier et confirmées dans le fil ; une précision demandée à Sami sur le 23 octobre. Aucune validation de journée effectuée automatiquement. Une automation Codex horaire « Traiter les demandes de pointage » poursuit ce travail dans le chat du 2 novembre : corriger les demandes explicites, questionner les ambiguïtés, vérifier les écritures, ne pas envoyer de doublons et laisser les décisions de validation/absence/rémunération au back-office.

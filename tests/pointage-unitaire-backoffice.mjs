@@ -25,63 +25,26 @@ try{
  }
  return rep({ok:true,lignes:[],acteurs:[],retards:[]});};
  });
- const ligne=(a,indice=-1)=>pg.locator('.pointe-heure-ligne').filter({has:pg.locator('[data-pointer-admin="'+a+'"][data-indice-admin="'+indice+'"]')});
- const saisir=async(a,h,v,indice=-1)=>{const l=ligne(a,indice);await l.locator('input').fill(h);await l.locator('button').click();await pg.waitForFunction(v=>pointeDialogue?.donnees?.version===v,v);};
- const suite=async(action)=>{
-  // Le rendu téléphone utilise exactement les événements reçus après la saisie admin.
-  const obtenu=await pg.evaluate(()=>{
-   const ancien={moi:S.moi,jour:S.jourSel},r=pointeDialogue.donnees;S.moi={id:'E',role:'employe',pointage_actif:true};S.jourSel=r.jour;
-   Object.assign(POINTE,{donnees:r,jour:r.jour,horloge:Date.parse(r.serveur),recuLocal:Date.now(),occupe:false,requete:null});$('pointe-carte').hidden=false;peindrePointe();
-   const bouton=$('pointe-carte').querySelector('[data-pointe-action]'),fin=$('pointe-carte').querySelector('[data-pointe-fin]');
-   S.moi=ancien.moi;S.jourSel=ancien.jour;
-   return {action:bouton?.dataset.pointeAction||null,fin:!!fin};
-  });assert.equal(obtenu.action,action);assert.equal(obtenu.fin,action==='pause'||action==='reprise');
- };
- await pg.goto(process.env.HORAIRES_TEST_URL||new URL('../app/index.html',import.meta.url).href);await pg.waitForSelector('#v-admin:not([hidden])');
- await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-14');});await pg.waitForSelector('[data-pointer-admin]');
- assert.deepEqual(await pg.locator('.pointe-etape h4').allTextContents(),['Début de journée','Début de pause','Reprise du travail','Fin de journée']);
- assert.equal(await ligne('debut').locator('input').inputValue(),'08:00');
- for(const a of ['pause','reprise','fin'])assert.equal(await ligne(a).locator('button').isDisabled(),true);
- await suite('debut');
- await ligne('debut').locator('input').fill('07:45');await pg.evaluate(()=>essai.perdre=true);await ligne('debut').locator('button').click();
- await pg.waitForFunction(()=>document.querySelector('[data-pointer-admin="debut"]').textContent==='Vérifier / réessayer');
- assert.equal(await ligne('debut').locator('input').isDisabled(),true);
- await ligne('debut').locator('button').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===1);
- const appels=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_pointer').map(x=>x.a));assert.deepEqual(appels[0],appels[1]);
- assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),1);await suite('pause');
- await saisir('debut','08:00',2,0);await suite('pause');
- assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),1,'corriger le début ne crée pas la pause');
- assert.match(await pg.locator('.pointe-suite').innerText(),/Prendre une pause/);
- await pg.setViewportSize({width:390,height:664});await pg.screenshot({path:'work/essais/quatre-etapes-mobile.png',fullPage:true});
- assert.equal(await pg.evaluate(()=>document.querySelector('.pointe-dialogue').scrollWidth<=document.querySelector('.pointe-dialogue').clientWidth),true);
- await pg.evaluate(()=>essai.conflit=true);await ligne('pause').locator('button').click();await pg.waitForSelector('[data-actualiser-admin]:not([hidden])');
- assert.equal(await ligne('pause').locator('button').isDisabled(),true);
- await pg.evaluate(()=>essai.conflit=false);await pg.locator('[data-actualiser-admin]').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===2&&!document.querySelector('[data-pointer-admin="pause"]').disabled);
- await saisir('pause','12:00',3);await suite('reprise');
- await saisir('pause','12:05',4,1);await suite('reprise');
- await saisir('reprise','13:00',5);await suite('pause');
- await saisir('reprise','13:05',6,2);await suite('pause');
- await saisir('fin','17:00',7);await suite(null);
- await saisir('fin','17:15',8,3);await suite(null);
+ const ajouter=async(action,heure)=>{await pg.locator('[data-ajouter-pointe]').click();const row=pg.locator('.pointe-edition').last();await row.locator('select').selectOption(action);await row.locator('input').fill(heure);};
+ const sauver=async(version)=>{await pg.locator('[data-envoyer-correction]').click();await pg.waitForFunction(v=>pointeDialogue?.donnees?.version===v,version);};
+ await pg.goto(new URL('../app/index.html',import.meta.url).href);await pg.waitForSelector('#v-admin:not([hidden])');
+ await pg.evaluate(async()=>{await charger();ouvrirJour('E','2026-10-14');});await pg.waitForSelector('[data-editeur-pointe]');
+ assert.equal(await pg.locator('[data-pointer-admin]').count(),0);
+ await ajouter('debut','08:00:00');await sauver(1);
+ await ajouter('pause','12:00:00');await ajouter('reprise','13:00:00');await ajouter('fin','17:00:00');await sauver(2);
+ assert.equal(await pg.locator('.pointe-edition input').count(),4);
+ await pg.locator('.pointe-edition input').nth(1).fill('12:15:00');await pg.locator('.pointe-edition input').nth(2).fill('13:15:00');
+ await pg.evaluate(()=>essai.perdre=true);await pg.locator('[data-envoyer-correction]').click();await pg.waitForFunction(()=>document.querySelector('[data-erreur-pointe]').textContent.includes('connexion'));
+ await sauver(3);
+ const appels=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_pointage_enregistrer').map(x=>x.a));assert.deepEqual(appels.at(-1),appels.at(-2),'réessai identique après réponse perdue');
  assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),4);
- assert.equal(await pg.locator('[data-indice-admin="-1"]').count(),0,'journée terminée : seules les corrections sont proposées');
- assert.equal(await pg.locator('.pointe-etape').count(),4,'les quatre étapes restent visibles');
- // Cas réel : fin enregistrée pendant une pause, reprise oubliée.
- await pg.evaluate(async()=>{essai.p.pointe_evenements.splice(2,1);await ouvrirPointe('E','2026-10-14',true);});
- assert.equal(await ligne('reprise').locator('input').isEnabled(),true);
- const avant=await pg.evaluate(()=>structuredClone(essai.p.pointe_evenements));
- await ligne('reprise').locator('input').fill('11:00');await ligne('reprise').locator('button').click();
- assert.match(await pg.locator('[data-erreur-admin]').innerText(),/entre le début de pause et la fin/);
- assert.equal(await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_pointage_enregistrer').length),0);
- await ligne('reprise').locator('input').fill('13:00');await pg.evaluate(()=>essai.perdre=true);await ligne('reprise').locator('button').click();
- await pg.waitForFunction(()=>document.querySelector('[data-pointer-admin="reprise"]').textContent==='Vérifier / réessayer');
- await ligne('reprise').locator('button').click();await pg.waitForFunction(()=>pointeDialogue?.donnees?.version===9);
- const insertions=await pg.evaluate(()=>essai.appels.filter(x=>x.fn==='admin_pointage_enregistrer').map(x=>x.a));
- assert.equal(insertions.length,2);assert.deepEqual(insertions[0],insertions[1]);
- assert.deepEqual(await pg.evaluate(()=>essai.p.pointe_evenements.filter(e=>e.action!=='reprise')),avant);
- assert.equal(await pg.evaluate(()=>essai.p.pointe_evenements.length),4);await suite(null);
- assert.equal(await ligne('reprise',2).locator('button').innerText(),'Enregistrer cette heure');
- await pg.evaluate(()=>{S.moi.role='compta';peindreDialoguePointe();ouvrirJour('E','2026-10-14');});
- assert.equal(await pg.locator('#mj-pointer').isVisible(),false);assert.equal(await pg.locator('[data-pointer-admin]').count(),0);
- assert.deepEqual(erreurs,[]);console.log('✓ Quatre étapes visibles, saisie/correction isolée de chacune, boutons téléphone cohérents, réseau/conflit et mobile');
+ await pg.locator('.pointe-edition input').first().fill('08:30:00');await pg.evaluate(()=>essai.conflit=true);await pg.locator('[data-envoyer-correction]').click();await pg.waitForFunction(()=>document.querySelector('[data-erreur-pointe]').textContent.includes('changé'));
+ assert.equal(await pg.locator('.pointe-edition input').first().inputValue(),'08:30:00');
+ assert.equal(await pg.evaluate(()=>essai.p.pointe_version),3);
+ await pg.evaluate(()=>essai.conflit=false);await sauver(4);
+ await pg.locator('[data-retirer]').nth(3).click();await ajouter('pause','15:00:00');await ajouter('reprise','15:15:00');await ajouter('fin','17:30:00');await sauver(5);
+ assert.equal(await pg.locator('.pointe-edition').count(),6,'plusieurs pauses dans le même éditeur');
+ for(const width of [320,390,1280]){await pg.setViewportSize({width,height:664});assert.equal(await pg.locator('.pointe-dialogue').evaluate(e=>e.scrollWidth<=e.clientWidth),true);}
+ await pg.evaluate(()=>{S.moi.role='compta';peindreDialoguePointe();});assert.equal(await pg.locator('[data-editeur-pointe]').count(),0);
+ assert.deepEqual(erreurs,[]);console.log('Éditeur unique : création, corrections groupées, plusieurs pauses, conflit, réessai idempotent, accès compta et mobile : OK');
 }finally{await nav.close();}

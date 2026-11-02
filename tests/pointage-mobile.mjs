@@ -25,6 +25,8 @@ await pg.addInitScript(()=>{
  if(fn==='pointage_corriger'){essai.corrections=[{id:'C1',etat:'attente',motif:p.p_motif,avant:essai.events,proposition:p.p_evenements.map(e=>({action:e.action,at:'2026-10-12T'+e.heure+'+02:00'}))}];return rep({ok:true});}
  return rep({ok:true});};
 });
+// La date locale doit correspondre aux données simulées du serveur.
+await pg.clock.setFixedTime(new Date('2026-10-12T08:01:00Z'));
 await pg.goto(new URL('../app/index.html',import.meta.url).href);
 await pg.waitForSelector('[data-pointe-action="debut"]');
 // Le téléphone resté ouvert suit aussi les événements saisis par le bureau.
