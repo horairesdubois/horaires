@@ -98,6 +98,7 @@ try{
  // Une ancienne journée manuelle conserve la saisie et reçoit navigation et question.
  await pg.evaluate(()=>{$('pointe-fermer').click();ouvrirJour('E','2026-10-02',true);});
  assert.equal(await pg.locator('#voile-jour [data-envoyer-question]').count(),1);
+ await pg.locator('#voile-jour details[data-revue-manuelle] summary').click();
  await pg.locator('#voile-jour [data-question-jour]').fill('Question ancienne journée');await pg.locator('#voile-jour [data-envoyer-question]').click();
  assert.equal(await pg.evaluate(()=>questions.at(-1).p_jour),'2026-10-02');
  assert.deepEqual(erreurs,[]);

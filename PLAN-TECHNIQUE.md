@@ -3096,3 +3096,29 @@ mentions de jours fériés peuvent ajouter des lignes. Aucune donnée modifiée.
 Vérifications : coordonnées des deux boutons après clics répétés, trois rôles,
 320/390/768/1280/1440 px ; revue de journées remplies/vides et jours fériés.
 Aperçus locaux préparés ; publication distante non effectuée à ce stade.
+
+## 2026-11-04 — Absences depuis les journées pointées
+
+Demande : saisir une absence pour une journée entière, le matin ou l’après-midi.
+Les motifs existants sont réutilisés : vacances/congé, maladie, accident, jour
+férié, armée/PC, formation, congé non payé, autre absence justifiée. Le bureau
+accède désormais au formulaire même si des pointages existent. Les statuts de
+chaque moitié restent ajustables ; seules les heures des moitiés travaillées
+sont conservées lors d’une saisie explicite d’absence. Un avertissement confirme
+le remplacement éventuel de pointages, dont les originaux restent au journal.
+Le bloc Questions est replié dans la zone défilante, afin de laisser le formulaire
+atteignable à 390 × 664. Le libellé d’absence est aussi visible côté technicien.
+
+Une nouvelle RPC admin_enregistrer_absence est préparée avec contrôle du rôle,
+verrou par employé, version complète de la journée et reçu idempotent. Elle ne
+traite pas automatiquement les demandes de correction en attente. Une journée
+entièrement absente est terminée à zéro heure ; une demi-journée planifiée sans
+pointage reste ouverte pour que le technicien pointe la moitié travaillée.
+Les anciennes validations sont remises à zéro après modification, comme pour
+une correction d’heures. Aucun calcul contractuel ni taux n’est modifié ici.
+
+Validation locale : PostgreSQL 16 reconstruit à partir des migrations (sans
+pg_cron ni le changement 8h24 resté hors périmètre), transaction de tests annulée,
+parcours Playwright simulé avec/sans pointages, conservation des secondes,
+absence future, conflit et écrans 320–1280 px. Migration non appliquée au projet
+distant ; interface non publiée. Aperçus préparés pour validation visuelle.

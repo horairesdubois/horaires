@@ -86,6 +86,7 @@ async function ouvrir(role) {
   await pg.setViewportSize({width:390,height:664});
   await pg.screenshot({path:'work/essais/explications-revue-mobile.png'});
   await pg.evaluate(() => { fermerDetails(); ouvrirJour('E1', '2026-09-02'); });
+  await pg.locator('#voile-jour details[data-revue-manuelle] summary').click();
   assert(await pg.locator('#voile-jour [data-question-jour]').isVisible());
   const avant = await pg.evaluate(() => window.__appels.filter(a => a.nom === 'message_ecrire').length);
   await pg.locator('#voile-jour [data-question-jour]').fill('Pouvez-vous préciser la raison des heures supplémentaires ?');
