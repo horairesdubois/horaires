@@ -803,6 +803,12 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .revue-navigation{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:8px;margin:12px 0}.revue-navigation span{text-align:center;font-weight:600}.revue-navigation small{display:block;font-size:12px;font-weight:400;color:var(--gris)}.revue-navigation .btn{min-width:44px;min-height:44px;padding:10px}.revue-employe{font-weight:600}.revue-etapes{display:flex;gap:8px;margin:16px 0}.revue-etapes .btn{flex:1;white-space:normal;font-size:14px}.revue-etapes [aria-pressed=true]{background:var(--bleu);color:white}.revue-question textarea,.revue-validation textarea{display:block;width:100%;min-height:90px;padding:12px;border:1px solid var(--ligne);border-radius:10px;font:inherit;font-size:16px;margin:8px 0}.revue-validation{border-top:1px solid var(--ligne);margin-top:20px;padding-top:16px}.revue-validation summary,.revue-avance summary{padding:14px 0;min-height:44px;color:var(--bleu);cursor:pointer}.revue-validation .btn{margin-top:14px;white-space:normal}.revue-controle .pointe-saisie{background:transparent;padding:0}.revue-controle .pointe-etape .btn{font-size:14px;white-space:normal}.revue-controle [hidden],.revue-question[hidden]{display:none!important}.revue-indicateurs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.revue-indicateurs span{background:var(--fond);padding:12px;border-radius:10px;font-size:13px}.revue-indicateurs b{display:block;font-size:22px;color:var(--bleu)}.revue-tendance{margin:24px 0}.revue-semaine{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;margin:14px 0;font-size:13px}.revue-barre{grid-column:1/-1;height:9px;background:var(--ligne);border-radius:5px;overflow:hidden}.revue-barre i{display:block;height:100%;background:var(--bleu)}.pointe-dialogue input,.pointe-dialogue label{min-width:0;max-width:100%}.pointe-dialogue .decision-duree{display:flex;gap:12px}.pointe-dialogue .decision-duree input{display:block;width:100%;font-size:16px;padding:10px}.revue-question{margin:16px 0}.pointe-dialogue{overscroll-behavior:contain;padding-bottom:max(24px,env(safe-area-inset-bottom))}
 @media(max-width:540px){.revue-indicateurs{grid-template-columns:1fr}.revue-etapes{flex-direction:column}.revue-navigation{grid-template-columns:44px minmax(0,1fr) 44px}.pointe-dialogue{width:100%;max-width:100%;max-height:94dvh;padding:20px 14px}.pointe-dialogue h2{padding-right:28px}.pointe-heure-ligne{flex-wrap:wrap}.pointe-heure-ligne label{flex:1;min-width:125px}.pointe-heure-ligne .btn{max-width:100%}.revue-validation .btn{min-height:48px}.revue-navigation .btn{min-height:44px}.revue-question .btn{width:100%}}
 
+/* Saisie d’absence au bureau, utilisable au pouce. */
+.absence-rapide{padding:14px;margin:12px 0;border:1px solid var(--ligne);border-radius:12px;background:#fff}
+.mj-corps>details[data-revue-manuelle]>summary{min-height:44px;padding:12px 0;cursor:pointer;color:var(--bleu)}
+.absence-rapide h3{font-size:16px;margin:0 0 10px}.absence-rapide label{display:block;font-size:13px;margin:8px 0 4px}
+.absence-rapide select{width:100%;min-height:44px;font-size:16px;padding:8px;border:1px solid var(--ligne);border-radius:8px;background:#fff}
+.absence-rapide .btn{width:100%;margin:12px 0 8px;min-height:44px}
 /* Navigation stable, indépendante de la longueur des dates. */
 html{scrollbar-gutter:stable}
 .nav-mois,#v-emp .emp-semaine-nav{display:grid;grid-template-columns:44px minmax(0,1fr) 44px}
@@ -975,6 +981,14 @@ html{scrollbar-gutter:stable}
 
     <button class="btn sec large" id="mj-pointer" type="button" hidden>Pointer / corriger un pointage</button>
     <div class="mj-corps">
+      <section id="mj-absence" class="absence-rapide" hidden>
+        <h3>Absence</h3>
+        <label for="absence-periode">Durée</label>
+        <select id="absence-periode"><option value="jour">Journée entière</option><option value="matin">Matin uniquement</option><option value="apm">Après-midi uniquement</option></select>
+        <label for="absence-motif">Motif</label><select id="absence-motif"></select>
+        <button type="button" class="btn sec" id="absence-appliquer">Appliquer l’absence</button>
+        <p class="muet">Vérifiez les statuts et les heures ci-dessous, puis enregistrez. Les pointages remplacés restent dans l’historique.</p>
+      </section>
       <div class="demi">
         <div class="demi-l">
           <span class="titre-demi">Matin</span>
@@ -1168,7 +1182,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const JS_COURT = ['dim','lun','mar','mer','jeu','ven','sam'];
 const JS_LONG = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-const TYPES = {travail:'Travail', vacances:'Vacances', maladie:'Maladie', accident:'Accident', ferie:'Jour férié', armee:'Armée / PC', ecole:'Formation', conge_np:'Congé non payé', autre:'Autre'};
+const TYPES = {travail:'Travail', vacances:'Vacances / congé', maladie:'Maladie', accident:'Accident', ferie:'Jour férié', armee:'Armée / PC', ecole:'Formation', conge_np:'Congé non payé', autre:'Autre absence justifiée'};
 const BADGES = {vacances:'VAC', maladie:'MAL', accident:'ACC', ferie:'FÉR', armee:'MIL', ecole:'FOR', conge_np:'CNP', autre:'AUT'};
 const COULEURS = {vacances:'#d97706', maladie:'#dc2626', accident:'#b91c1c', ferie:'#7c3aed', armee:'#0d9488', ecole:'#0284c7', conge_np:'#6b7280', autre:'#64748b'};
 
@@ -2285,8 +2299,27 @@ function initStatuts() {
     '<option value="' + k + '">' + (k === 'travail' ? 'Présence' : v) + '</option>').join('');
   $('mj-statut-m').innerHTML = opts;
   $('mj-statut-a').innerHTML = opts;
+  $('absence-motif').innerHTML=Object.entries(TYPES).filter(([k])=>k!=='travail').map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');
+  $('absence-appliquer').onclick=appliquerAbsence;
   $('mj-statut-m').addEventListener('change', () => { if (MJ.verrou) return; MJ.matin = $('mj-statut-m').value; majStatuts(); });
   $('mj-statut-a').addEventListener('change', () => { if (MJ.verrou) return; MJ.apm = $('mj-statut-a').value; majStatuts(); });
+}
+function appliquerAbsence(){
+  if(S.moi.role!=='admin'||MJ.verrou)return;
+  const periode=$('absence-periode').value,motif=$('absence-motif').value;
+  if(periode!=='apm')MJ.matin=motif;
+  if(periode!=='matin')MJ.apm=motif;
+  ['mj-md','mj-mf','mj-ad','mj-af'].forEach(id=>$(id).disabled=false);
+  $('mj-save').hidden=false;
+  majStatuts();
+  $('mj-save').textContent='Enregistrer la journée';
+}
+function ouvrirAbsence(emp,jour){
+  ouvrirJour(emp,jour,true);
+  $('mj-absence').hidden=false;
+  $('mj-pointer').hidden=true;
+  $('mj-absence').scrollIntoView({block:'start'});
+  $('absence-periode').focus({preventScroll:true});
 }
 function aucuneHeure(demi) {
   if (MJ.verrou) return;
@@ -2300,8 +2333,8 @@ function majStatuts() {
   $('mj-statut-a').value = MJ.apm;
   $('mj-heures-m').style.display = MJ.matin === 'travail' ? '' : 'none';
   $('mj-heures-a').style.display = MJ.apm === 'travail' ? '' : 'none';
-  $('mj-zero-m').hidden = MJ.verrou;
-  $('mj-zero-a').hidden = MJ.verrou;
+  $('mj-zero-m').hidden = MJ.verrou || MJ.matin !== 'travail';
+  $('mj-zero-a').hidden = MJ.verrou || MJ.apm !== 'travail';
   majRallonges();
   majTotalApercu();
 }
@@ -2371,6 +2404,12 @@ function ouvrirJour(empId, jour, absence=false) {
   const admin = S.moi.role === 'admin';
   ['mj-plus1','mj-zero-m','mj-zero-a'].forEach(id=>$(id).hidden=false);
   MJ.pointeOriginal=admin&&p?.pointe_evenements?structuredClone(p):null;
+  MJ.absenceVersion=p?.version_decision||null;
+  MJ.absenceRequete=null;MJ.absenceSignature=null;
+  MJ.absencePointage=admin&&!!cibleGuide?.pointage_actif&&(!p||!!p.pointe_evenements);
+  $('mj-absence').hidden=!admin;
+  $('absence-periode').value='jour';
+  $('absence-motif').value='vacances';
   // Un oubli de fin sur un jour passé ne doit pas verrouiller les heures du bureau.
   MJ.pointeEnCours=!!MJ.pointeOriginal&&p.pointe_etat!=='termine'&&(!S.auj||jour>=S.auj);
   $('mj-pointage-historique').hidden=!MJ.pointeOriginal;
@@ -2382,7 +2421,7 @@ function ouvrirJour(empId, jour, absence=false) {
   MJ.pointeChamps={};
   MJ.pointeComplexe=false;
   if(MJ.pointeOriginal){
-    p=structuredClone(p);p.matin_type=p.apm_type='travail';
+    p=structuredClone(p);
     p.matin_debut=p.matin_fin=p.apm_debut=p.apm_fin=null;
     const plages=[];let debut=null,indiceDebut=null;
     p.pointe_evenements.forEach((ev,indice)=>{
@@ -2391,7 +2430,7 @@ function ouvrirJour(empId, jour, absence=false) {
     });
     if(debut)plages.push([debut,null,indiceDebut,null]);
     MJ.pointeComplexe=plages.length>2;
-    if(!MJ.pointeComplexe)plages.forEach(([debut,fin,idDebut,idFin],i)=>{const prefixe=i===1||(plages.length===1&&Number(debut.slice(0,2))>=12)?'apm':'matin';p[prefixe+'_debut']=debut;p[prefixe+'_fin']=fin;const lettre=prefixe==='matin'?'m':'a';MJ.pointeChamps['mj-'+lettre+'d']=idDebut;if(idFin!==null)MJ.pointeChamps['mj-'+lettre+'f']=idFin;});
+    if(!MJ.pointeComplexe)plages.forEach(([debut,fin,idDebut,idFin],i)=>{const prefixe=i===1||(plages.length===1&&(p.matin_type!=='travail'||(p.apm_type==='travail'&&Number(debut.slice(0,2))>=12)))?'apm':'matin';p[prefixe+'_debut']=debut;p[prefixe+'_fin']=fin;const lettre=prefixe==='matin'?'m':'a';MJ.pointeChamps['mj-'+lettre+'d']=idDebut;if(idFin!==null)MJ.pointeChamps['mj-'+lettre+'f']=idFin;});
   }
   MJ.empId = empId; MJ.jour = jour; MJ.existe = !!p;
   MJ.approuve = !!(p && p.approuve);
@@ -2424,7 +2463,7 @@ function ouvrirJour(empId, jour, absence=false) {
   if (dem) $('mj-demande').innerHTML = '<b>Question du back office</b>' + esc(dem.texte);
   ['mj-md', 'mj-mf', 'mj-ad', 'mj-af', 'mj-rem', 'mj-statut-m', 'mj-statut-a'].forEach(id => { $(id).disabled = MJ.verrou; });
   // Jour ouvré vide : la présence normale est déjà proposée, il n'y a plus qu'à enregistrer.
-  if (!p && !MJ.verrou && js >= 1 && js <= 5 && !ferJour) {
+  if (!p && !MJ.absencePointage && !MJ.verrou && js >= 1 && js <= 5 && !ferJour) {
     $('mj-md').value = defPour('mj-md');
     $('mj-mf').value = defPour('mj-mf');
     $('mj-ad').value = defPour('mj-ad');
@@ -2466,7 +2505,7 @@ function ouvrirJour(empId, jour, absence=false) {
   if(MJ.pointeOriginal&&p.pointe_etat!=='termine'){$('mj-decision').hidden=true;btnApp.hidden=true;}
   majStatuts();
   if(MJ.pointeOriginal){
-    $('mj-statut-m').disabled=true;$('mj-statut-a').disabled=true;
+    $('mj-statut-m').disabled=false;$('mj-statut-a').disabled=false;
     if(MJ.pointeEnCours){
       ['mj-md','mj-mf','mj-ad','mj-af'].forEach(id=>$(id).disabled=!(id in MJ.pointeChamps));
       ['mj-defaut','mj-plus1','mj-zero-m','mj-zero-a'].forEach(id=>$(id).hidden=true);
@@ -2554,6 +2593,9 @@ async function sauverJour() {
     p_remarque: $('mj-rem').value.trim()
   };
   if (admin) args.p_employe = MJ.empId;
+  if(admin&&MJ.absencePointage&&(MJ.matin!=='travail'||MJ.apm!=='travail'||(MJ.pointeOriginal&&(MJ.pointeOriginal.matin_type!=='travail'||MJ.pointeOriginal.apm_type!=='travail')))){
+    await sauverAbsencePointage(args);return;
+  }
   let argsPointe=null;
   if(admin&&MJ.pointeOriginal){
     let events=[];
@@ -2597,6 +2639,31 @@ async function sauverJour() {
   finally { $('mj-save').disabled = false; }
 }
 
+async function sauverAbsencePointage(args){
+  const events=[],plages=[];
+  for(const [type,debut,fin,lettre] of [[MJ.matin,args.p_matin_debut,args.p_matin_fin,'m'],[MJ.apm,args.p_apm_debut,args.p_apm_fin,'a']]){
+    if(type!=='travail'||(!debut&&!fin))continue;
+    if(!debut||!fin){toast('Complétez ou terminez la plage travaillée avant d’enregistrer l’absence.');return;}
+    plages.push([debut,fin,lettre]);
+  }
+  if(MJ.pointeComplexe&&plages.length===0&&(MJ.matin==='travail'||MJ.apm==='travail')){toast('Indiquez les heures à conserver pour la demi-journée travaillée.');return;}
+  plages.forEach(([debut,fin,lettre],i)=>{
+    for(const [heure,id,action] of [[debut,'mj-'+lettre+'d',i?'reprise':'debut'],[fin,'mj-'+lettre+'f',i===plages.length-1?'fin':'pause']]){
+      const original=MJ.pointeOriginal?.pointe_evenements[MJ.pointeChamps[id]];
+      events.push(original&&pointeHeure(original.at)===heure?{action,at:original.at}:{action,heure});
+    }
+  });
+  const signature=JSON.stringify([events,MJ.matin,MJ.apm,args.p_remarque]);
+  if(MJ.absenceSignature!==signature){MJ.absenceSignature=signature;MJ.absenceRequete=crypto.randomUUID();}
+  if(MJ.pointeOriginal?.pointe_evenements.length&&
+     !confirm('Enregistrer ces statuts et les heures affichées ? Les pointages remplacés seront conservés dans l’historique.'))return;
+  const b=$('mj-save');b.disabled=true;
+  try{
+    const r=await rpc('admin_enregistrer_absence',{p_token:S.token,p_employe:MJ.empId,p_jour:MJ.jour,p_matin_type:MJ.matin,p_apm_type:MJ.apm,p_evenements:events,p_remarque:args.p_remarque,p_version:MJ.absenceVersion,p_requete:MJ.absenceRequete});
+    if(!r.ok){toast(r.erreur||'Enregistrement impossible',5000);return;}
+    const emp=MJ.empId,jour=MJ.jour;fermerJour();await charger();ouvrirJour(emp,jour,true);toast('✓ Absence enregistrée');
+  }catch(e){toast(e.message,5000);}finally{b.disabled=false;}
+}
 function preparerDecisionHeures(p, admin, enAttente) {
   $('mj-decision-lue').innerHTML = htmlDecisionHeures(p);
   $('mj-decision').hidden = !admin || !p || enAttente;
@@ -3682,7 +3749,7 @@ function libAbsence(p) {
   if (m === a) return TYPES[m];
   const parts = [];
   if (m !== 'travail') parts.push(TYPES[m] + ' (matin)');
-  if (a !== 'travail') parts.push(TYPES[a] + ' (a-m)');
+  if (a !== 'travail') parts.push(TYPES[a] + ' (après-midi)');
   return parts.join(' + ');
 }
 /* Correspondance avec les codes d'absence du classeur de la fiduciaire (CCT). */
@@ -4000,6 +4067,7 @@ function peindrePointe() {
   const etat={vide:'Pas encore commencé',travail:'Au travail',pause:'En pause',termine:'Journée terminée'}[r.etat];
   const attente=r.corrections.some(c=>c.etat==='attente');
   carte.innerHTML='<h2>'+esc(auj?'Aujourd’hui':empDateLongue(jour))+'</h2>'+
+   (p&&libAbsence(p)?'<p class="pointe-avertissement">Absence : '+esc(libAbsence(p))+'</p>':'')+
    (manuel?'<div class="pointe-avertissement">Cette journée est déjà saisie manuellement. Elle reste inchangée. Utilisez le pointage dès la prochaine journée vide.</div>':
     '<div class="pointe-panel"><div class="pointe-etat">'+esc(etat)+(dernier?' · '+pointeHeure(dernier.at):'')+'</div><div class="pointe-total" data-pointe-total>'+fmtMin(pointeTotalEnCours(r))+'</div><div class="muet">'+(r.etat==='termine'?'travail enregistré':'travail comptabilisé · total provisoire')+'</div>'+
     (auj&&action?'<div class="pointe-boutons"><button class="pointe-rond" data-pointe-action="'+action+'" '+(POINTE.occupe||POINTE.requete?'disabled':'')+'>'+icone(action==='pause'?'pause':'play')+'<span>'+esc(POINTE.occupe?'Enregistrement…':lib[action])+'</span></button>'+(['travail','pause'].includes(r.etat)?'<button class="pointe-rond" data-pointe-fin '+(POINTE.occupe||POINTE.requete?'disabled':'')+'>'+icone('stop')+'<span>Terminer ma journée</span></button>':'')+'</div>':'')+
@@ -4216,10 +4284,11 @@ function installerRevuePointe(d,cible){
  if(panneau){panneau.querySelector('h3').hidden=true;const aide=panneau.querySelector(':scope > p:not([class])');if(aide)aide.hidden=true;if(d.donnees.etat==='termine')panneau.querySelector('.pointe-suite').hidden=true;}
 
  const nav=document.createElement('div');nav.innerHTML=htmlNavigationRevue(d.jour)+'<p class="revue-employe">'+esc(cible?nomComplet(cible):'')+'</p><div class="revue-etapes"><button class="btn sec" data-revue-etape="controle" aria-pressed="true">1. Vérifier les heures</button><button class="btn sec" data-revue-etape="question" aria-pressed="false">2. Poser une question</button></div>';
+ if(d.donnees.pointage&&libAbsence(d.donnees.pointage)){const statut=document.createElement('p');statut.className='pointe-avertissement';statut.textContent='Absence : '+libAbsence(d.donnees.pointage);controle.prepend(statut);}
  zone.append(nav,controle);
  const question=document.createElement('div');question.hidden=true;question.innerHTML=htmlQuestionJour(d.emp,d.jour);zone.append(question);lierQuestionJour(question,d.emp,d.jour);
  if(validation)zone.append(validation);
- if(cible&&!d.donnees.evenements.length){const absence=document.createElement('button');absence.className='js-lien';absence.textContent='Absence ou remarque';absence.onclick=()=>{if(d.occupe||d.ajoutEnAttente)return;if(revuePointeModifiee()&&!confirm('Quitter sans enregistrer vos changements ?'))return;$('pointe-fermer').click();if(!pointeDialogue)ouvrirJour(d.emp,d.jour,true);};controle.append(absence);}
+ if(cible){const absence=document.createElement('button');absence.className='js-lien';absence.textContent='Absence · journée ou demi-journée';absence.onclick=()=>{if(d.occupe||d.ajoutEnAttente)return;if(revuePointeModifiee()&&!confirm('Quitter sans enregistrer vos changements ?'))return;$('pointe-fermer').click();if(!pointeDialogue)ouvrirAbsence(d.emp,d.jour);};controle.prepend(absence);}
  zone.querySelectorAll('[data-revue-etape]').forEach(b=>b.onclick=()=>{const q=b.dataset.revueEtape==='question';controle.hidden=q;question.hidden=!q;zone.querySelectorAll('[data-revue-etape]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
  zone.querySelectorAll('[data-revue-jour]').forEach(b=>b.onclick=()=>{
   if(d.occupe||d.ajoutEnAttente){toast('Terminez l’enregistrement en cours.');return;}
@@ -4242,8 +4311,8 @@ function installerRevueJourManuel(admin){
  const nav=document.createElement('div');nav.dataset.revueManuelle='';nav.innerHTML=htmlNavigationRevue(MJ.jour);
  // Placer les flèches avant le titre et les mentions de jours fériés, de hauteur variable.
  $('voile-jour').querySelector('.mj-tete').before(nav);
- const question=document.createElement('div');question.dataset.revueManuelle='';question.innerHTML=htmlQuestionJour(MJ.empId,MJ.jour);
- $('voile-jour').querySelector('.mj-tete').after(question);
+ const question=document.createElement('details');question.dataset.revueManuelle='';question.innerHTML='<summary>Poser une question sur cette journée</summary>'+htmlQuestionJour(MJ.empId,MJ.jour);
+ $('voile-jour').querySelector('.mj-corps').append(question);
  lierQuestionJour(question,MJ.empId,MJ.jour);
  const initial=()=>JSON.stringify(['mj-md','mj-mf','mj-ad','mj-af','mj-rem','mj-statut-m','mj-statut-a','mj-decision-h','mj-decision-m','mj-decision-motif'].map(id=>$(id).value));
  const etat=initial();nav.querySelectorAll('[data-revue-jour]').forEach(b=>b.onclick=()=>{if(initial()!==etat&&!confirm('Changer de jour sans enregistrer vos modifications ?'))return;const emp=MJ.empId;fermerJour();ouvrirJour(emp,b.dataset.revueJour);});
