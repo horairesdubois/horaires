@@ -77,6 +77,14 @@ try{
  await pg.waitForFunction(()=>essai.p.minutes_refusees===90);
  for(const width of [320,390,768,1280]){
   await pg.setViewportSize({width,height:664});
+  await pg.locator('.pointe-dialogue').evaluate(e=>e.scrollTop=0);
+  const fleches=()=>pg.locator('#voile-pointe [data-revue-jour]').evaluateAll(els=>els.map(e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}));
+  const positions=await fleches();
+  for(const jour of ['2026-10-13','2026-10-14']){
+   await pg.locator('#voile-pointe [data-revue-jour="'+jour+'"]').click();
+   await pg.waitForFunction(j=>pointeDialogue.jour===j&&!!document.querySelector('[data-revue-etape]'),jour);
+   assert.deepEqual(await fleches(),positions,'Flèches des journées fixes à '+width+' px');
+  }
   assert.equal(await pg.locator('.pointe-dialogue').evaluate(e=>e.scrollWidth<=e.clientWidth),true,'pas de débordement '+width);
   assert.equal(await pg.locator('[data-revue-jour]').first().evaluate(e=>e.getBoundingClientRect().height>=44),true);
  }

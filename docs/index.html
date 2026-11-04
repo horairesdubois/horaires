@@ -803,6 +803,25 @@ table.grille{border-collapse:collapse;width:100%;background:var(--carte);border-
 .revue-navigation{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;align-items:center;gap:8px;margin:12px 0}.revue-navigation span{text-align:center;font-weight:600}.revue-navigation small{display:block;font-size:12px;font-weight:400;color:var(--gris)}.revue-navigation .btn{min-width:44px;min-height:44px;padding:10px}.revue-employe{font-weight:600}.revue-etapes{display:flex;gap:8px;margin:16px 0}.revue-etapes .btn{flex:1;white-space:normal;font-size:14px}.revue-etapes [aria-pressed=true]{background:var(--bleu);color:white}.revue-question textarea,.revue-validation textarea{display:block;width:100%;min-height:90px;padding:12px;border:1px solid var(--ligne);border-radius:10px;font:inherit;font-size:16px;margin:8px 0}.revue-validation{border-top:1px solid var(--ligne);margin-top:20px;padding-top:16px}.revue-validation summary,.revue-avance summary{padding:14px 0;min-height:44px;color:var(--bleu);cursor:pointer}.revue-validation .btn{margin-top:14px;white-space:normal}.revue-controle .pointe-saisie{background:transparent;padding:0}.revue-controle .pointe-etape .btn{font-size:14px;white-space:normal}.revue-controle [hidden],.revue-question[hidden]{display:none!important}.revue-indicateurs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.revue-indicateurs span{background:var(--fond);padding:12px;border-radius:10px;font-size:13px}.revue-indicateurs b{display:block;font-size:22px;color:var(--bleu)}.revue-tendance{margin:24px 0}.revue-semaine{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;margin:14px 0;font-size:13px}.revue-barre{grid-column:1/-1;height:9px;background:var(--ligne);border-radius:5px;overflow:hidden}.revue-barre i{display:block;height:100%;background:var(--bleu)}.pointe-dialogue input,.pointe-dialogue label{min-width:0;max-width:100%}.pointe-dialogue .decision-duree{display:flex;gap:12px}.pointe-dialogue .decision-duree input{display:block;width:100%;font-size:16px;padding:10px}.revue-question{margin:16px 0}.pointe-dialogue{overscroll-behavior:contain;padding-bottom:max(24px,env(safe-area-inset-bottom))}
 @media(max-width:540px){.revue-indicateurs{grid-template-columns:1fr}.revue-etapes{flex-direction:column}.revue-navigation{grid-template-columns:44px minmax(0,1fr) 44px}.pointe-dialogue{width:100%;max-width:100%;max-height:94dvh;padding:20px 14px}.pointe-dialogue h2{padding-right:28px}.pointe-heure-ligne{flex-wrap:wrap}.pointe-heure-ligne label{flex:1;min-width:125px}.pointe-heure-ligne .btn{max-width:100%}.revue-validation .btn{min-height:48px}.revue-navigation .btn{min-height:44px}.revue-question .btn{width:100%}}
 
+/* Navigation stable, indépendante de la longueur des dates. */
+html{scrollbar-gutter:stable}
+.nav-mois,#v-emp .emp-semaine-nav{display:grid;grid-template-columns:44px minmax(0,1fr) 44px}
+.nav-mois button,#v-emp .emp-nav-mois button{display:grid;place-items:center;width:44px;height:44px;padding:0}
+.nav-mois .lib{min-width:0;text-align:center}
+#v-admin .adm-mois,#v-admin .equipe-periode{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px;width:280px;max-width:100%;flex:none;margin-left:0}
+#v-admin .adm-mois .lib{min-width:0}
+#v-admin .equipe-periode button{width:44px;height:44px;padding:0}
+#v-admin #equipe-periode{grid-column:2;grid-row:1;text-align:center;min-width:0}
+#v-admin #equipe-prev{grid-column:1;grid-row:1}
+#v-admin #equipe-suiv{grid-column:3;grid-row:1}
+#v-admin .equipe-periode{min-height:44px}
+#v-emp #emp-semaine-lib{min-width:0}
+.revue-navigation{min-height:72px}
+.revue-navigation>span{min-width:0}
+/* Garder la fenêtre au même endroit en passant à une journée moins remplie. */
+#voile-pointe .pointe-dialogue{height:90dvh;scrollbar-gutter:stable}
+#voile-jour .modale:has(.revue-navigation){height:92dvh;scrollbar-gutter:stable}
+@media(max-width:540px){#voile-pointe .pointe-dialogue{height:94dvh}}
 </style>
 </head>
 <body>
@@ -4218,10 +4237,14 @@ function installerRevuePointe(d,cible){
  }
 }
 function installerRevueJourManuel(admin){
- $('voile-jour').querySelector('[data-revue-manuelle]')?.remove();
+ $('voile-jour').querySelectorAll('[data-revue-manuelle]').forEach(el=>el.remove());
  if(!admin)return;
- const nav=document.createElement('div');nav.dataset.revueManuelle='';nav.innerHTML=htmlNavigationRevue(MJ.jour)+htmlQuestionJour(MJ.empId,MJ.jour);$('voile-jour').querySelector('.mj-tete').after(nav);
- lierQuestionJour(nav,MJ.empId,MJ.jour);
+ const nav=document.createElement('div');nav.dataset.revueManuelle='';nav.innerHTML=htmlNavigationRevue(MJ.jour);
+ // Placer les flèches avant le titre et les mentions de jours fériés, de hauteur variable.
+ $('voile-jour').querySelector('.mj-tete').before(nav);
+ const question=document.createElement('div');question.dataset.revueManuelle='';question.innerHTML=htmlQuestionJour(MJ.empId,MJ.jour);
+ $('voile-jour').querySelector('.mj-tete').after(question);
+ lierQuestionJour(question,MJ.empId,MJ.jour);
  const initial=()=>JSON.stringify(['mj-md','mj-mf','mj-ad','mj-af','mj-rem','mj-statut-m','mj-statut-a','mj-decision-h','mj-decision-m','mj-decision-motif'].map(id=>$(id).value));
  const etat=initial();nav.querySelectorAll('[data-revue-jour]').forEach(b=>b.onclick=()=>{if(initial()!==etat&&!confirm('Changer de jour sans enregistrer vos modifications ?'))return;const emp=MJ.empId;fermerJour();ouvrirJour(emp,b.dataset.revueJour);});
  $('mj-explication').hidden=true;
