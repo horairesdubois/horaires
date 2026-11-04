@@ -3083,3 +3083,16 @@ Validation : test navigateur `export-jours-valides.mjs` (mois incomplet, totaux,
 Tests : revue mobile, corrections groupées, plusieurs pauses, réessai idempotent après perte réseau, conflit de version, validation totale/partielle et absence de contrôles d’édition pour la comptabilité. Le test mobile employé fixe désormais son horloge au jour des données simulées pour fonctionner indépendamment du mois réel.
 
 Questions : deux régularisations de Steve (29 et 30 octobre) traitées via les fonctions métier et confirmées dans le fil ; une précision demandée à Sami sur le 23 octobre. Aucune validation de journée effectuée automatiquement. Une automation Codex horaire « Traiter les demandes de pointage » poursuit ce travail dans le chat du 2 novembre : corriger les demandes explicites, questionner les ambiguïtés, vérifier les écritures, ne pas envoyer de doublons et laisser les décisions de validation/absence/rémunération au back-office.
+
+## 2026-11-04 — Flèches de navigation stables
+
+Demande : conserver la position des flèches après chaque clic, quelle que soit
+la longueur du mois, de la semaine ou de la journée, sur ordinateur et mobile.
+Les navigations mois/semaine utilisent des colonnes fixes de 44 px et une zone
+centrale indépendante du texte ; les barres du bureau partagent une largeur de
+280 px, limitée à la largeur disponible. Les fenêtres de revue gardent leur
+hauteur. Dans les anciennes journées, les flèches précèdent l’en-tête dont les
+mentions de jours fériés peuvent ajouter des lignes. Aucune donnée modifiée.
+Vérifications : coordonnées des deux boutons après clics répétés, trois rôles,
+320/390/768/1280/1440 px ; revue de journées remplies/vides et jours fériés.
+Aperçus locaux préparés ; publication distante non effectuée à ce stade.
