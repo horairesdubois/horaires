@@ -90,6 +90,14 @@ try{
  }
  await pg.setViewportSize({width:390,height:664});await pg.locator('.pointe-dialogue').evaluate(e=>e.scrollTop=0);await pg.screenshot({path:'work/essais/revue-guidee-mobile.png'});
  await pg.locator('[data-revue-etape="question"]').click();await pg.screenshot({path:'work/essais/revue-question-mobile.png'});
+ await pg.locator('[data-revue-etape="controle"]').click();
+ await pg.locator('[data-ajouter-pause]').click();
+ const heures=pg.locator('.pointe-edition input');
+ await heures.nth(4).fill('10:00:00');
+ await heures.nth(5).fill('10:15:00');
+ await pg.locator('[data-envoyer-correction]').click();
+ await pg.waitForFunction(()=>essai.p.pointe_evenements.length===6);
+ assert.deepEqual(await pg.evaluate(()=>essai.p.pointe_evenements.map(e=>e.at.slice(11,16))),['08:00','10:00','10:15','12:00','13:00','18:30']);
  const tendance=await pg.evaluate(()=>{
   const lignes=Array.from({length:14},(_,i)=>({jour:'2026-10-'+String(i+1).padStart(2,'0'),matin_type:'travail',apm_type:'travail',matin_debut:'08:00',matin_fin:'12:00',apm_debut:'13:00',apm_fin:'18:00',approuve:true,minutes_refusees:30}));
   return htmlTendanceHeures(lignes,'2026-10-01','2026-10-14','2026-10-20');
