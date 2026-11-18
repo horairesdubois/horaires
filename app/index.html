@@ -4179,7 +4179,7 @@ function peindreDialoguePointe() {
  $('pointe-contenu').innerHTML=(saisie?panneauEtapesPointe(d,cible):'')+'<p style="margin:12px 0"><strong>'+fmtMin(jourMin(p))+'</strong> · '+esc(p?libDecisionHeures(p):'Aucun pointage')+'</p>'+
   (admin||saisie?[]:r.evenements).map(e=>'<div class="pointe-ligne"><span>'+esc(POINTE_LIB[e.action])+'</span><strong>'+pointeHeure(e.at,true)+'</strong></div>').join('')+
   r.corrections.map(c=>'<div class="pointe-correction"><strong>Correction '+esc(c.auteur===S.moi.id&&admin&&c.etat==='acceptee'?'enregistrée':{attente:'en attente',acceptee:'acceptée',refusee:'refusée'}[c.etat])+'</strong><p>'+esc(c.motif)+'</p><pre>Avant : '+esc(pointeTexteEvents(c.avant))+'\nDemandé : '+esc(pointeTexteEvents(c.proposition))+'</pre>'+(c.reponse?'<p>Réponse : '+esc(c.reponse)+'</p>':'')+(admin&&c.etat==='attente'?'<label>Réponse / motif du refus<input data-reponse="'+c.id+'" maxlength="500"></label><div class="pointe-actions"><button class="btn" data-accepter="'+c.id+'">Accepter la correction</button><button class="btn sec" data-refuser="'+c.id+'">Refuser</button></div>':'')+'</div>').join('')+
-  (!estCompta() && (admin || (!attente && r.etat==='termine'))?'<button class="btn sec" data-editer-pointe>'+ (admin?'Modifier les heures':'Demander une correction')+'</button><div data-editeur-pointe hidden>'+ (admin?'':'<p class="pointe-avertissement">Toute correction doit être justifiée et validée par le responsable. Les heures originales sont conservées.</p>')+'<div data-lignes-pointe></div>'+(admin?'<button class="js-lien" data-ajouter-pointe>+ Ajouter un pointage</button>':'')+'<label>'+ (admin?'Note (facultative)':'Motif de la correction')+'<textarea data-motif-pointe maxlength="'+(admin?486:500)+'"></textarea></label><button class="btn large" data-envoyer-correction>'+ (admin?'Enregistrer les heures':'Demander la correction')+'</button></div>':'')+
+  (!estCompta() && (admin || (!attente && r.etat==='termine'))?'<button class="btn sec" data-editer-pointe>'+ (admin?'Modifier les heures':'Demander une correction')+'</button><div data-editeur-pointe hidden>'+ (admin?'':'<p class="pointe-avertissement">Toute correction doit être justifiée et validée par le responsable. Les heures originales sont conservées.</p>')+'<div data-lignes-pointe></div>'+(admin?'<button class="js-lien" data-ajouter-pointe>+ Ajouter un pointage</button><button type="button" class="js-lien" data-ajouter-pause>+ Ajouter une pause</button>':'')+'<label>'+ (admin?'Note (facultative)':'Motif de la correction')+'<textarea data-motif-pointe maxlength="'+(admin?486:500)+'"></textarea></label><button class="btn large" data-envoyer-correction>'+ (admin?'Enregistrer les heures':'Demander la correction')+'</button></div>':'')+
   (!admin&&!estCompta()?'<p class="pointe-avertissement">Les pointages doivent être effectués au moment exact. Pour un pointage manquant, adressez une demande au responsable.</p><button class="btn sec" data-demande-responsable>Faire une demande</button>':'')+
   (admin&&p&&r.etat==='termine'&&!attente?htmlDecisionPointe(p):'')+'<p role="status" data-erreur-pointe></p>';
  const contenu=$('pointe-contenu');
@@ -4190,9 +4190,17 @@ function peindreDialoguePointe() {
  contenu.querySelector('[data-demande-responsable]')?.addEventListener('click',()=>ouvrirDemandePointe(d.jour));
  contenu.querySelector('[data-editer-pointe]')?.addEventListener('click',()=>{contenu.querySelector('[data-editeur-pointe]').hidden=false;peindreEditionPointe();});
  contenu.querySelector('[data-ajouter-pointe]')?.addEventListener('click',()=>{lireEditionPointe();d.edition.push({action:d.edition.length?'fin':'debut',heure:''});peindreEditionPointe();});
+ contenu.querySelector('[data-ajouter-pause]')?.addEventListener('click',()=>{
+  lireEditionPointe();
+  const indice=d.edition.length;
+  d.edition.push({action:'pause',heure:''},{action:'reprise',heure:''});
+  peindreEditionPointe();
+  contenu.querySelectorAll('.pointe-edition input')[indice].focus();
+ });
  contenu.querySelector('[data-envoyer-correction]')?.addEventListener('click',async()=>{
   lireEditionPointe();const note=contenu.querySelector('[data-motif-pointe]').value.trim(),motif=admin?(note?'Back-office : '+note:'Modification directe par le back-office'):note;
   if((!admin&&motif.length<5)||!d.edition.length||d.edition.some(e=>!e.heure)){contenu.querySelector('[data-erreur-pointe]').textContent=admin?'Complétez les heures.':'Complétez les heures et le motif (5 caractères minimum).';return;}
+  if(admin)d.edition.sort((a,b)=>a.heure.localeCompare(b.heure));
   const signature=JSON.stringify([d.edition,motif]);if(d.signature!==signature){d.signature=signature;d.requete=crypto.randomUUID();}
   await agirDialoguePointe(admin?'admin_pointage_enregistrer':'pointage_corriger',{p_jour:d.jour,p_employe:d.emp,p_evenements:d.edition,p_motif:motif,p_version:r.version,p_requete:d.requete});
  });
